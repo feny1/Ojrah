@@ -12,6 +12,7 @@ interface Voucher {
   related_driver_id?: number;
   related_car_id?: number;
   description: string;
+  invoice_id?: number;
 }
 
 export default function Vouchers() {
@@ -35,6 +36,24 @@ export default function Vouchers() {
       } catch (error) {
         console.error("Error deleting voucher:", error);
       }
+    }
+  };
+
+  const handleConvertToInvoice = async (id: number) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/vouchers/${id}/convert-to-invoice`, {
+        method: "POST"
+      });
+      if (response.ok) {
+        alert("تم تحويل السند المالي إلى فاتورة ضريبية مبسطة بنجاح!");
+        loadVouchers();
+      } else {
+        const err = await response.json();
+        alert("فشل التحويل: " + (err.error || "خطأ غير معروف"));
+      }
+    } catch (error) {
+      console.error("Error converting voucher:", error);
+      alert("حدث خطأ أثناء الاتصال بالخادم");
     }
   };
 
@@ -88,9 +107,23 @@ export default function Vouchers() {
                         <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm">يدوي</span>
                       )}
                     </td>
-                    <td className="p-4">
-                      <Link to={`/vouchers/print/${v.id}`} className="text-sky-500 hover:underline mx-2 font-bold">طباعة</Link>
-                      <button onClick={() => v.id && handleDelete(v.id)} className="text-red-500 hover:underline mx-2">حذف</button>
+                    <td className="p-4 flex items-center gap-3">
+                      <Link to={`/vouchers/print/${v.id}`} className="text-sky-500 hover:underline font-bold">طباعة</Link>
+                      {v.voucher_type === "سند قبض" && (
+                        v.invoice_id ? (
+                          <Link to={`/invoices/print/${v.invoice_id}`} className="text-amber-600 hover:underline font-bold bg-amber-50 px-2 py-1.5 rounded border border-amber-200 text-xs">
+                            عرض الفاتورة
+                          </Link>
+                        ) : (
+                          <button 
+                            onClick={() => handleConvertToInvoice(v.id)} 
+                            className="text-white bg-emerald-500 hover:bg-emerald-600 px-2.5 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer"
+                          >
+                            تحويل إلى فاتورة
+                          </button>
+                        )
+                      )}
+                      <button onClick={() => v.id && handleDelete(v.id)} className="text-red-500 hover:underline">حذف</button>
                     </td>
                   </tr>
                 ))

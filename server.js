@@ -6,6 +6,9 @@ import { fileURLToPath } from 'url';
 import os from 'os';
 import fs from 'fs';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -16,6 +19,29 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 const dbPath = path.join(dbDir, 'database.sqlite');
+
+// Seed/copy the default database from packaged resources or project root if not present
+if (!fs.existsSync(dbPath)) {
+  let sourceDb = null;
+  const prodPath = path.join(__dirname, '..', 'database.sqlite'); // Extra resource in packaged app
+  const devPath = path.join(__dirname, 'database.sqlite');        // Root folder in development
+  
+  if (fs.existsSync(prodPath)) {
+    sourceDb = prodPath;
+  } else if (fs.existsSync(devPath)) {
+    sourceDb = devPath;
+  }
+  
+  if (sourceDb) {
+    try {
+      fs.copyFileSync(sourceDb, dbPath);
+      console.log(`Database template copied successfully: ${sourceDb} -> ${dbPath}`);
+    } catch (e) {
+      console.error("Failed to copy default database template:", e);
+    }
+  }
+}
+
 const db = new Database(dbPath);
 
 // Initialize DB
@@ -88,6 +114,27 @@ db.exec(`
       notes TEXT,
       FOREIGN KEY(car_id) REFERENCES cars(id)
   );
+  CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_number TEXT NOT NULL UNIQUE,
+      vehicle_id INTEGER,
+      amount REAL NOT NULL,
+      service_type TEXT NOT NULL,
+      invoice_date TEXT NOT NULL,
+      voucher_id INTEGER UNIQUE,
+      driver_id INTEGER,
+      FOREIGN KEY(vehicle_id) REFERENCES cars(id),
+      FOREIGN KEY(voucher_id) REFERENCES vouchers(id),
+      FOREIGN KEY(driver_id) REFERENCES drivers(id)
+  );
+`);
+
+db.exec(`
+  INSERT OR IGNORE INTO settings (key, value) VALUES ('vat_number', '310123456700003');
 `);
 
 // API Endpoints
@@ -103,6 +150,21 @@ app.post('/api/cars', (req, res) => {
   res.json({ message: 'Car added successfully' });
 });
 
+app.put('/api/cars/:id', (req, res) => {
+  try {
+    const c = req.body;
+    const stmt = db.prepare('UPDATE cars SET company = ?, model = ?, year = ?, purchase_date = ?, plate_number = ?, color = ?, purchase_cost = ?, depreciation_method = ? WHERE id = ?');
+    const info = stmt.run(c.company, c.model, c.year, c.purchase_date, c.plate_number, c.color, c.purchase_cost, c.depreciation_method, req.params.id);
+    if (info.changes > 0) {
+      res.json({ message: 'Car updated successfully' });
+    } else {
+      res.status(404).json({ error: 'Car not found' });
+    }
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 app.get('/api/drivers', (req, res) => {
   const drivers = db.prepare('SELECT * FROM drivers').all();
   res.json(drivers);
@@ -114,6 +176,22 @@ app.post('/api/drivers', (req, res) => {
   stmt.run(d.name, d.phone, d.national_id, d.hire_date);
   res.json({ message: 'Driver added successfully' });
 });
+
+app.put('/api/drivers/:id', (req, res) => {
+  try {
+    const d = req.body;
+    const stmt = db.prepare('UPDATE drivers SET name = ?, phone = ?, national_id = ?, hire_date = ? WHERE id = ?');
+    const info = stmt.run(d.name, d.phone, d.national_id, d.hire_date, req.params.id);
+    if (info.changes > 0) {
+      res.json({ message: 'Driver updated successfully' });
+    } else {
+      res.status(404).json({ error: 'Driver not found' });
+    }
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 
 app.post('/api/maintenance', (req, res) => {
   const m = req.body;
@@ -134,7 +212,12 @@ app.post('/api/car_documents', (req, res) => {
 });
 
 app.get('/api/vouchers', (req, res) => {
-  const vouchers = db.prepare('SELECT * FROM vouchers ORDER BY id DESC').all();
+  const vouchers = db.prepare(`
+    SELECT vouchers.*, invoices.id as invoice_id 
+    FROM vouchers 
+    LEFT JOIN invoices ON vouchers.id = invoices.voucher_id 
+    ORDER BY vouchers.id DESC
+  `).all();
   res.json(vouchers);
 });
 
@@ -292,10 +375,15 @@ app.get('/api/drivers/:id', (req, res) => {
     });
     
     // 4. Vouchers
-    const vouchers = db.prepare('SELECT * FROM vouchers WHERE related_driver_id = ?').all(driver.id);
+    const vouchers = db.prepare(`
+      SELECT vouchers.*, invoices.id as invoice_id 
+      FROM vouchers 
+      LEFT JOIN invoices ON vouchers.id = invoices.voucher_id 
+      WHERE vouchers.related_driver_id = ?
+    `).all(driver.id);
     vouchers.forEach(v => {
       if (v.voucher_type === "سند قبض") {
-        statements.push({ id: v.id, date: v.voucher_date, description: v.description, debit: 0, credit: v.amount, category: v.payment_method === 'شبكة' ? 'network' : 'cash' });
+        statements.push({ id: v.id, date: v.voucher_date, description: v.description, debit: 0, credit: v.amount, category: v.payment_method === 'شبكة' ? 'network' : 'cash', invoice_id: v.invoice_id });
         current_week_required -= v.amount;
       } else if (v.voucher_type === "سلفة") {
         statements.push({ id: v.id, date: v.voucher_date, description: v.description, debit: v.amount, credit: 0, category: 'advance' });
@@ -331,8 +419,233 @@ app.get('/api/drivers/:id', (req, res) => {
   res.json({ ...driver, contracts, statements, current_week_required });
 });
 
-app.listen(3001, () => {
+// Settings API
+app.get('/api/settings', (req, res) => {
+  try {
+    const settings = db.prepare('SELECT * FROM settings').all();
+    const result = {};
+    settings.forEach(s => { result[s.key] = s.value; });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/settings', (req, res) => {
+  try {
+    const { vat_number } = req.body;
+    if (!vat_number) return res.status(400).json({ error: 'الرقم الضريبي مطلوب' });
+    const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+    stmt.run('vat_number', vat_number);
+    res.json({ message: 'تم حفظ الإعدادات بنجاح' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Invoices API
+app.get('/api/invoices', (req, res) => {
+  try {
+    const invoices = db.prepare(`
+      SELECT invoices.*, cars.plate_number, cars.company, cars.model, drivers.name as driver_name, vouchers.voucher_number as receipt_number
+      FROM invoices
+      LEFT JOIN cars ON invoices.vehicle_id = cars.id
+      LEFT JOIN drivers ON invoices.driver_id = drivers.id
+      LEFT JOIN vouchers ON invoices.voucher_id = vouchers.id
+      ORDER BY invoices.id DESC
+    `).all();
+    res.json(invoices);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/invoices/:id', (req, res) => {
+  try {
+    const invoice = db.prepare(`
+      SELECT invoices.*, cars.plate_number, cars.company, cars.model, cars.year, cars.color, drivers.name as driver_name, drivers.national_id as driver_national_id, vouchers.voucher_number as receipt_number
+      FROM invoices
+      LEFT JOIN cars ON invoices.vehicle_id = cars.id
+      LEFT JOIN drivers ON invoices.driver_id = drivers.id
+      LEFT JOIN vouchers ON invoices.voucher_id = vouchers.id
+      WHERE invoices.id = ?
+    `).get(req.params.id);
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+    res.json(invoice);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/invoices', (req, res) => {
+  try {
+    const { vehicle_id, amount, service_type, invoice_date, voucher_id, driver_id } = req.body;
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return res.status(400).json({ error: 'المبلغ مطلوب ويجب أن يكون رقماً' });
+    }
+    if (!service_type) {
+      return res.status(400).json({ error: 'نوع الخدمة مطلوب' });
+    }
+    
+    if (voucher_id) {
+      const existing = db.prepare('SELECT id FROM invoices WHERE voucher_id = ?').get(voucher_id);
+      if (existing) {
+        return res.status(400).json({ error: 'هذا السند تم تحويله بالفعل إلى فاتورة' });
+      }
+    }
+    
+    const invoice_number = 'INV-' + Date.now();
+    const date = invoice_date || new Date().toISOString().split('T')[0];
+    
+    const stmt = db.prepare('INSERT INTO invoices (invoice_number, vehicle_id, amount, service_type, invoice_date, voucher_id, driver_id) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    const info = stmt.run(invoice_number, vehicle_id || null, parseFloat(amount), service_type, date, voucher_id || null, driver_id || null);
+    
+    res.json({ id: info.lastInsertRowid, invoice_number });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Convert Voucher to Invoice API
+app.post('/api/vouchers/:id/convert-to-invoice', (req, res) => {
+  try {
+    const voucherId = req.params.id;
+    const voucher = db.prepare('SELECT * FROM vouchers WHERE id = ?').get(voucherId);
+    if (!voucher) {
+      return res.status(404).json({ error: 'السند غير موجود' });
+    }
+    if (voucher.voucher_type !== 'سند قبض') {
+      return res.status(400).json({ error: 'يمكن فقط تحويل سندات القبض إلى فواتير' });
+    }
+    
+    const existing = db.prepare('SELECT id FROM invoices WHERE voucher_id = ?').get(voucherId);
+    if (existing) {
+      return res.status(400).json({ error: 'هذا السند تم تحويله بالفعل إلى فاتورة' });
+    }
+    
+    const invoice_number = 'INV-' + Date.now();
+    const service_type = 'خدمة نقل ركاب بالسيارات الأجرة العامة';
+    
+    const stmt = db.prepare(`
+      INSERT INTO invoices (invoice_number, vehicle_id, amount, service_type, invoice_date, voucher_id, driver_id) 
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    const info = stmt.run(
+      invoice_number, 
+      voucher.related_car_id || null, 
+      voucher.amount, 
+      service_type, 
+      voucher.voucher_date, 
+      voucher.id, 
+      voucher.related_driver_id || null
+    );
+    
+    res.json({ id: info.lastInsertRowid, invoice_number });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Dashboard Summary API
+app.get('/api/dashboard/summary', (req, res) => {
+  try {
+    // 1. Actual Revenue (Sum of collected vouchers: 'سند قبض')
+    const actualResult = db.prepare("SELECT SUM(amount) as total FROM vouchers WHERE voucher_type = 'سند قبض'").get();
+    const actual_revenue = actualResult.total || 0;
+    
+    // 2. Expected Revenue (Contracts weekly requirement + violations + maintenance amount_from_driver + advances)
+    let expected_revenue = 0;
+    
+    // Contract weekly required for latest contracts of all drivers
+    const drivers = db.prepare('SELECT id, name FROM drivers').all();
+    drivers.forEach(d => {
+      const contract = db.prepare('SELECT weekly_required FROM contracts WHERE driver_id = ? ORDER BY id DESC LIMIT 1').get(d.id);
+      if (contract) {
+        expected_revenue += contract.weekly_required;
+      }
+    });
+    
+    // Sum of violations
+    const violationsResult = db.prepare("SELECT SUM(amount) as total FROM violations").get();
+    expected_revenue += (violationsResult.total || 0);
+    
+    // Sum of maintenance amount_from_driver
+    const maintenanceResult = db.prepare("SELECT SUM(amount_from_driver) as total FROM maintenance").get();
+    expected_revenue += (maintenanceResult.total || 0);
+    
+    // Sum of advances/other positive vouchers (excluding payments)
+    const advancesResult = db.prepare("SELECT SUM(amount) as total FROM vouchers WHERE related_driver_id IS NOT NULL AND (voucher_type = 'سلفة' OR (voucher_type != 'سند قبض' AND voucher_type != 'سند تسليم مركبة' AND amount > 0))").get();
+    expected_revenue += (advancesResult.total || 0);
+    
+    // 3. Drivers due table calculation
+    const drivers_due = [];
+    drivers.forEach(d => {
+      // Find latest contract and car
+      const currentContract = db.prepare(`
+        SELECT contracts.*, cars.plate_number, cars.company, cars.model 
+        FROM contracts 
+        JOIN cars ON contracts.car_id = cars.id 
+        WHERE contracts.driver_id = ? 
+        ORDER BY contracts.id DESC LIMIT 1
+      `).get(d.id);
+      
+      if (currentContract) {
+        // Calculate due amount for this driver
+        let driver_due = currentContract.weekly_required;
+        
+        const violations = db.prepare('SELECT amount FROM violations WHERE contract_id = ?').all(currentContract.id);
+        violations.forEach(v => { driver_due += v.amount; });
+        
+        const maintenance = db.prepare('SELECT amount_from_driver, deducted_from_weekly FROM maintenance WHERE car_id = ?').all(currentContract.car_id);
+        maintenance.forEach(m => {
+          driver_due += m.amount_from_driver;
+          driver_due -= m.deducted_from_weekly;
+        });
+        
+        const vouchers = db.prepare('SELECT amount, voucher_type FROM vouchers WHERE related_driver_id = ?').all(d.id);
+        vouchers.forEach(v => {
+          if (v.voucher_type === 'سند قبض') {
+            driver_due -= v.amount;
+          } else if (v.voucher_type === 'سلفة') {
+            driver_due += v.amount;
+          } else if (v.amount > 0) {
+            driver_due += v.amount;
+          }
+        });
+        
+        drivers_due.push({
+          driver_id: d.id,
+          driver_name: d.name,
+          vehicle: `${currentContract.plate_number} - ${currentContract.company} ${currentContract.model}`,
+          car_id: currentContract.car_id,
+          due_amount: driver_due
+        });
+      }
+    });
+    
+    // Sort by due amount descending
+    drivers_due.sort((a, b) => b.due_amount - a.due_amount);
+    
+    res.json({
+      actual_revenue,
+      expected_revenue,
+      drivers_due
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+const server = app.listen(3001, () => {
   console.log('API Server running on port 3001');
+});
+
+server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') {
+    console.log('Port 3001 is already in use. Another instance or dev server is likely running.');
+  } else {
+    console.error('Server error:', e);
+  }
 });
 
 // DELETE Endpoints
@@ -354,7 +667,7 @@ app.listen(3001, () => {
 
 app.delete('/api/clear-all', (req, res) => {
   try {
-    const tables = ['violations', 'maintenance', 'car_documents', 'vouchers', 'contracts', 'drivers', 'cars'];
+    const tables = ['invoices', 'violations', 'maintenance', 'car_documents', 'contracts', 'vouchers', 'drivers', 'cars'];
     const deleteTransaction = db.transaction(() => {
       tables.forEach(table => {
         db.prepare(`DELETE FROM ${table}`).run();
@@ -368,9 +681,6 @@ app.delete('/api/clear-all', (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Serve static assets from Vite's build folder
 app.use(express.static(path.join(__dirname, 'dist')));

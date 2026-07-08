@@ -13,11 +13,59 @@ export default function DriverDetails() {
     description: ''
   });
 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    phone: "",
+    national_id: "",
+    hire_date: "",
+  });
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`http://localhost:3001/api/drivers/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editFormData)
+      });
+      if (response.ok) {
+        alert("تم تحديث بيانات السائق بنجاح!");
+        setShowEditModal(false);
+        loadDriver();
+      } else {
+        const err = await response.json();
+        alert("فشل التحديث: " + (err.error || "خطأ غير معروف"));
+      }
+    } catch (error) {
+      console.error("Error updating driver:", error);
+      alert("حدث خطأ أثناء الاتصال بالخادم");
+    }
+  };
+
   const loadDriver = () => {
     fetch(`http://localhost:3001/api/drivers/${id}`)
       .then(res => res.json())
       .then(data => setDriver(data))
       .catch(err => console.error("Error loading driver:", err));
+  };
+
+  const handleConvertToInvoice = async (voucherId: number) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/vouchers/${voucherId}/convert-to-invoice`, {
+        method: "POST"
+      });
+      if (response.ok) {
+        alert("تم تحويل السند المالي إلى فاتورة ضريبية مبسطة بنجاح!");
+        loadDriver();
+      } else {
+        const err = await response.json();
+        alert("فشل التحويل: " + (err.error || "خطأ غير معروف"));
+      }
+    } catch (error) {
+      console.error("Error converting voucher:", error);
+      alert("حدث خطأ أثناء الاتصال بالخادم");
+    }
   };
 
   useEffect(() => {
@@ -101,6 +149,17 @@ export default function DriverDetails() {
             <p className="text-gray-500 mt-2">بيانات السائق، العقود، وكل الحركات المالية</p>
           </div>
           <div className="space-x-4 space-x-reverse flex">
+            <button onClick={() => {
+              setEditFormData({
+                name: driver.name,
+                phone: driver.phone,
+                national_id: driver.national_id,
+                hire_date: driver.hire_date
+              });
+              setShowEditModal(true);
+            }} className="bg-yellow-600 text-white px-6 py-3 rounded-xl hover:bg-yellow-700 shadow-lg font-bold">
+              تعديل بيانات السائق
+            </button>
             <button onClick={() => window.print()} className="bg-green-600 text-white px-6 py-3 rounded-xl hover:bg-green-700 shadow-lg font-bold">
               طباعة الكشف
             </button>
@@ -203,7 +262,7 @@ export default function DriverDetails() {
                   <th className="p-3 border text-orange-500">صيانة</th>
                   <th className="p-3 border text-red-500">مخالفة</th>
                   <th className="p-3 border">الرصيد المتبقي</th>
-                  <th className="p-3 border">حذف</th>
+                  <th className="p-3 border">الإجراءات</th>
                 </tr>
               </thead>
               <tbody>
@@ -219,7 +278,21 @@ export default function DriverDetails() {
                       <td className="p-3 border font-bold text-orange-500">{s.category === 'maintenance' ? (s.debit || s.credit) : ''}</td>
                       <td className="p-3 border font-bold text-red-500">{s.category === 'violation' ? s.debit : ''}</td>
                       <td className={`p-3 border font-bold ${s.balance > 0 ? 'text-red-500' : 'text-green-500'}`}>{s.balance}</td>
-                      <td className="p-3 border">
+                      <td className="p-3 border flex items-center justify-center gap-2">
+                        {s.id && (s.category === 'cash' || s.category === 'network') && (
+                          s.invoice_id ? (
+                            <Link to={`/invoices/print/${s.invoice_id}`} className="bg-amber-50 hover:bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200 text-xs font-bold transition-all">
+                              عرض الفاتورة
+                            </Link>
+                          ) : (
+                            <button
+                              onClick={() => handleConvertToInvoice(s.id)}
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-0.5 rounded text-xs font-bold transition-all cursor-pointer"
+                            >
+                              تحويل لفاتورة
+                            </button>
+                          )
+                        )}
                         <button onClick={() => s.id && handleDeleteStatement(s.id, s.category)} className="text-red-500 hover:text-red-700 font-bold" title="حذف هذه الحركة">
                           ✕
                         </button>
@@ -392,6 +465,39 @@ export default function DriverDetails() {
           </div>
         </div>
       </div>
+
+      {/* Edit Driver Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:hidden">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 relative" dir="rtl">
+            <h2 className="text-2xl font-bold text-slate-800 mb-6 border-b pb-2">تعديل بيانات السائق</h2>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">الاسم رباعي</label>
+                  <input type="text" required className="border p-3 rounded-lg" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">رقم الجوال</label>
+                  <input type="text" required className="border p-3 rounded-lg" value={editFormData.phone} onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">رقم الهوية الوطنية / الإقامة</label>
+                  <input type="text" required className="border p-3 rounded-lg" value={editFormData.national_id} onChange={(e) => setEditFormData({...editFormData, national_id: e.target.value})} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">تاريخ التعيين</label>
+                  <input type="date" required className="border p-3 rounded-lg text-slate-700" value={editFormData.hire_date} onChange={(e) => setEditFormData({...editFormData, hire_date: e.target.value})} />
+                </div>
+              </div>
+              <div className="flex gap-4 mt-6 border-t pt-4">
+                <button type="submit" className="bg-green-600 text-white px-6 py-3 rounded-xl hover:bg-green-700 font-bold shadow-lg flex-1">حفظ التغييرات</button>
+                <button type="button" onClick={() => setShowEditModal(false)} className="bg-slate-200 text-slate-800 px-6 py-3 rounded-xl hover:bg-slate-300 font-bold flex-1">إلغاء</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

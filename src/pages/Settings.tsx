@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 export default function Settings() {
@@ -6,6 +6,39 @@ export default function Settings() {
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
+  const [vatNumber, setVatNumber] = useState("");
+  const [isSavingVat, setIsSavingVat] = useState(false);
+
+  useEffect(() => {
+    fetch("http://localhost:3001/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data.vat_number) setVatNumber(data.vat_number);
+      })
+      .catch(err => console.error("Error fetching settings:", err));
+  }, []);
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingVat(true);
+    try {
+      const response = await fetch("http://localhost:3001/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vat_number: vatNumber })
+      });
+      if (response.ok) {
+        alert("تم حفظ الإعدادات بنجاح!");
+      } else {
+        alert("فشل حفظ الإعدادات");
+      }
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      alert("حدث خطأ أثناء الاتصال بالخادم");
+    } finally {
+      setIsSavingVat(false);
+    }
+  };
 
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
@@ -35,6 +68,29 @@ export default function Settings() {
         <Link to="/" className="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
           العودة للرئيسية
         </Link>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 border-r-4 border-r-sky-500" dir="rtl">
+        <h2 className="text-2xl font-bold text-slate-800 mb-4">إعدادات المؤسسة والفواتير</h2>
+        <form onSubmit={handleSaveSettings} className="space-y-4 max-w-lg">
+          <div>
+            <label className="block text-sm font-bold text-slate-600 mb-2">الرقم الضريبي للمؤسسة (VAT Registration Number):</label>
+            <input
+              type="text"
+              value={vatNumber}
+              onChange={(e) => setVatNumber(e.target.value)}
+              placeholder="مثال: 310123456700003"
+              className="w-full border border-slate-200 rounded-xl p-3 font-mono font-bold text-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isSavingVat}
+            className="bg-sky-500 hover:bg-sky-600 disabled:bg-slate-100 disabled:text-slate-400 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md cursor-pointer"
+          >
+            {isSavingVat ? "جاري الحفظ..." : "حفظ الإعدادات"}
+          </button>
+        </form>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-8 border-r-4 border-r-red-500">

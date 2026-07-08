@@ -1,7 +1,7 @@
 {
   "name": "tauri-app",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "main.cjs",
   "scripts": {
@@ -37,11 +37,13 @@
   "build": {
     "appId": "com.ojrah.app",
     "productName": "Ojrah",
-    "asar": false,
+    "asar": true,
+    "npmRebuild": false,
     "files": [
       "main.cjs",
       "server.js",
-      "dist/**/*",
+      "dist/index.html",
+      "dist/assets/**/*",
       "package.json"
     ],
     "extraResources": [

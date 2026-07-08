@@ -7,6 +7,17 @@ export default function CarDetails() {
   const [depreciationRate, setDepreciationRate] = useState(15); // Default 15%
   const [targetMileage, setTargetMileage] = useState(250000); // Default 250,000 km
   const [currentMileage, setCurrentMileage] = useState(0);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    company: "",
+    model: "",
+    year: new Date().getFullYear(),
+    purchase_date: "",
+    plate_number: "",
+    color: "",
+    purchase_cost: 0,
+    depreciation_method: "سنوات",
+  });
   
   const [docFormData, setDocFormData] = useState({
     document_type: "",
@@ -14,6 +25,28 @@ export default function CarDetails() {
     expiry_date: "",
     notes: ""
   });
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`http://localhost:3001/api/cars/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editFormData)
+      });
+      if (response.ok) {
+        alert("تم تحديث بيانات المركبة بنجاح!");
+        setShowEditModal(false);
+        loadCar();
+      } else {
+        const err = await response.json();
+        alert("فشل التحديث: " + (err.error || "خطأ غير معروف"));
+      }
+    } catch (error) {
+      console.error("Error updating car:", error);
+      alert("حدث خطأ أثناء الاتصال بالخادم");
+    }
+  };
 
   const loadCar = () => {
     fetch(`http://localhost:3001/api/cars/${id}`)
@@ -160,6 +193,21 @@ export default function CarDetails() {
             <p className="text-gray-500 mt-2">بيانات المركبة، السائقين، ونسبة التغطية وجدول السندات الزمني</p>
           </div>
           <div className="space-x-4 space-x-reverse flex">
+            <button onClick={() => {
+              setEditFormData({
+                company: car.company,
+                model: car.model,
+                year: car.year,
+                purchase_date: car.purchase_date,
+                plate_number: car.plate_number,
+                color: car.color,
+                purchase_cost: car.purchase_cost,
+                depreciation_method: car.depreciation_method
+              });
+              setShowEditModal(true);
+            }} className="bg-yellow-600 text-white px-6 py-3 rounded-xl hover:bg-yellow-700 shadow-lg font-bold">
+              تعديل بيانات المركبة
+            </button>
             <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 shadow-lg">
               طباعة التقرير
             </button>
@@ -595,6 +643,58 @@ export default function CarDetails() {
           </div>
         </div>
       </div>
+
+      {/* Edit Car Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:hidden">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative" dir="rtl">
+            <h2 className="text-2xl font-bold text-slate-800 mb-6 border-b pb-2">تعديل بيانات المركبة</h2>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">الشركة المصنعة</label>
+                  <input type="text" required className="border p-3 rounded-lg" value={editFormData.company} onChange={(e) => setEditFormData({...editFormData, company: e.target.value})} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">الموديل</label>
+                  <input type="text" required className="border p-3 rounded-lg" value={editFormData.model} onChange={(e) => setEditFormData({...editFormData, model: e.target.value})} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">سنة الصنع</label>
+                  <input type="number" required className="border p-3 rounded-lg" value={editFormData.year} onChange={(e) => setEditFormData({...editFormData, year: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">تاريخ الشراء</label>
+                  <input type="date" required className="border p-3 rounded-lg text-slate-700" value={editFormData.purchase_date} onChange={(e) => setEditFormData({...editFormData, purchase_date: e.target.value})} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">رقم اللوحة</label>
+                  <input type="text" required className="border p-3 rounded-lg" value={editFormData.plate_number} onChange={(e) => setEditFormData({...editFormData, plate_number: e.target.value})} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">اللون</label>
+                  <input type="text" required className="border p-3 rounded-lg" value={editFormData.color} onChange={(e) => setEditFormData({...editFormData, color: e.target.value})} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">تكلفة الشراء (ريال)</label>
+                  <input type="number" required className="border p-3 rounded-lg" value={editFormData.purchase_cost} onChange={(e) => setEditFormData({...editFormData, purchase_cost: parseFloat(e.target.value) || 0})} />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-slate-700 mb-1">طريقة الإهلاك</label>
+                  <select className="border p-3 rounded-lg bg-white" value={editFormData.depreciation_method} onChange={(e) => setEditFormData({...editFormData, depreciation_method: e.target.value})}>
+                    <option value="سنوات">سنوات</option>
+                    <option value="كيلومترات">كيلومترات</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-4 mt-6 border-t pt-4">
+                <button type="submit" className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 font-bold shadow-lg flex-1">حفظ التغييرات</button>
+                <button type="button" onClick={() => setShowEditModal(false)} className="bg-slate-200 text-slate-800 px-6 py-3 rounded-xl hover:bg-slate-300 font-bold flex-1">إلغاء</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

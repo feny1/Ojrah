@@ -8,8 +8,18 @@ let mainWindow = null;
 // Start the Express server
 try {
   serverProcess = fork(path.join(__dirname, 'server.js'), [], {
-    env: { ...process.env, NODE_ENV: 'production' }
+    env: { ...process.env, NODE_ENV: 'production' },
+    stdio: 'inherit'
   });
+  
+  if (serverProcess) {
+    serverProcess.on('error', (err) => {
+      console.error("Express server process error:", err);
+    });
+    serverProcess.on('exit', (code, signal) => {
+      console.error(`Express server process exited with code ${code} and signal ${signal}`);
+    });
+  }
 } catch (e) {
   console.error("Failed to start Express server process:", e);
 }

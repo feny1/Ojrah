@@ -12,6 +12,8 @@ import Vouchers from "./pages/Vouchers";
 import VoucherPrint from "./pages/VoucherPrint";
 import DriverVouchersPrint from "./pages/DriverVouchersPrint";
 import Settings from "./pages/Settings";
+import Invoices from "./pages/Invoices";
+import InvoicePrint from "./pages/InvoicePrint";
 import "./App.css";
 
 function App() {
@@ -32,6 +34,8 @@ function App() {
           <Route path="/vouchers/print/:id" element={<VoucherPrint />} />
           <Route path="/summary" element={<Summary />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/invoices" element={<Invoices />} />
+          <Route path="/invoices/print/:id" element={<InvoicePrint />} />
         </Routes>
       </div>
     </BrowserRouter>
