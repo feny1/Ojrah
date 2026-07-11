@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>المخالفات</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-8 max-w-6xl mx-auto space-y-8 mt-10">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold text-orange-500">المخالفات</h1>
+        <p class="text-gray-500 mt-2">تسجيل ومتابعة مخالفات المركبات والعقود</p>
+      </div>
+      <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
+        العودة للرئيسية
+      </a>
+    </div>
+
+    <!-- Actions / Add Button -->
+    <div class="flex justify-between items-center mb-6">
+      <div></div>
+      <button id="show-form-btn" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600">تسجيل مخالفة جديدة</button>
+    </div>
+
+    <!-- Add Form (hidden by default) -->
+    <div id="add-violation-form" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8 hidden">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">تسجيل مخالفة جديدة</h2>
+      <form id="violation-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">اختر العقد (اللوحة | السائق)</label>
+            <select id="contract_id" required class="w-full border p-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+              <option value="">-- اختر العقد (اللوحة | السائق) --</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">قيمة المخالفة</label>
+            <input type="number" step="0.01" required id="amount" placeholder="قيمة المخالفة" class="w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">تاريخ المخالفة</label>
+            <input type="date" required id="violation_date" class="w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">سبب المخالفة / تفاصيل</label>
+            <input type="text" required id="reason" placeholder="سبب المخالفة" class="w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+          </div>
+        </div>
+        <div class="flex gap-4 mt-6">
+          <button type="submit" class="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600">حفظ المخالفة</button>
+          <button type="button" id="cancel-form-btn" class="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Violations List -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">قائمة المخالفات</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right">
+          <thead class="bg-slate-50 text-slate-600">
+            <tr>
+              <th class="p-4 rounded-tr-lg">رقم العقد</th>
+              <th class="p-4">تاريخ المخالفة</th>
+              <th class="p-4">قيمة المخالفة</th>
+              <th class="p-4">سبب المخالفة</th>
+              <th class="p-4 rounded-tl-lg">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="violations-table-body">
+            <tr><td colSpan="5" class="text-center p-4 text-gray-500">جاري تحميل البيانات...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_VIOLATIONS = "/api/violations";
+    const API_CONTRACTS = "/api/contracts";
+
+    const showFormBtn = document.getElementById("show-form-btn");
+    const cancelFormBtn = document.getElementById("cancel-form-btn");
+    const addViolationForm = document.getElementById("add-violation-form");
+    const violationForm = document.getElementById("violation-form");
+    const tableBody = document.getElementById("violations-table-body");
+    const contractSelect = document.getElementById("contract_id");
+
+    // Set default date
+    document.getElementById("violation_date").value = new Date().toISOString().split("T")[0];
+
+    showFormBtn.addEventListener("click", () => {
+      addViolationForm.classList.remove("hidden");
+      showFormBtn.classList.add("hidden");
+    });
+
+    cancelFormBtn.addEventListener("click", () => {
+      addViolationForm.classList.add("hidden");
+      showFormBtn.classList.remove("hidden");
+      violationForm.reset();
+      document.getElementById("violation_date").value = new Date().toISOString().split("T")[0];
+    });
+
+    async function loadData() {
+      try {
+        // Load contracts
+        const contractsRes = await fetch(API_CONTRACTS);
+        const contracts = await contractsRes.json();
+        contractSelect.innerHTML = `<option value="">-- اختر العقد (اللوحة | السائق) --</option>` +
+          contracts.map(c => `<option value="${c.id}">${c.plate_number} | ${c.driver_name}</option>`).join('');
+
+        // Load violations
+        const violationsRes = await fetch(API_VIOLATIONS);
+        const violations = await violationsRes.json();
+
+        if (violations.length === 0) {
+          tableBody.innerHTML = `<tr><td colSpan="5" class="text-center p-4 text-gray-500">لا توجد مخالفات مسجلة</td></tr>`;
+          return;
+        }
+
+        tableBody.innerHTML = violations.map(v => `
+          <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="p-4 font-bold">${v.contract_id}</td>
+            <td class="p-4">${v.violation_date}</td>
+            <td class="p-4 text-orange-500 font-bold">${v.amount} ريال</td>
+            <td class="p-4">${v.reason}</td>
+            <td class="p-4">
+              <button onclick="deleteViolation(${v.id})" class="text-red-500 hover:underline mx-2">حذف</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (error) {
+        console.error("Error loading data:", error);
+        tableBody.innerHTML = `<tr><td colSpan="5" class="text-center p-4 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
+      }
+    }
+
+    async function deleteViolation(id) {
+      if (confirm("هل أنت متأكد من حذف هذه المخالفة؟")) {
+        try {
+          const res = await fetch(`${API_VIOLATIONS}/${id}`, { method: "DELETE" });
+          if (res.ok) {
+            loadData();
+          } else {
+            alert("فشل الحذف");
+          }
+        } catch (error) {
+          console.error("Error deleting violation:", error);
+          alert("حدث خطأ أثناء الحذف");
+        }
+      }
+    }
+
+    violationForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const data = {
+        contract_id: parseInt(contractSelect.value),
+        amount: parseFloat(document.getElementById("amount").value),
+        violation_date: document.getElementById("violation_date").value,
+        reason: document.getElementById("reason").value
+      };
+
+      try {
+        const response = await fetch(API_VIOLATIONS, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          alert("تم تسجيل المخالفة بنجاح");
+          addViolationForm.classList.add("hidden");
+          showFormBtn.classList.remove("hidden");
+          violationForm.reset();
+          document.getElementById("violation_date").value = new Date().toISOString().split("T")[0];
+          loadData();
+        } else {
+          const err = await response.json();
+          alert("فشل الحفظ: " + (err.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error creating violation:", error);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      }
+    });
+
+    // Initial Load
+    loadData();
+  </script>
+</body>
+</html>

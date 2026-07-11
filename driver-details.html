@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>كشف حساب السائق الشامل</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <!-- Screen Layout (Hidden during printing) -->
+  <div class="p-8 max-w-5xl mx-auto space-y-8 mt-10 print:hidden" id="screen-layout">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold text-green-500">كشف حساب السائق الشامل</h1>
+        <p class="text-gray-500 mt-2">بيانات السائق، العقود، وكل الحركات المالية</p>
+      </div>
+      <div class="space-x-4 space-x-reverse flex">
+        <button id="open-edit-btn" class="bg-yellow-600 text-white px-6 py-3 rounded-xl hover:bg-yellow-700 shadow-lg font-bold">
+          تعديل بيانات السائق
+        </button>
+        <button onclick="window.print()" class="bg-green-600 text-white px-6 py-3 rounded-xl hover:bg-green-700 shadow-lg font-bold">
+          طباعة الكشف
+        </button>
+        <a id="print-all-vouchers-btn" href="#" class="bg-sky-600 text-white px-6 py-3 rounded-xl hover:bg-sky-700 shadow-lg font-bold">
+          طباعة كافة السندات (A4)
+        </a>
+        <a href="drivers.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
+          العودة
+        </a>
+      </div>
+    </div>
+
+    <!-- Basic & Contract Info -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <h2 class="text-xl font-bold text-green-600 mb-4 border-b pb-2">بيانات السائق الأساسية</h2>
+        <ul class="space-y-3 text-slate-700" id="driver-basic-info">
+          <li><span class="text-gray-500 w-24 inline-block">الاسم:</span> <span class="font-bold">--</span></li>
+          <li><span class="text-gray-500 w-24 inline-block">رقم الجوال:</span> --</li>
+          <li><span class="text-gray-500 w-24 inline-block">الهوية/الإقامة:</span> --</li>
+          <li><span class="text-gray-500 w-24 inline-block">تاريخ التعيين:</span> --</li>
+        </ul>
+      </div>
+      
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <h2 class="text-xl font-bold text-blue-500 mb-4 border-b pb-2">العقد الحالي</h2>
+        <ul class="space-y-3 text-slate-700" id="driver-contract-info">
+          <li class="text-gray-500 italic">لا يوجد عقد نشط حالياً</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Add Financial Op Form -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">تسجيل عملية مالية (سداد / سلفة)</h2>
+      <form id="financial-form" class="bg-slate-50 p-6 rounded-xl border border-slate-100 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <select id="fin-type" class="border p-3 rounded-lg bg-white font-bold focus:outline-none focus:ring-2 focus:ring-green-500">
+            <option value="سند قبض" class="text-green-600">سند قبض (دفعة من السائق)</option>
+            <option value="سلفة" class="text-purple-600">سند صرف (سلفة للسائق)</option>
+          </select>
+          
+          <div id="payment-method-container" class="contents">
+            <select id="fin-payment-method" class="border p-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+              <option value="كاش">كاش</option>
+              <option value="شبكة">شبكة</option>
+            </select>
+          </div>
+          
+          <input type="number" step="0.01" required id="fin-amount" placeholder="المبلغ" class="border p-3 rounded-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-green-500">
+          <input type="text" id="fin-desc" placeholder="البيان / ملاحظات" class="border p-3 rounded-lg md:col-span-2 focus:outline-none focus:ring-2 focus:ring-green-500">
+        </div>
+        
+        <div class="flex justify-between items-center mt-4">
+          <input type="date" required id="fin-date" class="border p-3 rounded-lg text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500">
+          <button type="submit" id="submit-fin-btn" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg">
+            تسجيل سند قبض +
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Ledger Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h2 class="text-xl font-bold text-slate-800 mb-6">كشف الحساب المالي (مدين / دائن)</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead class="bg-slate-50 text-slate-600">
+            <tr>
+              <th class="p-3 border">التاريخ</th>
+              <th class="p-3 border">البيان</th>
+              <th class="p-3 border text-slate-700">مطلوب للعقد</th>
+              <th class="p-3 border text-purple-500">سلفة</th>
+              <th class="p-3 border text-green-500">كاش</th>
+              <th class="p-3 border text-green-500">شبكة</th>
+              <th class="p-3 border text-orange-500">صيانة</th>
+              <th class="p-3 border text-red-500">مخالفة</th>
+              <th class="p-3 border">الرصيد المتبقي</th>
+              <th class="p-3 border">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="ledger-table-body">
+            <tr><td colSpan="10" class="text-center p-4 text-gray-500">جاري تحميل البيانات...</td></tr>
+          </tbody>
+          <tfoot id="ledger-table-foot" class="bg-slate-100 font-black text-lg border-t-4 border-slate-300 hidden">
+            <!-- Populated Dynamically -->
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formal Print Report Section (Visible only when printing) -->
+  <div class="hidden print:block" id="print-layout" dir="rtl" style="font-family: 'Cairo', sans-serif; width: 210mm; height: 297mm; margin: 0 auto; padding: 12mm 14mm; background: white; color: #000; line-height: 1.5; box-sizing: border-box;">
+    <div style="border: 3px solid #000; height: 100%; padding: 10px 14px; display: flex; flexDirection: column; boxSizing: border-box;">
+      <div style="border: 1px solid #000; flex: 1; padding: 8px 12px; display: flex; flexDirection: column; boxSizing: border-box;">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; alignItems: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
+          <div>
+            <div style="font-size: 16px; font-weight: 900;">مؤسسة أجرة لتقنية المعلومات</div>
+            <div style="font-size: 10px; color: #444;">إدارة أسطول المركبات — المملكة العربية السعودية</div>
+          </div>
+          <div style="border: 2px solid #000; padding: 4px 16px; font-size: 18px; font-weight: 900; letter-spacing: 1px;">كشف حساب سائق رسمي</div>
+        </div>
+
+        <!-- Meta -->
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 11px;">
+          <div><b>تاريخ كشف الحساب:</b> <span id="print-date">--</span></div>
+          <div><b>الحالة المالية للرصيد:</b> <span id="print-status-val" style="border-bottom: 1px solid #000; padding-bottom: 1px; font-weight: bold;">--</span></div>
+        </div>
+
+        <!-- Section 1 -->
+        <div style="border: 1px solid #000; padding: 8px 12px; margin-bottom: 10px;">
+          <div style="font-weight: 900; font-size: 12px; border-bottom: 1px solid #000; margin-bottom: 8px; padding-bottom: 2px;">أولاً: بيانات السائق الأساسية</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px;" id="print-driver-details">
+            <!-- Loaded Dynamically -->
+          </div>
+        </div>
+
+        <!-- Section 2 -->
+        <div style="border: 1px solid #000; padding: 8px 12px; margin-bottom: 10px;">
+          <div style="font-weight: 900; font-size: 12px; border-bottom: 1px solid #000; margin-bottom: 8px; padding-bottom: 2px;">ثانياً: بيانات العقد والتشغيل النشط</div>
+          <div id="print-contract-details" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px;">
+            <!-- Loaded Dynamically -->
+          </div>
+        </div>
+
+        <!-- Section 3 -->
+        <div style="border: 1px solid #000; padding: 8px 12px; margin-bottom: 10px;">
+          <div style="font-weight: 900; font-size: 12px; border-bottom: 1px solid #000; margin-bottom: 8px; padding-bottom: 2px;">ثالثاً: ملخص الذمم والمدفوعات الإجمالي</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px 12px;" id="print-totals-summary">
+            <!-- Loaded Dynamically -->
+          </div>
+          <div style="border-top: 1px solid #000; margin-top: 8px; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 900; font-size: 12px;">الرصيد المتبقي الكلي المطالب به السائق حالياً:</span>
+            <span id="print-due-amount" style="font-weight: 950; font-size: 16px; border-bottom: 2px solid #000; padding-bottom: 1px;">-- ريال سعودي</span>
+          </div>
+        </div>
+
+        <!-- Section 4 -->
+        <div style="border: 1px solid #000; padding: 6px 8px; display: flex; flex-direction: column; flex: 1; margin-bottom: 10px;">
+          <div style="font-weight: 900; font-size: 11px; border-bottom: 1px solid #000; margin-bottom: 6px; padding-bottom: 2px;">رابعاً: كشف العمليات المالي المفصل (العمليات الأخيرة)</div>
+          <table style="width: 100%; font-size: 9px; text-align: right; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 1px solid #000; font-weight: bold;">
+                <th style="padding-bottom: 4px;">التاريخ</th>
+                <th style="padding-bottom: 4px;">البيان</th>
+                <th style="padding-bottom: 4px; text-align: center;">مطلب عقد</th>
+                <th style="padding-bottom: 4px; text-align: center;">سلفة</th>
+                <th style="padding-bottom: 4px; text-align: center;">سداد (كاش/شبكة)</th>
+                <th style="padding-bottom: 4px; text-align: center;">صيانة/مخالفة</th>
+                <th style="padding-bottom: 4px; text-align: center;">الرصيد الجاري</th>
+              </tr>
+            </thead>
+            <tbody id="print-ledger-body">
+              <!-- Loaded Dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Signatures -->
+        <div style="display: flex; justify-content: space-between; gap: 20px; margin-top: auto; padding-top: 10px;">
+          <div style="flex: 1; text-align: center;">
+            <div style="font-weight: 700; font-size: 11px;">توقيع السائق المستعلم</div>
+            <div style="border-bottom: 1px solid #000; margin-top: 24px; margin-bottom: 2px;"></div>
+            <div style="font-size: 10px; color: #666;">التوقيع والختم</div>
+          </div>
+          <div style="flex: 1; text-align: center;">
+            <div style="font-weight: 700; font-size: 11px;">المحاسب المسؤول</div>
+            <div style="border-bottom: 1px solid #000; margin-top: 24px; margin-bottom: 2px;"></div>
+            <div style="font-size: 10px; color: #666;">التوقيع والختم</div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="border-top: 1px solid #ccc; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 9px; color: #666;">
+          <span>هذه الوثيقة تعتبر كشف حساب رسمي معتمد وصادر إلكترونياً</span>
+          <span id="print-footer-copyright">أجرة © 2026</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="edit-modal" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 relative">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b pb-2">تعديل بيانات السائق</h2>
+      <form id="edit-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">الاسم رباعي</label>
+            <input type="text" id="edit-name" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">رقم الجوال</label>
+            <input type="text" id="edit-phone" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">رقم الهوية الوطنية / الإقامة</label>
+            <input type="text" id="edit-national_id" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">تاريخ التعيين</label>
+            <input type="date" id="edit-hire_date" required class="border p-3 rounded-lg text-slate-700 focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+        <div class="flex gap-4 mt-6 border-t pt-4">
+          <button type="submit" class="bg-green-600 text-white px-6 py-3 rounded-xl hover:bg-green-700 font-bold shadow-lg flex-1">حفظ التغييرات</button>
+          <button type="button" id="close-edit-btn" class="bg-slate-200 text-slate-800 px-6 py-3 rounded-xl hover:bg-slate-300 font-bold flex-1">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const driverId = urlParams.get("id");
+
+    if (!driverId) {
+      alert("السائق غير محدد");
+      window.location.href = "drivers.html";
+    }
+
+    let driver = null;
+
+    const openEditBtn = document.getElementById("open-edit-btn");
+    const closeEditBtn = document.getElementById("close-edit-btn");
+    const editModal = document.getElementById("edit-modal");
+    const editForm = document.getElementById("edit-form");
+    const financialForm = document.getElementById("financial-form");
+    const finType = document.getElementById("fin-type");
+    const paymentMethodContainer = document.getElementById("payment-method-container");
+    const submitFinBtn = document.getElementById("submit-fin-btn");
+    
+    // Set default financial date
+    document.getElementById("fin-date").value = new Date().toISOString().split("T")[0];
+
+    // Dynamic voucher inputs
+    finType.addEventListener("change", () => {
+      if (finType.value === "سند قبض") {
+        paymentMethodContainer.innerHTML = `
+          <select id="fin-payment-method" class="border p-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+            <option value="كاش">كاش</option>
+            <option value="شبكة">شبكة</option>
+          </select>
+        `;
+        submitFinBtn.textContent = "تسجيل سند قبض +";
+        submitFinBtn.className = "bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg";
+      } else {
+        paymentMethodContainer.innerHTML = `
+          <div class="border p-3 rounded-lg bg-gray-100 text-gray-500 text-center font-bold flex items-center justify-center">كاش/تحويل</div>
+        `;
+        submitFinBtn.textContent = "تسجيل سند صرف +";
+        submitFinBtn.className = "bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg";
+      }
+    });
+
+    // Populate print dates
+    document.getElementById("print-date").textContent = new Date().toLocaleDateString('ar-SA');
+    document.getElementById("print-footer-copyright").textContent = `أجرة © ${new Date().getFullYear()}`;
+
+    // Edit Driver button triggers
+    openEditBtn.addEventListener("click", () => {
+      if (!driver) return;
+      document.getElementById("edit-name").value = driver.name;
+      document.getElementById("edit-phone").value = driver.phone;
+      document.getElementById("edit-national_id").value = driver.national_id;
+      document.getElementById("edit-hire_date").value = driver.hire_date;
+      editModal.classList.remove("hidden");
+    });
+
+    closeEditBtn.addEventListener("click", () => {
+      editModal.classList.add("hidden");
+    });
+
+    function getFR(lbl, val) {
+      return `
+        <div style="display: flex; align-items: baseline; gap: 6px; font-size: 11px;">
+          <span style="font-weight: 700; white-space: nowrap; min-width: 120px; font-size: 10px; color: #333;">${lbl}:</span>
+          <span style="border-bottom: 1px dashed #000; flex: 1; font-weight: 700; padding-bottom: 1px; text-align: center;">
+            ${val || "___________"}
+          </span>
+        </div>
+      `;
+    }
+
+    async function loadDriver() {
+      try {
+        const response = await fetch(`/api/drivers/${driverId}`);
+        driver = await response.json();
+
+        // Print links
+        document.getElementById("print-all-vouchers-btn").href = `/driver-vouchers-print?id=${driver.id}`;
+
+        // Basic Info
+        document.getElementById("driver-basic-info").innerHTML = `
+          <li><span class="text-gray-500 w-24 inline-block">الاسم:</span> <span class="font-bold text-slate-900">${driver.name}</span></li>
+          <li><span class="text-gray-500 w-24 inline-block">رقم الجوال:</span> ${driver.phone}</li>
+          <li><span class="text-gray-500 w-24 inline-block">الهوية/الإقامة:</span> ${driver.national_id}</li>
+          <li><span class="text-gray-500 w-24 inline-block">تاريخ التعيين:</span> ${driver.hire_date}</li>
+        `;
+
+        // Contract Info
+        const contractInfo = document.getElementById("driver-contract-info");
+        if (driver.contracts && driver.contracts.length > 0) {
+          const lastContract = driver.contracts[driver.contracts.length - 1];
+          contractInfo.innerHTML = `
+            <li><span class="text-gray-500 w-28 inline-block">المركبة الحالية:</span> المركبة #${lastContract.car_id}</li>
+            <li><span class="text-gray-500 w-28 inline-block">تاريخ الاستلام:</span> ${lastContract.start_date}</li>
+            <li><span class="text-gray-500 w-28 inline-block">قيمة العقد الأسبوعية:</span> ${lastContract.weekly_required} ريال</li>
+            <li><span class="text-gray-500 w-28 inline-block">إجمالي المطلوب:</span> ${lastContract.total_required} ريال</li>
+            <li class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+              <span class="font-bold text-lg text-slate-800">المطلوب سداده الآن:</span>
+              <span class="text-2xl font-black px-4 py-2 rounded-lg ${driver.current_week_required > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
+                ${driver.current_week_required} ريال
+              </span>
+            </li>
+          `;
+        } else {
+          contractInfo.innerHTML = `<li class="text-gray-500 italic">لا يوجد عقد نشط حالياً</li>`;
+        }
+
+        // Financial summary totals
+        let totalContract = 0, totalAdvance = 0, totalCash = 0, totalNetwork = 0, totalMaintenance = 0, totalViolation = 0;
+        if (driver.statements) {
+          driver.statements.forEach(s => {
+            if (s.category === 'contract') totalContract += s.debit || 0;
+            if (s.category === 'advance') totalAdvance += s.debit || 0;
+            if (s.category === 'cash') totalCash += (s.credit || s.debit) || 0;
+            if (s.category === 'network') totalNetwork += (s.credit || s.debit) || 0;
+            if (s.category === 'maintenance') totalMaintenance += (s.debit || s.credit) || 0;
+            if (s.category === 'violation') totalViolation += s.debit || 0;
+          });
+        }
+
+        // Populate Table Body
+        const ledgerBody = document.getElementById("ledger-table-body");
+        if (driver.statements && driver.statements.length > 0) {
+          ledgerBody.innerHTML = driver.statements.map(s => `
+            <tr class="hover:bg-slate-50 text-center">
+              <td class="p-3 border text-right">${s.date}</td>
+              <td class="p-3 border text-right">${s.description}</td>
+              <td class="p-3 border font-bold text-slate-700">${s.category === 'contract' ? s.debit : ''}</td>
+              <td class="p-3 border font-bold text-purple-500">${s.category === 'advance' ? s.debit : ''}</td>
+              <td class="p-3 border font-bold text-green-500">${s.category === 'cash' ? (s.credit || s.debit) : ''}</td>
+              <td class="p-3 border font-bold text-green-500">${s.category === 'network' ? (s.credit || s.debit) : ''}</td>
+              <td class="p-3 border font-bold text-orange-500">${s.category === 'maintenance' ? (s.debit || s.credit) : ''}</td>
+              <td class="p-3 border font-bold text-red-500">${s.category === 'violation' ? s.debit : ''}</td>
+              <td class="p-3 border font-bold ${s.balance > 0 ? 'text-red-500' : 'text-green-500'}">${s.balance}</td>
+              <td class="p-3 border flex items-center justify-center gap-2">
+                ${s.id && (s.category === 'cash' || s.category === 'network') ? `
+                  ${s.invoice_id ? `
+                    <a href="invoice-print.html?id=${s.invoice_id}" class="bg-amber-50 hover:bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200 text-xs font-bold transition-all">
+                      عرض الفاتورة
+                    </a>
+                  ` : `
+                    <button onclick="convertToInvoice(${s.id})" class="bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-0.5 rounded text-xs font-bold transition-all cursor-pointer">
+                      تحويل لفاتورة
+                    </button>
+                  `}
+                  <a href="voucher-print.html?id=${s.id}" class="bg-sky-50 hover:bg-sky-100 text-sky-700 px-2 py-0.5 rounded border border-sky-200 text-xs font-bold transition-all">
+                    سند A4
+                  </a>
+                ` : ''}
+                <button onclick="deleteStatement(${s.id}, '${s.category}')" class="text-red-500 hover:text-red-700 font-bold" title="حذف هذه الحركة">
+                  ✕
+                </button>
+              </td>
+            </tr>
+          `).join('');
+
+          // Table Foot
+          const ledgerFoot = document.getElementById("ledger-table-foot");
+          ledgerFoot.classList.remove("hidden");
+          ledgerFoot.innerHTML = `
+            <tr class="text-center">
+              <td class="p-4 border text-left font-black" colSpan="2">الإجمالي العام</td>
+              <td class="p-4 border text-slate-800">${totalContract > 0 ? totalContract : ''}</td>
+              <td class="p-4 border text-purple-700">${totalAdvance > 0 ? totalAdvance : ''}</td>
+              <td class="p-4 border text-green-700">${totalCash > 0 ? totalCash : ''}</td>
+              <td class="p-4 border text-green-700">${totalNetwork > 0 ? totalNetwork : ''}</td>
+              <td class="p-4 border text-orange-600">${totalMaintenance > 0 ? totalMaintenance : ''}</td>
+              <td class="p-4 border text-red-600">${totalViolation > 0 ? totalViolation : ''}</td>
+              <td class="p-4 border text-gray-500 text-sm">--</td>
+              <td class="p-4 border text-gray-500 text-sm">--</td>
+            </tr>
+          `;
+        } else {
+          ledgerBody.innerHTML = `<tr><td colSpan="10" class="p-4 text-center text-gray-500 italic border">لا توجد حركات مالية مسجلة</td></tr>`;
+          document.getElementById("ledger-table-foot").classList.add("hidden");
+        }
+
+        // --- PRINT LAYOUT ---
+        document.getElementById("print-status-val").textContent = (driver.current_week_required || 0) > 0 ? "مطالب بالسداد" : "مستقر";
+        
+        document.getElementById("print-driver-details").innerHTML = `
+          ${getFR("اسم السائق الكامل", driver.name)}
+          ${getFR("رقم الجوال", driver.phone)}
+          ${getFR("رقم الهوية الوطنية / الإقامة", driver.national_id)}
+          ${getFR("تاريخ التعيين والتعاقد", driver.hire_date)}
+        `;
+
+        const printContract = document.getElementById("print-contract-details");
+        if (driver.contracts && driver.contracts.length > 0) {
+          const lastContract = driver.contracts[driver.contracts.length - 1];
+          printContract.innerHTML = `
+            ${getFR("المركبة المستلمة حالياً", `مركبة رقم #${lastContract.car_id}`)}
+            ${getFR("تاريخ استلام المركبة", lastContract.start_date)}
+            ${getFR("قيمة الإيجار الأسبوعي", `${lastContract.weekly_required} ريال`)}
+            ${getFR("إجمالي الذمم المطلوبة للعقد", `${lastContract.total_required} ريال`)}
+          `;
+        } else {
+          printContract.innerHTML = `<div style="font-size: 11px; font-style: italic; color: #666;">لا يوجد عقد نشط مسجل حالياً.</div>`;
+        }
+
+        document.getElementById("print-totals-summary").innerHTML = `
+          ${getFR("إجمالي مطلوب العقد", `${totalContract} ر.س`)}
+          ${getFR("إجمالي السلف", `${totalAdvance} ر.س`)}
+          ${getFR("إجمالي الصيانة", `${totalMaintenance} ر.س`)}
+          ${getFR("إجمالي مخالفات المرور", `${totalViolation} ر.س`)}
+          ${getFR("إجمالي سداد كاش", `${totalCash} ر.س`)}
+          ${getFR("إجمالي سداد شبكة", `${totalNetwork} ر.س`)}
+        `;
+
+        document.getElementById("print-due-amount").textContent = `${driver.current_week_required} ريال سعودي`;
+
+        // Print Ledger Table slice to 12
+        const printBody = document.getElementById("print-ledger-body");
+        if (driver.statements && driver.statements.length > 0) {
+          printBody.innerHTML = driver.statements.slice(0, 12).map(s => {
+            let payment = "";
+            if (s.category === 'cash' || s.category === 'network') {
+              payment = `${s.credit || s.debit} (${s.category === 'cash' ? 'كاش' : 'شبكة'})`;
+            }
+            let maintViol = "";
+            if (s.category === 'maintenance' || s.category === 'violation') {
+              maintViol = `${s.debit || s.credit} (${s.category === 'maintenance' ? 'صيانة' : 'مخالفة'})`;
+            }
+            return `
+              <tr style="border-bottom: 1px solid #eee">
+                <td>${s.date}</td>
+                <td>${s.description}</td>
+                <td style="text-align: center; font-weight: bold;">${s.category === 'contract' ? `${s.debit} ر.س` : ''}</td>
+                <td style="text-align: center;">${s.category === 'advance' ? `${s.debit} ر.س` : ''}</td>
+                <td style="text-align: center; color: green; font-weight: bold;">${payment ? `${payment} ر.س` : ''}</td>
+                <td style="text-align: center; color: red;">${maintViol ? `${maintViol} ر.س` : ''}</td>
+                <td style="text-align: center; font-weight: bold;">${s.balance} ر.س</td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          printBody.innerHTML = `<tr><td colSpan="7" style="font-style: italic; color: #666; text-align: center; paddingTop: 8px;">لا توجد حركات مالية مسجلة</td></tr>`;
+        }
+
+      } catch (err) {
+        console.error("Error loading driver account:", err);
+      }
+    }
+
+    async function convertToInvoice(voucherId) {
+      try {
+        const response = await fetch(`/api/vouchers/${voucherId}/convert-to-invoice`, {
+          method: "POST"
+        });
+        if (response.ok) {
+          alert("تم تحويل السند المالي إلى فاتورة ضريبية مبسطة بنجاح!");
+          loadDriver();
+        } else {
+          const err = await response.json();
+          alert("فشل التحويل: " + (err.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error converting voucher:", error);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      }
+    }
+
+    async function deleteStatement(statementId, category) {
+      if (confirm("هل أنت متأكد من حذف هذه الحركة؟ سيتم حذف السجل المرتبط بها بالكامل من النظام.")) {
+        let endpoint = "";
+        if (category === "contract") endpoint = "contracts";
+        else if (category === "violation") endpoint = "violations";
+        else if (category === "maintenance") endpoint = "maintenance";
+        else if (category === "cash" || category === "network") endpoint = "vouchers";
+        
+        if (endpoint) {
+          try {
+            const res = await fetch(`/api/${endpoint}/${statementId}`, { method: "DELETE" });
+            if (res.ok) {
+              loadDriver();
+            } else {
+              alert("فشل الحذف");
+            }
+          } catch (error) {
+            console.error("Error deleting statement:", error);
+          }
+        }
+      }
+    }
+
+    // Edit Driver
+    editForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = {
+        name: document.getElementById("edit-name").value,
+        phone: document.getElementById("edit-phone").value,
+        national_id: document.getElementById("edit-national_id").value,
+        hire_date: document.getElementById("edit-hire_date").value
+      };
+
+      try {
+        const response = await fetch(`/api/drivers/${driverId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+          alert("تم تحديث بيانات السائق بنجاح!");
+          editModal.classList.add("hidden");
+          loadDriver();
+        } else {
+          const err = await response.json();
+          alert("فشل التحديث: " + (err.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error updating driver:", error);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      }
+    });
+
+    // Create Voucher
+    financialForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const amountVal = parseFloat(document.getElementById("fin-amount").value);
+      if (isNaN(amountVal) || amountVal <= 0) return;
+
+      const typeVal = document.getElementById("fin-type").value;
+      const descVal = document.getElementById("fin-desc").value;
+      const paymentMethodVal = typeVal === "سند قبض" ? document.getElementById("fin-payment-method").value : "كاش";
+
+      const data = {
+        voucher_type: typeVal,
+        voucher_date: document.getElementById("fin-date").value,
+        amount: amountVal,
+        related_driver_id: parseInt(driverId),
+        description: descVal || (typeVal === 'سند قبض' ? 'دفعة من السائق' : 'سلفة للسائق'),
+        payment_method: paymentMethodVal
+      };
+
+      try {
+        const response = await fetch("/api/vouchers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          alert("تم تسجيل العملية بنجاح!");
+          document.getElementById("fin-amount").value = "";
+          document.getElementById("fin-desc").value = "";
+          loadDriver();
+        } else {
+          alert("فشل التسجيل");
+        }
+      } catch (error) {
+        console.error("Error submitting financial op:", error);
+      }
+    });
+
+    // Initial Load
+    loadDriver();
+  </script>
+</body>
+</html>

@@ -1,7 +1,13 @@
-# Tauri + React + Typescript
+# نظام إدارة أجرة السيارات (نسخة مستقلة بالكامل)
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+هذا المشروع عبارة عن تطبيق ويب مستقل بالكامل (Serverless) يعمل محلياً في المتصفح دون الحاجة لأي خوادم خلفية أو بيئات تشغيل مثل Node.js (NPM)، PHP، أو Python.
 
-## Recommended IDE Setup
+## المميزات
+- **خالٍ من التبعيات**: يعمل التطبيق بالكامل من خلال ملفات HTML و CSS و JavaScript كلاسيكية.
+- **قاعدة بيانات محلية**: يتم تخزين كافة البيانات (السيارات، السائقين، العقود، المخالفات، السندات، الفواتير) في متصفحك محلياً عبر `localStorage`.
+- **يعمل بالكامل بدون إنترنت (Offline)**: تم تضمين مجمع التنسيقات (Tailwind CSS Play) محلياً لضمان التشغيل دون اتصال بالشبكة.
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## طريقة التشغيل
+1. افتح المجلد في مدير الملفات.
+2. انقر نقراً مزدوجاً على الملف `index.html` لفتحه في أي متصفح ويب (Chrome, Edge, Firefox, Safari).
+3. يمكنك البدء فوراً في تسجيل السيارات وتوقيع العقود وإصدار السندات والفواتير وطباعتها.

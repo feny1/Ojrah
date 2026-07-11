@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة المراقبة والإحصائيات الكلية</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-8 max-w-6xl mx-auto space-y-8 mt-10" dir="rtl">
+    <!-- Top Header Section -->
+    <div
+      class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      <div>
+        <h1 class="text-4xl font-extrabold text-purple-600">لوحة المراقبة والإحصائيات الكلية</h1>
+        <p class="text-gray-500 mt-2">الإيرادات الحالية، المطلوب من السائقين، والمدفوعات الفورية</p>
+      </div>
+      <div class="flex flex-col items-end bg-purple-50 p-4 rounded-xl border border-purple-100 text-right">
+        <span id="live-date" class="text-lg font-black text-purple-700">--</span>
+        <span id="live-time" class="text-sm font-bold text-purple-500 mt-1">--</span>
+      </div>
+    </div>
+
+    <!-- Navigation & Actions -->
+    <div class="flex justify-between items-center">
+      <h2 class="text-2xl font-bold text-slate-800">الملخص المالي</h2>
+      <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg font-bold">
+        العودة للرئيسية
+      </a>
+    </div>
+
+    <!-- Financial Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Card 1: Expected Revenue -->
+      <div
+        class="bg-gradient-to-br from-indigo-500 to-purple-600 p-8 rounded-3xl text-white shadow-xl shadow-indigo-500/10 relative overflow-hidden">
+        <div class="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+        <h3 class="text-indigo-100 text-lg font-bold">الإيراد المتوقع (إجمالي المطالبات والالتزمات)</h3>
+        <p class="text-5xl font-black mt-4 flex items-baseline gap-2">
+          <span id="expected-revenue-val">0</span>
+          <span class="text-sm text-indigo-200">ريال سعودي</span>
+        </p>
+        <div class="mt-4 text-xs text-indigo-200 font-medium">
+          * يشمل إيجار العقود الأسبوعي النشط، جميع المخالفات، تكاليف الصيانة على السائق، والسلف
+        </div>
+      </div>
+
+      <!-- Card 2: Actual Revenue -->
+      <div
+        class="bg-gradient-to-br from-emerald-500 to-teal-600 p-8 rounded-3xl text-white shadow-xl shadow-emerald-500/10 relative overflow-hidden">
+        <div class="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+        <h3 class="text-emerald-100 text-lg font-bold">الإيراد الفعلي (المبالغ المحصلة)</h3>
+        <p class="text-5xl font-black mt-4 flex items-baseline gap-2">
+          <span id="actual-revenue-val">0</span>
+          <span class="text-sm text-emerald-200">ريال سعودي</span>
+        </p>
+        <div class="mt-4 text-xs text-emerald-200 font-medium">
+          * يشمل جميع المبالغ المقبوضة التي تم تسجيلها كسندات قبض في النظام بنجاح
+        </div>
+      </div>
+    </div>
+
+    <!-- Drivers Due Summary Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800">دفتر مستحقات وحسابات السائقين (الدفتر العام)</h2>
+          <p class="text-sm text-gray-400 mt-1">عرض ومتابعة مبالغ التوريد الأسبوعية، الكاش والشبكة، التعويضات
+            والمديونيات المتراكمة.</p>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-100">
+            <tr>
+              <th class="p-4 rounded-tr-xl">السائق / المركبة</th>
+              <th class="p-4 text-center">كاش الدورة (ريال)</th>
+              <th class="p-4 text-center">شبكة الدورة (ريال)</th>
+              <th class="p-4 text-center">التعويضات/الفواتير</th>
+              <th class="p-4 text-center">التوريد الأسبوعي (الهدف)</th>
+              <th class="p-4 text-center">المديونية المتراكمة</th>
+              <th class="p-4 text-center">الصافي المطلوب</th>
+              <th class="p-4 rounded-tl-xl text-center">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="summary-table-body">
+            <tr>
+              <td colSpan="8" class="text-center p-8 text-slate-400 font-bold">جاري تحميل البيانات...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightweight Quick Payment Modal -->
+  <div id="quick-payment-modal"
+    class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 hidden">
+    <div
+      class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-slate-100 flex flex-col space-y-6 relative overflow-hidden"
+      dir="rtl">
+      <!-- Emerald Accent bar -->
+      <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-500 to-teal-600"></div>
+
+      <!-- Close Button -->
+      <button id="close-modal-btn"
+        class="absolute top-4 left-4 text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer">
+        ✕
+      </button>
+
+      <div>
+        <h3 class="text-2xl font-black text-slate-800">سداد مختصر للذمة المالية</h3>
+        <p class="text-gray-500 mt-2 text-sm">
+          تسجيل دفعة نقدية سريعة للسائق <span id="modal-driver-name" class="font-bold text-slate-800">--</span> دون
+          مغادرة اللوحة.
+        </p>
+      </div>
+
+      <form id="modal-payment-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-2">المطلوب الحالي للسائق:</label>
+            <div id="modal-due-amount"
+              class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-center font-black text-lg text-red-500">
+              0 ريال
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-2">مبلغ السداد المدفوع:</label>
+            <input type="number" step="0.01" required id="modal-amount" placeholder="المبلغ"
+              class="w-full border border-slate-200 rounded-xl p-3 text-center font-black text-lg text-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-2">طريقة الدفع:</label>
+            <select id="modal-payment-method"
+              class="w-full border border-slate-200 rounded-xl p-3 font-bold bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+              <option value="كاش">كاش</option>
+              <option value="شبكة">شبكة</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-2">التاريخ:</label>
+            <input type="date" required id="modal-date"
+              class="w-full border border-slate-200 rounded-xl p-3 font-bold text-center text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-2">البيان / الوصف:</label>
+          <input type="text" required id="modal-desc" placeholder="الوصف"
+            class="w-full border border-slate-200 rounded-xl p-3 font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+        </div>
+
+        <div class="flex gap-4 pt-4">
+          <button type="submit" id="modal-submit-btn"
+            class="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-100 disabled:text-slate-400 text-white py-3.5 rounded-xl font-bold transition-all shadow-lg hover:shadow-emerald-500/10 flex items-center justify-center gap-2 cursor-pointer">
+            تأكيد السداد +
+          </button>
+          <button type="button" id="modal-cancel-btn"
+            class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold transition-all cursor-pointer">
+            إلغاء
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Live date and time
+    function updateClock() {
+      const time = new Date();
+      const formattedDate = time.toLocaleDateString("ar-SA", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const formattedTime = time.toLocaleTimeString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      });
+      document.getElementById("live-date").textContent = formattedDate;
+      document.getElementById("live-time").textContent = formattedTime;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    let dashboardData = {
+      actual_revenue: 0,
+      expected_revenue: 0,
+      drivers_due: []
+    };
+    let selectedDriver = null;
+
+    const tableBody = document.getElementById("summary-table-body");
+    const expectedRevenueVal = document.getElementById("expected-revenue-val");
+    const actualRevenueVal = document.getElementById("actual-revenue-val");
+
+    // Modal elements
+    const paymentModal = document.getElementById("quick-payment-modal");
+    const closeModalBtn = document.getElementById("close-modal-btn");
+    const modalCancelBtn = document.getElementById("modal-cancel-btn");
+    const modalForm = document.getElementById("modal-payment-form");
+    const modalDriverName = document.getElementById("modal-driver-name");
+    const modalDueAmount = document.getElementById("modal-due-amount");
+    const modalAmountInput = document.getElementById("modal-amount");
+    const modalPaymentMethod = document.getElementById("modal-payment-method");
+    const modalDateInput = document.getElementById("modal-date");
+    const modalDescInput = document.getElementById("modal-desc");
+    const modalSubmitBtn = document.getElementById("modal-submit-btn");
+
+    async function loadSummary() {
+      try {
+        const response = await fetch("/api/dashboard/summary");
+        dashboardData = await response.json();
+
+        expectedRevenueVal.textContent = dashboardData.expected_revenue.toLocaleString();
+        actualRevenueVal.textContent = dashboardData.actual_revenue.toLocaleString();
+
+        if (dashboardData.drivers_due.length === 0) {
+          tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-slate-400 italic">لا يوجد سائقون بعقود نشطة حالياً</td></tr>`;
+          return;
+        }
+
+        tableBody.innerHTML = dashboardData.drivers_due.map(d => {
+          // تطبيق معادلتك الصحيحة: (المديونية + التوريد الأسبوعي) - (التعويضات + الكاش + الشبكة)
+          const netBalanceCorrect = (d.accumulated_debt + d.weekly_target) - (d.reimbursements + d.cash_collected + d.network_collected);
+
+          // تحديث التنبيه: يظهر فقط إذا كان الصافي المطلوب أكبر من 0 (السائق عليه مديونية فعليّة)
+          let warningBadge = "";
+          if (netBalanceCorrect > 0) {
+            warningBadge = `<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200/50 mr-2">⚠️ متأخر</span>`;
+          }
+
+          return `
+            <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors text-sm">
+              <td class="p-4">
+                <div class="font-bold text-slate-800">${d.driver_name}</div>
+                <div class="text-xs text-slate-400 mt-0.5">${d.vehicle}</div>
+              </td>
+              <td class="p-4 text-center font-semibold text-slate-700">${d.cash_collected.toFixed(2)}</td>
+              <td class="p-4 text-center font-semibold text-slate-700">${d.network_collected.toFixed(2)}</td>
+              <td class="p-4 text-center font-semibold text-teal-600">${d.reimbursements.toFixed(2)}</td>
+              <td class="p-4 text-center font-bold text-slate-700">${d.weekly_target.toFixed(2)}</td>
+              <td class="p-4 text-center font-semibold text-rose-600">${d.accumulated_debt.toFixed(2)}</td>
+              <td class="p-4 text-center">
+                <div class="font-black text-slate-800">${netBalanceCorrect.toFixed(2)}</div>
+                ${warningBadge}
+              </td>
+              <td class="p-4 text-center">
+                <div class="flex justify-center gap-3">
+                  <button
+                    onclick="openPaymentModal(${d.driver_id})"
+                    class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-emerald-500/10 transition-all cursor-pointer"
+                  >
+                    سداد مختصر
+                  </button>
+                  <a
+                    href="driver-details.html?id=${d.driver_id}"
+                    class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-bold transition-all"
+                  >
+                    كشف تفصيلي
+                  </a>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error("Error loading dashboard summary:", error);
+        tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
+      }
+    }
+    window.openPaymentModal = function (driverId) {
+      selectedDriver = dashboardData.drivers_due.find(d => d.driver_id === driverId);
+      if (!selectedDriver) return;
+
+      modalDriverName.textContent = selectedDriver.driver_name;
+      modalDueAmount.textContent = `${selectedDriver.net_balance.toLocaleString()} ريال`;
+      modalAmountInput.value = Math.max(0, selectedDriver.net_balance);
+      modalPaymentMethod.value = "كاش";
+      modalDateInput.value = new Date().toISOString().split("T")[0];
+      modalDescInput.value = `سداد مختصر من لوحة التحكم - ${selectedDriver.driver_name}`;
+
+      paymentModal.classList.remove("hidden");
+    };
+
+    function closeModal() {
+      paymentModal.classList.add("hidden");
+      selectedDriver = null;
+    }
+
+    closeModalBtn.addEventListener("click", closeModal);
+    modalCancelBtn.addEventListener("click", closeModal);
+
+    modalForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!selectedDriver) return;
+
+      const amount = parseFloat(modalAmountInput.value);
+      if (isNaN(amount) || amount <= 0) {
+        alert("يرجى إدخال مبلغ صحيح أكبر من الصفر");
+        return;
+      }
+
+      modalSubmitBtn.disabled = true;
+      modalSubmitBtn.textContent = "جاري تسجيل الدفعة...";
+
+      try {
+        const response = await fetch("/api/vouchers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            voucher_type: "سند قبض",
+            voucher_date: modalDateInput.value,
+            amount: amount,
+            related_driver_id: selectedDriver.driver_id,
+            related_car_id: selectedDriver.car_id || null,
+            description: modalDescInput.value,
+            payment_method: modalPaymentMethod.value
+          })
+        });
+
+        if (response.ok) {
+          alert("تم تسجيل عملية السداد بنجاح!");
+          closeModal();
+          loadSummary();
+        } else {
+          const errorData = await response.json();
+          alert("حدث خطأ أثناء حفظ السند: " + (errorData.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error creating quick payment:", error);
+        alert("فشل الاتصال بالخادم");
+      } finally {
+        modalSubmitBtn.disabled = false;
+        modalSubmitBtn.textContent = "تأكيد السداد +";
+      }
+    });
+
+    // Initial Load
+    loadSummary();
+  </script>
+</body>
+
+</html>

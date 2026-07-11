@@ -1,0 +1,17 @@
+{
+  "name": "أجرة ويندوز",
+  "short_name": "أجرة ويندوز",
+  "description": "نظام إدارة أسطول مركبات الأجرة",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0d9488",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "tauri.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

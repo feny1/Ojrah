@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الفواتير الضريبية المبسطة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-8 max-w-6xl mx-auto space-y-8 mt-10">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold text-amber-500">الفواتير الضريبية المبسطة</h1>
+        <p class="text-gray-500 mt-2">إصدار وإدارة الفواتير والامتثال الضريبي وضريبة القيمة المضافة (15%)</p>
+      </div>
+      <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg font-bold">
+        العودة للرئيسية
+      </a>
+    </div>
+
+    <!-- Add Form Button -->
+    <div class="flex justify-between items-center mb-6">
+      <div></div>
+      <button id="show-form-btn" class="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 font-bold shadow-md">إنشاء فاتورة جديدة +</button>
+    </div>
+
+    <!-- Create Invoice Form (hidden by default) -->
+    <div id="invoice-form-container" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8 hidden">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">إنشاء فاتورة ضريبية مبسطة جديدة</h2>
+      <form id="invoice-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">المركبة (اختياري)</label>
+            <select id="inv_car_id" class="w-full border p-3 rounded-lg bg-white focus:ring-2 focus:ring-amber-500">
+              <option value="">-- بدون تحديد مركبة --</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">العميل / السائق (اختياري)</label>
+            <select id="inv_driver_id" class="w-full border p-3 rounded-lg bg-white focus:ring-2 focus:ring-amber-500">
+              <option value="">-- بدون تحديد عميل --</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">المبلغ الإجمالي شامل الضريبة (ريال) *</label>
+            <input type="number" step="0.01" required id="inv_amount" placeholder="مثال: 1500" class="w-full border p-3 rounded-lg text-lg font-bold text-center focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">تاريخ الفاتورة *</label>
+            <input type="date" required id="inv_date" class="w-full border p-3 rounded-lg text-center focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-gray-700 mb-2 font-bold">نوع الخدمة / البيان *</label>
+          <input type="text" required id="inv_service_type" value="خدمة نقل ركاب بالسيارات الأجرة العامة" placeholder="مثال: خدمة نقل ركاب بالسيارات الأجرة العامة" class="w-full border p-3 rounded-lg focus:ring-2 focus:ring-amber-500">
+          <div class="flex gap-2 mt-2 flex-wrap" id="preset-services">
+            <!-- Render preset service buttons here -->
+          </div>
+        </div>
+
+        <div class="flex gap-4 mt-6">
+          <button type="submit" id="submit-btn" class="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-lg font-bold shadow-md cursor-pointer">
+            اعتماد وإصدار الفاتورة
+          </button>
+          <button type="button" id="cancel-form-btn" class="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300 font-bold">
+            إلغاء
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Invoices Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">سجل الفواتير الصادرة</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-100">
+            <tr>
+              <th class="p-4 rounded-tr-xl">رقم الفاتورة</th>
+              <th class="p-4">التاريخ</th>
+              <th class="p-4">البيان / الخدمة</th>
+              <th class="p-4">المركبة</th>
+              <th class="p-4">العميل / السائق</th>
+              <th class="p-4">المبلغ شامل الضريبة</th>
+              <th class="p-4">سند قبض مرتبط</th>
+              <th class="p-4 rounded-tl-xl text-center">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="invoices-table-body">
+            <tr><td colSpan="8" class="text-center p-8 text-slate-400 font-bold">جاري تحميل الفواتير...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_INVOICES = "/api/invoices";
+    const API_CARS = "/api/cars";
+    const API_DRIVERS = "/api/drivers";
+
+    const showFormBtn = document.getElementById("show-form-btn");
+    const cancelFormBtn = document.getElementById("cancel-form-btn");
+    const invoiceFormContainer = document.getElementById("invoice-form-container");
+    const invoiceForm = document.getElementById("invoice-form");
+    const submitBtn = document.getElementById("submit-btn");
+
+    const carsSelect = document.getElementById("inv_car_id");
+    const driversSelect = document.getElementById("inv_driver_id");
+    const tableBody = document.getElementById("invoices-table-body");
+    const serviceInput = document.getElementById("inv_service_type");
+
+    // Default values
+    document.getElementById("inv_date").value = new Date().toISOString().split("T")[0];
+
+    const presets = [
+      "خدمة نقل ركاب بالسيارات الأجرة العامة",
+      "خدمة تشغيل مركبة أجرة وذمم تعاقدية",
+      "تحميل قيمة صيانة دورية للمركبة"
+    ];
+
+    const presetContainer = document.getElementById("preset-services");
+    presetContainer.innerHTML = presets.map(p => `
+      <button type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-1 rounded-full font-bold transition-all preset-btn">
+        ${p}
+      </button>
+    `).join('');
+
+    document.querySelectorAll(".preset-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        serviceInput.value = btn.textContent.trim();
+      });
+    });
+
+    showFormBtn.addEventListener("click", () => {
+      invoiceFormContainer.classList.remove("hidden");
+      showFormBtn.classList.add("hidden");
+    });
+
+    cancelFormBtn.addEventListener("click", () => {
+      invoiceFormContainer.classList.add("hidden");
+      showFormBtn.classList.remove("hidden");
+      invoiceForm.reset();
+      document.getElementById("inv_date").value = new Date().toISOString().split("T")[0];
+    });
+
+    async function loadData() {
+      try {
+        const [resCars, resDrivers, resInvoices] = await Promise.all([
+          fetch(API_CARS).then(r => r.json()),
+          fetch(API_DRIVERS).then(r => r.json()),
+          fetch(API_INVOICES).then(r => r.json())
+        ]);
+
+        carsSelect.innerHTML = `<option value="">-- بدون تحديد مركبة --</option>` +
+          resCars.map(c => `<option value="${c.id}">${c.plate_number} - ${c.company} ${c.model}</option>`).join('');
+
+        driversSelect.innerHTML = `<option value="">-- بدون تحديد عميل --</option>` +
+          resDrivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+
+        if (resInvoices.length === 0) {
+          tableBody.innerHTML = `<tr><td colSpan="8" class="text-center p-8 text-slate-400 italic">لا توجد فواتير ضريبية صادرة بعد</td></tr>`;
+          return;
+        }
+
+        tableBody.innerHTML = resInvoices.map(inv => `
+          <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+            <td class="p-4 font-bold text-amber-600">${inv.invoice_number}</td>
+            <td class="p-4 text-slate-600">${inv.invoice_date}</td>
+            <td class="p-4 text-slate-800 font-medium">${inv.service_type}</td>
+            <td class="p-4 text-slate-600">
+              ${inv.plate_number ? `
+                <span class="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md font-mono font-bold text-xs">
+                  ${inv.plate_number}
+                </span>
+              ` : `<span class="text-slate-400 italic">--</span>`}
+            </td>
+            <td class="p-4 text-slate-700 font-medium">${inv.driver_name || `<span class="text-slate-400 italic">--</span>`}</td>
+            <td class="p-4 font-black text-slate-800">${inv.amount.toLocaleString()} ريال</td>
+            <td class="p-4">
+              ${inv.receipt_number ? `
+                <span class="bg-green-50 text-green-700 px-2 py-0.5 rounded text-xs font-bold border border-green-200">
+                  ${inv.receipt_number}
+                </span>
+              ` : `<span class="text-slate-400 italic">يدوي</span>`}
+            </td>
+            <td class="p-4 text-center">
+              <a href="invoice-print.html?id=${inv.id}" class="bg-slate-800 hover:bg-slate-700 text-white px-4.5 py-2 rounded-xl text-sm font-bold shadow-md transition-all inline-block">
+                طباعة الفاتورة A4
+              </a>
+            </td>
+          </tr>
+        `).join('');
+
+      } catch (error) {
+        console.error("Error loading data:", error);
+        tableBody.innerHTML = `<tr><td colSpan="8" class="text-center p-8 text-red-500 font-bold">حدث خطأ أثناء تحميل الفواتير</td></tr>`;
+      }
+    }
+
+    invoiceForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const numAmount = parseFloat(document.getElementById("inv_amount").value);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        alert("يرجى إدخال مبلغ صحيح أكبر من الصفر");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "جاري إنشاء الفاتورة...";
+
+      const data = {
+        vehicle_id: carsSelect.value ? parseInt(carsSelect.value) : null,
+        driver_id: driversSelect.value ? parseInt(driversSelect.value) : null,
+        amount: numAmount,
+        service_type: serviceInput.value,
+        invoice_date: document.getElementById("inv_date").value
+      };
+
+      try {
+        const response = await fetch(API_INVOICES, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          alert("تم إنشاء الفاتورة الضريبية المبسطة بنجاح!");
+          invoiceFormContainer.classList.add("hidden");
+          showFormBtn.classList.remove("hidden");
+          invoiceForm.reset();
+          document.getElementById("inv_date").value = new Date().toISOString().split("T")[0];
+          loadData();
+        } else {
+          const errorData = await response.json();
+          alert("فشل إنشاء الفاتورة: " + (errorData.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error creating invoice:", error);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "اعتماد وإصدار الفاتورة";
+      }
+    });
+
+    // Initial Load
+    loadData();
+  </script>
+</body>
+</html>

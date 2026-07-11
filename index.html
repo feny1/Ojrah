@@ -1,17 +1,260 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
-    <title>أجرة سيارات</title>
-  </head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>أجرة سيارات - لوحة التحكم</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16 relative">
+  <!-- Background patterns -->
+  <div class="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-50 z-0"></div>
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <!-- Top bar -->
+  <header class="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md px-8 py-4 flex items-center justify-between shadow-sm">
+    <div class="flex items-center gap-3">
+      <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+      <span class="text-sm font-bold text-slate-700">أجرة ويندوز</span>
+      <span class="text-[10px] text-slate-400 border border-slate-200 rounded px-1.5 py-0.5">الإصدار 1.0.0</span>
+    </div>
+    <div class="flex items-center gap-6">
+      <div class="text-right">
+        <span id="live-time" class="text-sm font-bold text-slate-700 block">--:--:--</span>
+        <span id="live-date" class="text-xs text-slate-400 block">-- ---- ----</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="p-8 max-w-6xl mx-auto space-y-10 relative z-10 mt-6">
+    <!-- Welcome Card -->
+    <div class="bg-gradient-to-l from-emerald-600 to-teal-700 rounded-3xl p-8 md:p-10 shadow-xl text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div class="absolute right-0 top-0 w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="space-y-3 relative z-10">
+        <div class="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm">
+          🔑 لوحة الإدارة العامة
+        </div>
+        <h1 class="text-4xl font-black">مرحباً بك، المدير العام</h1>
+        <p class="text-emerald-100/90 text-sm font-light max-w-xl">
+          واجهة تشغيل تطبيقات نظام إدارة الأسطول والسيارات وتتبع السندات المالية والمخالفات.
+        </p>
+      </div>
+      <div class="flex gap-3 relative z-10 bg-white/10 p-4 rounded-2xl backdrop-blur-md border border-white/15">
+        <div class="text-center px-4 py-1 border-l border-white/10">
+          <span class="text-2xl font-black block">9</span>
+          <span class="text-xs text-emerald-100/80">تطبيقات نشطة</span>
+        </div>
+        <div class="text-center px-4 py-1">
+          <span class="text-2xl font-black block text-emerald-300">متصل</span>
+          <span class="text-xs text-emerald-100/80">حالة النظام</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+      <div class="relative flex-1 max-w-md">
+        <input
+          id="search-input"
+          type="text"
+          placeholder="البحث عن تطبيق أو مهمة..."
+          class="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm transition-all"
+        />
+      </div>
+      <div class="flex flex-wrap gap-2" id="category-filters">
+        <button data-cat="all" class="cat-btn px-4 py-2 rounded-xl text-sm font-bold bg-emerald-600 text-white shadow-md">كل التطبيقات</button>
+        <button data-cat="fleet" class="cat-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-600">إدارة الأسطول</button>
+        <button data-cat="financial" class="cat-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-600">المالية والتقارير</button>
+        <button data-cat="system" class="cat-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-600">النظام</button>
+      </div>
+    </div>
+
+    <!-- Launchpad Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="launchpad-grid">
+      <!-- App Item -->
+      <a href="summary.html" data-cat="financial" data-keywords="ملخصات تقارير ايرادات" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+        <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">تقارير</span>
+        <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-purple-500 to-indigo-600 text-white mb-5 shadow-lg shadow-purple-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
+          📊
+        </div>
+        <h3 class="text-lg font-black text-slate-800 group-hover:text-emerald-600 transition-colors">ملخصات وتقارير</h3>
+        <p class="text-xs text-slate-400 mt-2 leading-relaxed">تحليل البيانات، إيرادات الأسطول، وحالة التشغيل اليومي</p>
+      </a>
+
+      <!-- App Item -->
+      <a href="cars.html" data-cat="fleet" data-keywords="سيارات مركبات اسطول لوحات" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+        <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">الأسطول</span>
+        <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-blue-500 to-cyan-600 text-white mb-5 shadow-lg shadow-blue-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
+          🚗
+        </div>
+        <h3 class="text-lg font-black text-slate-800 group-hover:text-emerald-600 transition-colors">إدارة المركبات</h3>
+        <p class="text-xs text-slate-400 mt-2 leading-relaxed">إضافة وتحديث السيارات، وتتبع لوحاتها وحالات الصلاحية والتشغيل</p>
+      </a>
+
+      <!-- App Item -->
+      <a href="drivers.html" data-cat="fleet" data-keywords="سائقين حساب سلف دفعات" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+        <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">السائقين</span>
+        <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-emerald-500 to-green-600 text-white mb-5 shadow-lg shadow-emerald-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
+          👨‍✈️
+        </div>
+        <h3 class="text-lg font-black text-slate-800 group-hover:text-emerald-600 transition-colors">إدارة السائقين</h3>
+        <p class="text-xs text-slate-400 mt-2 leading-relaxed">بيانات السائقين، كشوفات الحساب، السلف والمدفوعات والمستندات</p>
+      </a>
+
+      <!-- App Item -->
+      <a href="contracts.html" data-cat="fleet" data-keywords="عقود تشغيل التزامات" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+        <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">عقود</span>
+        <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-indigo-500 to-violet-600 text-white mb-5 shadow-lg shadow-indigo-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
+          📝
+        </div>
+        <h3 class="text-lg font-black text-slate-800 group-hover:text-emerald-600 transition-colors">عقود التشغيل</h3>
+        <p class="text-xs text-slate-400 mt-2 leading-relaxed">صياغة عقود تسليم المركبات والالتزامات الأسبوعية والإجمالية</p>
+      </a>
+
+      <!-- App Item -->
+      <a href="maintenance.html" data-cat="fleet" data-keywords="صيانة زيوت فلاتر اعطال" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+        <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">صيانة</span>
+        <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-rose-500 to-red-600 text-white mb-5 shadow-lg shadow-rose-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
+          🔧
+        </div>
+        <h3 class="text-lg font-black text-slate-800 group-hover:text-emerald-600 transition-colors">جدول الصيانات</h3>
+        <p class="text-xs text-slate-400 mt-2 leading-relaxed">متابعة صيانة السيارات الدورية وتغيير الزيوت وقطع الغيار والتنبيهات</p>
+      </a>
+
+      <!-- App Item -->
+      <a href="violations.html" data-cat="financial" data-keywords="مخالفات مرور غرامات ساهر" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+        <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">مخالفات</span>
+        <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-amber-500 to-orange-600 text-white mb-5 shadow-lg shadow-amber-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
+          ⚠️
+        </div>
+        <h3 class="text-lg font-black text-slate-800 group-hover:text-emerald-600 transition-colors">المخالفات المرورية</h3>
+        <p class="text-xs text-slate-400 mt-2 leading-relaxed">رصد وتسجيل المخالفات المرورية المنسوبة لكل سائق وسيارة وتوزيعها</p>
+      </a>
+
+      <!-- App Item -->
+      <a href="vouchers.html" data-cat="financial" data-keywords="سندات قبض صرف مالي سداد" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+        <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">سندات</span>
+        <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-sky-500 to-blue-600 text-white mb-5 shadow-lg shadow-sky-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
+          💵
+        </div>
+        <h3 class="text-lg font-black text-slate-800 group-hover:text-emerald-600 transition-colors">السندات المالية</h3>
+        <p class="text-xs text-slate-400 mt-2 leading-relaxed">إصدار سندات قبض وصرف للمستحقات والسداد اليومي والأسبوعي</p>
+      </a>
+
+      <!-- App Item -->
+      <a href="invoices.html" data-cat="financial" data-keywords="فواتير ضريبية ضريبة مبيعات" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+        <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">فواتير</span>
+        <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-amber-500 to-yellow-600 text-white mb-5 shadow-lg shadow-amber-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
+          🧾
+        </div>
+        <h3 class="text-lg font-black text-slate-800 group-hover:text-emerald-600 transition-colors">الفواتير الضريبية</h3>
+        <p class="text-xs text-slate-400 mt-2 leading-relaxed">إصدار وإدارة الفواتير الضريبية المبسطة وضريبة القيمة المضافة للعملاء</p>
+      </a>
+
+      <!-- App Item -->
+      <a href="purchases.html" data-cat="financial" data-keywords="مشتريات فواتير سائقين ديون تعويض" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+        <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">المالية</span>
+        <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-teal-500 to-emerald-600 text-white mb-5 shadow-lg shadow-teal-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
+          🛒
+        </div>
+        <h3 class="text-lg font-black text-slate-800 group-hover:text-emerald-600 transition-colors">برنامج المشتريات</h3>
+        <p class="text-xs text-slate-400 mt-2 leading-relaxed">تسجيل فواتير السائقين ومشترياتهم، وتسوية التعويضات والمديونيات</p>
+      </a>
+
+      <!-- App Item -->
+      <a href="settings.html" data-cat="system" data-keywords="إعدادات نظام نسخة احتياطية ضريبة" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+        <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">إعدادات</span>
+        <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-slate-600 to-slate-800 text-white mb-5 shadow-lg shadow-slate-600/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
+          ⚙️
+        </div>
+        <h3 class="text-lg font-black text-slate-800 group-hover:text-emerald-600 transition-colors">الإعدادات العامة</h3>
+        <p class="text-xs text-slate-400 mt-2 leading-relaxed">تهيئة معلومات المؤسسة، إعدادات الطباعة، والتحكم بقواعد البيانات والنسخ</p>
+      </a>
+    </div>
+
+
+  </main>
+
+  <script>
+    // Live Clock Functionality
+    function updateClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      });
+      const dateStr = now.toLocaleDateString("ar-SA", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      document.getElementById("live-time").textContent = timeStr;
+      document.getElementById("live-date").textContent = dateStr;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // Search and Category Filtering
+    const searchInput = document.getElementById("search-input");
+    const catButtons = document.querySelectorAll(".cat-btn");
+    const appCards = document.querySelectorAll(".app-card");
+
+    let currentCategory = "all";
+    let searchQuery = "";
+
+    function filterCards() {
+      appCards.forEach(card => {
+        const matchesCategory = currentCategory === "all" || card.getAttribute("data-cat") === currentCategory;
+        const cardTitle = card.querySelector("h3").textContent.toLowerCase();
+        const cardDesc = card.querySelector("p").textContent.toLowerCase();
+        const cardKeywords = card.getAttribute("data-keywords").toLowerCase();
+        const matchesSearch = cardTitle.includes(searchQuery) || cardDesc.includes(searchQuery) || cardKeywords.includes(searchQuery);
+
+        if (matchesCategory && matchesSearch) {
+          card.style.display = "flex";
+        } else {
+          card.style.display = "none";
+        }
+      });
+    }
+
+    searchInput.addEventListener("input", (e) => {
+      searchQuery = e.target.value.toLowerCase().trim();
+      filterCards();
+    });
+
+    catButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        catButtons.forEach(b => {
+          b.classList.remove("bg-emerald-600", "text-white", "shadow-md");
+          b.classList.add("bg-slate-100", "text-slate-600");
+        });
+        btn.classList.add("bg-emerald-600", "text-white", "shadow-md");
+        btn.classList.remove("bg-slate-100", "text-slate-600");
+
+        currentCategory = btn.getAttribute("data-cat");
+        filterCards();
+      });
+    });
+  </script>
+
+</body>
 </html>

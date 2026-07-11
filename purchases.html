@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>برنامج المشتريات والتعويضات</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-8 max-w-6xl mx-auto space-y-8 mt-10">
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold text-teal-600">برنامج المشتريات والتعويضات</h1>
+        <p class="text-gray-500 mt-2">تسجيل ومتابعة مشتريات السائقين، مبالغ التعويض، والمديونيات المقيدة</p>
+      </div>
+      <a href="index.html"
+        class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg transition-colors">
+        العودة للرئيسية
+      </a>
+    </div>
+
+    <div class="flex justify-between items-center mb-6">
+      <div></div>
+      <button id="show-form-btn"
+        class="bg-teal-600 text-white px-5 py-2.5 rounded-xl hover:bg-teal-700 font-bold shadow transition-colors">
+        تسجيل فاتورة مشتريات جديدة +
+      </button>
+    </div>
+
+    <div id="add-purchase-form" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8 hidden">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">تسجيل مشتريات جديدة</h2>
+      <form id="purchase-form" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">اختر السائق</label>
+            <select id="driver_id" required
+              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all">
+              <option value="">-- اختر السائق --</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">اختر السيارة</label>
+            <select id="car_id" required
+              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all">
+              <option value="">-- اختر السيارة --</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">تاريخ الفاتورة</label>
+            <input type="date" required id="invoice_date"
+              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-gray-600">
+          </div>
+          <div class="lg:col-span-2">
+            <label class="block text-gray-700 mb-2 font-bold">اسم المنتج / الخدمة</label>
+            <input type="text" required id="product_name" placeholder="مثال: إطار هانكوك، تغيير فحمات"
+              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all">
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">المبلغ الكلي للفاتورة (ر.س)</label>
+            <input type="number" step="0.01" required id="total_amount" placeholder="0.00"
+              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-mono font-bold">
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">المبلغ المدفوع من السائق (ر.س)</label>
+            <input type="number" step="0.01" required id="driver_paid_amount" placeholder="0.00"
+              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-mono font-bold"
+              value="0">
+          </div>
+
+          <div
+            class="col-span-1 md:col-span-2 lg:col-span-3 bg-slate-100/80 p-4 rounded-xl flex gap-8 items-center border border-slate-200">
+            <span class="font-bold text-gray-700 text-sm">نوع تسوية الفاتورة:</span>
+            <label class="inline-flex items-center cursor-pointer font-bold text-emerald-700">
+              <input type="radio" name="settlement_type" value="reimbursement"
+                class="form-radio h-5 w-5 text-teal-600 focus:ring-teal-500 ml-2" checked>
+              تعويض للسائق
+            </label>
+            <label class="inline-flex items-center cursor-pointer font-bold text-red-600">
+              <input type="radio" name="settlement_type" value="debt"
+                class="form-radio h-5 w-5 text-teal-600 focus:ring-teal-500 ml-2">
+              مديونية على السائق
+            </label>
+          </div>
+
+          <div id="reimbursement-section"
+            class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 space-y-3 col-span-1 md:col-span-2 lg:col-span-3">
+            <span class="block text-emerald-800 font-bold text-sm">تفاصيل التعويض المستحق</span>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">نسبة التعويض (%)</label>
+                <input type="number" step="0.1" id="reimbursement_percent" placeholder="0"
+                  class="w-full border border-slate-200 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">مبلغ التعويض المستحق (ر.س)</label>
+                <input type="number" step="0.01" id="reimbursement_amount" placeholder="0.00"
+                  class="w-full border border-slate-200 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono font-bold"
+                  value="0">
+              </div>
+            </div>
+          </div>
+
+          <div id="debt-section"
+            class="bg-red-50/50 p-4 rounded-xl border border-red-100 space-y-3 col-span-1 md:col-span-2 lg:col-span-3 hidden">
+            <span class="block text-red-800 font-bold text-sm">تفاصيل الدين المقيد</span>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">نسبة الدين (%)</label>
+                <input type="number" step="0.1" id="debt_percent" placeholder="0"
+                  class="w-full border border-slate-200 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">المبلغ المقيد كدين (ر.س)</label>
+                <input type="number" step="0.01" id="debt_charge_amount" placeholder="0.00"
+                  class="w-full border border-slate-200 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono font-bold"
+                  value="0">
+              </div>
+            </div>
+          </div>
+
+          <div id="summary-container"
+            class="col-span-1 md:col-span-2 lg:col-span-3 border p-4 rounded-xl hidden transition-all">
+            <span id="summary-text" class="text-sm font-bold"></span>
+            <span id="summary-val" class="font-mono font-black text-lg mx-1">0.00</span>
+            <span class="text-sm font-bold">ر.س</span>
+          </div>
+        </div>
+
+        <div class="flex gap-4 mt-6">
+          <button type="submit"
+            class="bg-teal-600 text-white px-8 py-3 rounded-xl hover:bg-teal-700 font-bold shadow-lg transition-colors">
+            حفظ الفاتورة
+          </button>
+          <button type="button" id="cancel-form-btn"
+            class="bg-gray-200 text-gray-800 px-8 py-3 rounded-xl hover:bg-gray-300 font-bold transition-colors">
+            إلغاء
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">سجل المشتريات والتعويضات</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead class="bg-slate-50 text-slate-600 border-b border-slate-100">
+            <tr>
+              <th class="p-4 rounded-tr-xl font-bold">السائق</th>
+              <th class="p-4 font-bold">السيارة</th>
+              <th class="p-4 font-bold">تاريخ الفاتورة</th>
+              <th class="p-4 font-bold">البيان/المنتج</th>
+              <th class="p-4 font-bold text-center">المبلغ الكلي</th>
+              <th class="p-4 font-bold text-center">المدفوع من السائق</th>
+              <th class="p-4 font-bold text-center">التعويض المستحق</th>
+              <th class="p-4 font-bold text-center">الدين المقيد</th>
+              <th class="p-4 rounded-tl-xl font-bold text-center">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="purchases-table-body" class="divide-y divide-slate-100">
+            <tr>
+              <td colSpan="9" class="text-center p-8 text-gray-500">جاري تحميل البيانات...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_PURCHASES = "/api/purchases";
+    const API_DRIVERS = "/api/drivers";
+    const API_CARS = "/api/cars";
+
+    const showFormBtn = document.getElementById("show-form-btn");
+    const cancelFormBtn = document.getElementById("cancel-form-btn");
+    const addPurchaseForm = document.getElementById("add-purchase-form");
+    const purchaseForm = document.getElementById("purchase-form");
+    const tableBody = document.getElementById("purchases-table-body");
+
+    const driverSelect = document.getElementById("driver_id");
+    const carSelect = document.getElementById("car_id");
+
+    const totalAmountInput = document.getElementById("total_amount");
+    const driverPaidInput = document.getElementById("driver_paid_amount");
+
+    // تم تصحيح المعرفات هنا لتطابق الـ HTML تماماً بالشرطة العادية (-)
+    const reimbursementSection = document.getElementById("reimbursement-section");
+    const debtSection = document.getElementById("debt-section");
+
+    const reimbursementPercentInput = document.getElementById("reimbursement_percent");
+    const reimbursementInput = document.getElementById("reimbursement_amount");
+
+    const debtPercentInput = document.getElementById("debt_percent");
+    const debtChargeInput = document.getElementById("debt_charge_amount");
+
+    const summaryContainer = document.getElementById("summary-container");
+    const summaryText = document.getElementById("summary-text");
+    const summaryVal = document.getElementById("summary-val");
+
+    function getSelectedSettlementType() {
+      const checkedRadio = document.querySelector('input[name="settlement_type"]:checked');
+      return checkedRadio ? checkedRadio.value : "reimbursement";
+    }
+
+    function toggleSections() {
+      const type = getSelectedSettlementType();
+      if (type === "reimbursement") {
+        reimbursementSection.classList.remove("hidden");
+        debtSection.classList.add("hidden");
+        debtPercentInput.value = "";
+        debtChargeInput.value = "0";
+      } else {
+        debtSection.classList.remove("hidden");
+        reimbursementSection.classList.add("hidden");
+        reimbursementPercentInput.value = "";
+        reimbursementInput.value = "0";
+      }
+      handleInputsChange();
+    }
+
+    document.querySelectorAll('input[name="settlement_type"]').forEach(radio => {
+      radio.addEventListener("change", toggleSections);
+    });
+
+    function handleInputsChange(e) {
+      const totalAmount = parseFloat(totalAmountInput.value || 0);
+      const driverPaid = parseFloat(driverPaidInput.value || 0);
+      const type = getSelectedSettlementType();
+
+      let reimbursementPercent = parseFloat(reimbursementPercentInput.value || 0);
+      let reimbursement = parseFloat(reimbursementInput.value || 0);
+      let debtPercent = parseFloat(debtPercentInput.value || 0);
+      let debtCharge = parseFloat(debtChargeInput.value || 0);
+
+      const targetId = e ? e.target.id : null;
+
+      if (type === "reimbursement") {
+        if (targetId === 'reimbursement_percent' && reimbursementPercent > 0) {
+          reimbursementInput.value = ((reimbursementPercent / 100) * driverPaid).toFixed(2);
+        } else if (targetId === 'reimbursement_amount' && reimbursement > 0) {
+          reimbursementPercentInput.value = driverPaid > 0 ? ((reimbursement / driverPaid) * 100).toFixed(1) : "0";
+        }
+      } else if (type === "debt") {
+        if (targetId === 'debt_percent' && debtPercent > 0) {
+          debtChargeInput.value = ((debtPercent / 100) * totalAmount).toFixed(2);
+        } else if (targetId === 'debt_charge_amount' && debtCharge > 0) {
+          debtPercentInput.value = totalAmount > 0 ? ((debtCharge / totalAmount) * 100).toFixed(1) : "0";
+        }
+      }
+
+      reimbursement = parseFloat(reimbursementInput.value || 0);
+      debtCharge = parseFloat(debtChargeInput.value || 0);
+
+      summaryContainer.classList.add("hidden");
+      if (type === "debt" && debtCharge > 0) {
+        summaryText.textContent = "تنبيه: سيتم قيد دين مباشر على حساب السائق بقيمة:";
+        summaryVal.textContent = debtCharge.toFixed(2);
+        summaryContainer.className = "col-span-1 md:col-span-2 lg:col-span-3 bg-red-50 border-red-200 text-red-700 p-4 rounded-xl block";
+      } else if (type === "reimbursement" && driverPaid > 0 && driverPaid > reimbursement) {
+        const diff = driverPaid - reimbursement;
+        summaryText.textContent = "المبلغ المتبقي المعلق (مستحق كتعويض لاحق للسائق):";
+        summaryVal.textContent = diff.toFixed(2);
+        summaryContainer.className = "col-span-1 md:col-span-2 lg:col-span-3 bg-emerald-50 border-emerald-200 text-emerald-700 p-4 rounded-xl block";
+      }
+    }
+
+    totalAmountInput.addEventListener("input", handleInputsChange);
+    driverPaidInput.addEventListener("input", handleInputsChange);
+    reimbursementPercentInput.addEventListener("input", handleInputsChange);
+    reimbursementInput.addEventListener("input", handleInputsChange);
+    debtPercentInput.addEventListener("input", handleInputsChange);
+    debtChargeInput.addEventListener("input", handleInputsChange);
+
+    document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
+
+    showFormBtn.addEventListener("click", () => {
+      addPurchaseForm.classList.remove("hidden");
+      showFormBtn.classList.add("hidden");
+      toggleSections();
+    });
+
+    cancelFormBtn.addEventListener("click", () => {
+      addPurchaseForm.classList.add("hidden");
+      showFormBtn.classList.remove("hidden");
+      purchaseForm.reset();
+      document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
+      toggleSections();
+    });
+
+    async function loadData() {
+      try {
+        const driversRes = await fetch(API_DRIVERS);
+        const drivers = await driversRes.json();
+        driverSelect.innerHTML = `<option value="">-- اختر السائق --</option>` +
+          drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+
+        const carsRes = await fetch(API_CARS);
+        const cars = await carsRes.json();
+        carSelect.innerHTML = `<option value="">-- اختر السيارة --</option>` +
+          cars.map(c => `<option value="${c.id}">${c.plate_number} - ${c.company} ${c.model}</option>`).join('');
+
+        const purchasesRes = await fetch(API_PURCHASES);
+        const purchases = await purchasesRes.json();
+
+        if (purchases.length === 0) {
+          tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-gray-500 italic">لا توجد فواتير مشتريات مسجلة</td></tr>`;
+          return;
+        }
+
+        tableBody.innerHTML = purchases.map(p => `
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="p-4 font-bold text-slate-900">${p.driver_name || 'غير معروف'}</td>
+            <td class="p-4">${p.plate_number || 'غير معروف'}</td>
+            <td class="p-4">${p.invoice_date}</td>
+            <td class="p-4 font-medium text-slate-700">${p.product_name}</td>
+            <td class="p-4 text-center font-mono font-bold text-slate-700">${parseFloat(p.total_amount || 0).toFixed(2)} ر.س</td>
+            <td class="p-4 text-center font-mono font-bold text-slate-600">${parseFloat(p.driver_paid_amount || 0).toFixed(2)} ر.س</td>
+            <td class="p-4 text-center font-mono font-bold text-emerald-600">${parseFloat(p.reimbursement_amount || 0).toFixed(2)} ر.س</td>
+            <td class="p-4 text-center font-mono font-bold text-red-500">${parseFloat(p.debt_charge_amount || 0).toFixed(2)} ر.س</td>
+            <td class="p-4 text-center">
+              <button onclick="deletePurchase(${p.id})" class="text-red-500 hover:text-red-700 font-bold hover:underline">حذف</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (error) {
+        console.error("Error loading data:", error);
+        tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
+      }
+    }
+
+    async function deletePurchase(id) {
+      if (confirm("هل أنت متأكد من حذف فاتورة المشتريات هذه؟")) {
+        try {
+          const res = await fetch(`${API_PURCHASES}/${id}`, { method: "DELETE" });
+          if (res.ok) {
+            loadData();
+          } else {
+            alert("فشل الحذف");
+          }
+        } catch (error) {
+          console.error("Error deleting purchase:", error);
+          alert("حدث خطأ أثناء الحذف");
+        }
+      }
+    }
+
+    purchaseForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const totalAmount = parseFloat(totalAmountInput.value || 0);
+      const driverPaid = parseFloat(driverPaidInput.value || 0);
+      const reimbursement = parseFloat(reimbursementInput.value || 0);
+      const debtCharge = parseFloat(debtChargeInput.value || 0);
+
+      if ((driverPaid + debtCharge) > totalAmount) {
+        alert("خطأ: مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.");
+        return;
+      }
+
+      if (reimbursement > driverPaid) {
+        alert("خطأ: لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.");
+        return;
+      }
+
+      const data = {
+        driver_id: parseInt(driverSelect.value),
+        car_id: parseInt(carSelect.value),
+        invoice_date: document.getElementById("invoice_date").value,
+        product_name: document.getElementById("product_name").value,
+        total_amount: totalAmount,
+        driver_paid_amount: driverPaid,
+        reimbursement_amount: reimbursement,
+        debt_charge_amount: debtCharge
+      };
+
+      try {
+        const response = await fetch(API_PURCHASES, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          alert("تم تسجيل المشتريات بنجاح");
+          addPurchaseForm.classList.add("hidden");
+          showFormBtn.classList.remove("hidden");
+          purchaseForm.reset();
+          document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
+          toggleSections();
+          loadData();
+        } else {
+          const err = await response.json();
+          alert("فشل الحفظ: " + (err.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error creating purchase:", error);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      }
+    });
+
+    loadData();
+  </script>
+</body>
+
+</html>

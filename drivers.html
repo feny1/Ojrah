@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إدارة السائقين</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-8 max-w-6xl mx-auto space-y-8 mt-10">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold text-green-500">إدارة السائقين</h1>
+        <p class="text-gray-500 mt-2">إدارة السائقين، عقودهم، وسلفياتهم وكشوف الحساب</p>
+      </div>
+      <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
+        العودة للرئيسية
+      </a>
+    </div>
+
+    <!-- Actions / Add Button -->
+    <div class="flex justify-between items-center mb-6" id="driver-actions">
+      <div>
+        <a href="contracts.html" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">توقيع عقد تسليم</a>
+      </div>
+      <button id="show-form-btn" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600">إضافة سائق جديد</button>
+    </div>
+
+    <!-- Add Form (hidden by default) -->
+    <div id="add-driver-form" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8 hidden">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">إضافة سائق جديد</h2>
+      <form id="driver-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="text" id="name" placeholder="الاسم الرباعي" required class="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+          <input type="text" id="phone" placeholder="رقم الجوال (05xxxxxx)" required class="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+          <input type="text" id="national_id" placeholder="رقم الهوية / الإقامة" required class="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+          <input type="date" id="hire_date" required class="border p-3 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-500" title="تاريخ التعيين">
+        </div>
+        <div class="flex gap-4 mt-6">
+          <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">حفظ السائق</button>
+          <button type="button" id="cancel-form-btn" class="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Drivers List -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">قائمة السائقين</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right">
+          <thead class="bg-slate-50 text-slate-600">
+            <tr>
+              <th class="p-4 rounded-tr-lg">الاسم</th>
+              <th class="p-4">رقم الجوال</th>
+              <th class="p-4">رقم الهوية</th>
+              <th class="p-4">تاريخ التعيين</th>
+              <th class="p-4 rounded-tl-lg">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="drivers-table-body">
+            <tr><td colSpan="5" class="text-center p-4 text-gray-500">جاري تحميل البيانات...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "/api/drivers";
+    const showFormBtn = document.getElementById("show-form-btn");
+    const cancelFormBtn = document.getElementById("cancel-form-btn");
+    const addDriverForm = document.getElementById("add-driver-form");
+    const driverActions = document.getElementById("driver-actions");
+    const driverForm = document.getElementById("driver-form");
+    const tableBody = document.getElementById("drivers-table-body");
+
+    // Set default hire date to today
+    document.getElementById("hire_date").value = new Date().toISOString().split("T")[0];
+
+    showFormBtn.addEventListener("click", () => {
+      addDriverForm.classList.remove("hidden");
+      showFormBtn.classList.add("hidden");
+    });
+
+    cancelFormBtn.addEventListener("click", () => {
+      addDriverForm.classList.add("hidden");
+      showFormBtn.classList.remove("hidden");
+      driverForm.reset();
+      document.getElementById("hire_date").value = new Date().toISOString().split("T")[0];
+    });
+
+    async function loadDrivers() {
+      try {
+        const response = await fetch(API_URL);
+        const drivers = await response.json();
+
+        if (drivers.length === 0) {
+          tableBody.innerHTML = `<tr><td colSpan="5" class="text-center p-4 text-gray-500">لا يوجد سائقين مسجلين بعد</td></tr>`;
+          return;
+        }
+
+        tableBody.innerHTML = drivers.map(d => `
+          <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="p-4 font-bold">${d.name}</td>
+            <td class="p-4">${d.phone}</td>
+            <td class="p-4">${d.national_id}</td>
+            <td class="p-4">${d.hire_date}</td>
+            <td class="p-4">
+              <a href="driver-details.html?id=${d.id}" class="text-green-600 hover:underline mx-2">كشف السائق</a>
+              <button onclick="deleteDriver(${d.id})" class="text-red-500 hover:underline mx-2">حذف</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (error) {
+        console.error("Error loading drivers:", error);
+        tableBody.innerHTML = `<tr><td colSpan="5" class="text-center p-4 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
+      }
+    }
+
+    async function deleteDriver(id) {
+      if (confirm("هل أنت متأكد من حذف هذا السائق؟")) {
+        try {
+          const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+          if (res.ok) {
+            loadDrivers();
+          } else {
+            const data = await res.json();
+            alert("فشل الحذف: " + (data.error || "خطأ غير معروف"));
+          }
+        } catch (error) {
+          console.error("Error deleting driver:", error);
+          alert("حدث خطأ أثناء الحذف");
+        }
+      }
+    }
+
+    driverForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const formData = {
+        name: document.getElementById("name").value,
+        phone: document.getElementById("phone").value,
+        national_id: document.getElementById("national_id").value,
+        hire_date: document.getElementById("hire_date").value
+      };
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+          addDriverForm.classList.add("hidden");
+          showFormBtn.classList.remove("hidden");
+          driverForm.reset();
+          document.getElementById("hire_date").value = new Date().toISOString().split("T")[0];
+          loadDrivers();
+        } else {
+          const data = await response.json();
+          alert("فشل الحفظ: " + (data.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error adding driver:", error);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      }
+    });
+
+    // Initial Load
+    loadDrivers();
+  </script>
+</body>
+</html>

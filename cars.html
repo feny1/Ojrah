@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إدارة المركبات</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-8 max-w-6xl mx-auto space-y-8 mt-10">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold text-blue-600">إدارة المركبات</h1>
+        <p class="text-gray-500 mt-2">إدارة السيارات، مستنداتها، ونسبة التغطية</p>
+      </div>
+      <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
+        العودة للرئيسية
+      </a>
+    </div>
+
+    <!-- Toggle Add Button -->
+    <div class="flex justify-end mb-6" id="add-btn-container">
+      <button id="show-form-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">إضافة مركبة جديدة</button>
+    </div>
+
+    <!-- Add Form (hidden by default) -->
+    <div id="add-car-form" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8 hidden">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">إضافة مركبة جديدة</h2>
+      <form id="car-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="text" id="company" placeholder="الشركة (مثال: تويوتا)" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <input type="text" id="model" placeholder="الموديل (مثال: كامري)" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <input type="number" id="year" placeholder="سنة الصنع" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <input type="date" id="purchase_date" placeholder="تاريخ الشراء" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <input type="text" id="plate_number" placeholder="لوحة السيارة" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <input type="text" id="color" placeholder="لون السيارة" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <input type="number" id="purchase_cost" placeholder="تكلفة الشراء (ريال)" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <select id="depreciation_method" class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <option value="سنوات">سنوات</option>
+            <option value="كيلومترات">كيلومترات</option>
+          </select>
+        </div>
+        <div class="flex gap-4 mt-6">
+          <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">حفظ</button>
+          <button type="button" id="cancel-form-btn" class="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Vehicles List -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">قائمة المركبات</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right">
+          <thead class="bg-slate-50 text-slate-600">
+            <tr>
+              <th class="p-4 rounded-tr-lg">اللوحة</th>
+              <th class="p-4">النوع والموديل</th>
+              <th class="p-4">سنة الصنع</th>
+              <th class="p-4">تكلفة الشراء</th>
+              <th class="p-4">طريقة الإهلاك</th>
+              <th class="p-4 rounded-tl-lg">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="cars-table-body">
+            <tr><td colSpan="6" class="text-center p-4 text-gray-500">جاري تحميل البيانات...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "/api/cars";
+    const showFormBtn = document.getElementById("show-form-btn");
+    const cancelFormBtn = document.getElementById("cancel-form-btn");
+    const addCarForm = document.getElementById("add-car-form");
+    const addBtnContainer = document.getElementById("add-btn-container");
+    const carForm = document.getElementById("car-form");
+    const tableBody = document.getElementById("cars-table-body");
+
+    // Set default manufacturing year to current year
+    document.getElementById("year").value = new Date().getFullYear();
+
+    showFormBtn.addEventListener("click", () => {
+      addCarForm.classList.remove("hidden");
+      addBtnContainer.classList.add("hidden");
+    });
+
+    cancelFormBtn.addEventListener("click", () => {
+      addCarForm.classList.add("hidden");
+      addBtnContainer.classList.remove("hidden");
+      carForm.reset();
+      document.getElementById("year").value = new Date().getFullYear();
+    });
+
+    async function loadCars() {
+      try {
+        const response = await fetch(API_URL);
+        const cars = await response.json();
+        
+        if (cars.length === 0) {
+          tableBody.innerHTML = `<tr><td colSpan="6" class="text-center p-4 text-gray-500">لا توجد مركبات مسجلة بعد</td></tr>`;
+          return;
+        }
+
+        tableBody.innerHTML = cars.map(car => `
+          <tr class="border-b border-slate-50 hover:bg-slate-50">
+            <td class="p-4 font-bold">${car.plate_number}</td>
+            <td class="p-4">${car.company} ${car.model}</td>
+            <td class="p-4">${car.year}</td>
+            <td class="p-4">${Number(car.purchase_cost).toLocaleString()} ريال</td>
+            <td class="p-4">${car.depreciation_method}</td>
+            <td class="p-4">
+              <a href="car-details.html?id=${car.id}" class="text-blue-600 hover:underline mx-2">تفاصيل</a>
+              <button onclick="deleteCar(${car.id})" class="text-red-500 hover:underline mx-2">حذف</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (error) {
+        console.error("Error loading cars:", error);
+        tableBody.innerHTML = `<tr><td colSpan="6" class="text-center p-4 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
+      }
+    }
+
+    async function deleteCar(id) {
+      if (confirm("هل أنت متأكد من حذف هذه المركبة؟ لا يمكن التراجع عن هذا الإجراء.")) {
+        try {
+          const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+          if (res.ok) {
+            loadCars();
+          } else {
+            const data = await res.json();
+            alert("فشل الحذف: " + (data.error || "خطأ غير معروف"));
+          }
+        } catch (error) {
+          console.error("Error deleting car:", error);
+          alert("حدث خطأ أثناء الحذف");
+        }
+      }
+    }
+
+    carForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const formData = {
+        company: document.getElementById("company").value,
+        model: document.getElementById("model").value,
+        year: parseInt(document.getElementById("year").value),
+        purchase_date: document.getElementById("purchase_date").value,
+        plate_number: document.getElementById("plate_number").value,
+        color: document.getElementById("color").value,
+        purchase_cost: parseFloat(document.getElementById("purchase_cost").value),
+        depreciation_method: document.getElementById("depreciation_method").value
+      };
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+          addCarForm.classList.add("hidden");
+          addBtnContainer.classList.remove("hidden");
+          carForm.reset();
+          document.getElementById("year").value = new Date().getFullYear();
+          loadCars();
+        } else {
+          const data = await response.json();
+          alert("فشل الحفظ: " + (data.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error adding car:", error);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      }
+    });
+
+    // Initial Load
+    loadCars();
+  </script>
+</body>
+</html>

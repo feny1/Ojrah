@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>السندات</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-8 max-w-6xl mx-auto space-y-8 mt-10">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold text-sky-400">السندات</h1>
+        <p class="text-gray-500 mt-2">عرض وطباعة السندات (التلقائية واليدوية)</p>
+      </div>
+      <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
+        العودة للرئيسية
+      </a>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex justify-between items-center mb-6">
+      <div></div>
+      <button id="open-manual-btn" class="bg-sky-400 text-white px-4 py-2 rounded-lg hover:bg-sky-500 font-bold">إنشاء سند يدوي</button>
+    </div>
+
+    <!-- Manual Voucher Form (hidden by default) -->
+    <div id="manual-voucher-form" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8 hidden">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">إنشاء سند يدوي جديد</h2>
+      <form id="voucher-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">نوع السند</label>
+            <select id="v_type" class="w-full border p-3 rounded-lg bg-white focus:ring-2 focus:ring-sky-400">
+              <option value="سند قبض">سند قبض (قبض نقدي/شبكة)</option>
+              <option value="سلفة">سند صرف (صيانة/سلفة)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">السائق المعني</label>
+            <select id="v_driver_id" required class="w-full border p-3 rounded-lg bg-white focus:ring-2 focus:ring-sky-400">
+              <option value="">-- اختر السائق --</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">التاريخ</label>
+            <input type="date" required id="v_date" class="w-full border p-3 rounded-lg focus:ring-2 focus:ring-sky-400">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div id="split-payment-fields" class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-gray-700 mb-2 font-bold">المبلغ كاش (ريال)</label>
+              <input type="number" step="0.01" id="v_cash_amount" placeholder="0.00" class="w-full border p-3 rounded-lg focus:ring-2 focus:ring-sky-400" value="0">
+            </div>
+            <div>
+              <label class="block text-gray-700 mb-2 font-bold">المبلغ شبكة (ريال)</label>
+              <input type="number" step="0.01" id="v_network_amount" placeholder="0.00" class="w-full border p-3 rounded-lg focus:ring-2 focus:ring-sky-400" value="0">
+            </div>
+          </div>
+          <div id="single-payment-field" class="hidden">
+            <label class="block text-gray-700 mb-2 font-bold">المبلغ الإجمالي (ريال)</label>
+            <input type="number" step="0.01" id="v_amount" placeholder="0.00" class="w-full border p-3 rounded-lg focus:ring-2 focus:ring-sky-400" value="0">
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">البيان / الوصف</label>
+            <input type="text" required id="v_desc" placeholder="أدخل وصف العملية" class="w-full border p-3 rounded-lg focus:ring-2 focus:ring-sky-400">
+          </div>
+        </div>
+        <div class="flex gap-4 mt-6">
+          <button type="submit" class="bg-sky-500 text-white px-6 py-2 rounded-lg hover:bg-sky-600 font-bold">حفظ السند</button>
+          <button type="button" id="cancel-manual-btn" class="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Vouchers List -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">قائمة السندات</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right">
+          <thead class="bg-slate-50 text-slate-600">
+            <tr>
+              <th class="p-4 rounded-tr-lg">رقم السند</th>
+              <th class="p-4">النوع</th>
+              <th class="p-4">المبلغ</th>
+              <th class="p-4">البيان</th>
+              <th class="p-4">الآلية</th>
+              <th class="p-4 rounded-tl-lg">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="vouchers-table-body">
+            <tr><td colSpan="6" class="text-center p-4 text-gray-500">جاري تحميل البيانات...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_VOUCHERS = "/api/vouchers";
+    const API_DRIVERS = "/api/drivers";
+
+    const tableBody = document.getElementById("vouchers-table-body");
+    const openManualBtn = document.getElementById("open-manual-btn");
+    const cancelManualBtn = document.getElementById("cancel-manual-btn");
+    const manualFormContainer = document.getElementById("manual-voucher-form");
+    const voucherForm = document.getElementById("voucher-form");
+    const driverSelect = document.getElementById("v_driver_id");
+
+    const vTypeSelect = document.getElementById("v_type");
+    const splitFields = document.getElementById("split-payment-fields");
+    const singleField = document.getElementById("single-payment-field");
+
+    vTypeSelect.addEventListener("change", () => {
+      if (vTypeSelect.value === "سند قبض") {
+        splitFields.classList.remove("hidden");
+        singleField.classList.add("hidden");
+      } else {
+        splitFields.classList.add("hidden");
+        singleField.classList.remove("hidden");
+      }
+    });
+
+    // Set default date
+    document.getElementById("v_date").value = new Date().toISOString().split("T")[0];
+
+    openManualBtn.addEventListener("click", () => {
+      manualFormContainer.classList.remove("hidden");
+      openManualBtn.classList.add("hidden");
+    });
+
+    cancelManualBtn.addEventListener("click", () => {
+      manualFormContainer.classList.add("hidden");
+      openManualBtn.classList.remove("hidden");
+      voucherForm.reset();
+      document.getElementById("v_date").value = new Date().toISOString().split("T")[0];
+      vTypeSelect.dispatchEvent(new Event("change"));
+    });
+
+    async function loadData() {
+      try {
+        // Load Drivers for select
+        const driversRes = await fetch(API_DRIVERS);
+        const drivers = await driversRes.json();
+        driverSelect.innerHTML = `<option value="">-- اختر السائق --</option>` +
+          drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+
+        // Load Vouchers
+        const response = await fetch(API_VOUCHERS);
+        const vouchers = await response.json();
+
+        if (vouchers.length === 0) {
+          tableBody.innerHTML = `<tr><td colSpan="6" class="text-center p-4 text-gray-500">لا توجد سندات مسجلة</td></tr>`;
+          return;
+        }
+
+        tableBody.innerHTML = vouchers.map(v => {
+          let amountText = `${v.amount.toLocaleString()} ريال`;
+          if (v.voucher_type === "سند قبض" && ((v.cash_amount || 0) > 0 || (v.network_amount || 0) > 0)) {
+            amountText += ` <span class="text-xs text-slate-400 block">(كاش: ${v.cash_amount || 0} / شبكة: ${v.network_amount || 0})</span>`;
+          }
+          return `
+            <tr class="border-b border-slate-50 hover:bg-slate-50">
+              <td class="p-4 font-bold text-sky-500">${v.voucher_number}</td>
+              <td class="p-4">${v.voucher_type}</td>
+              <td class="p-4 font-bold">${amountText}</td>
+              <td class="p-4">${v.description}</td>
+              <td class="p-4">
+                ${v.auto_generated ? `
+                  <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-bold">تلقائي</span>
+                ` : `
+                  <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-bold">يدوي</span>
+                `}
+              </td>
+              <td class="p-4 flex items-center gap-3">
+                <a href="voucher-print.html?id=${v.id}" class="text-sky-500 hover:underline font-bold">طباعة</a>
+                ${v.voucher_type === "سند قبض" ? `
+                  ${v.invoice_id ? `
+                    <a href="invoice-print.html?id=${v.invoice_id}" class="text-amber-600 hover:underline font-bold bg-amber-50 px-2 py-1.5 rounded border border-amber-200 text-xs">
+                      عرض الفاتورة
+                    </a>
+                  ` : `
+                    <button onclick="convertToInvoice(${v.id})" class="text-white bg-emerald-500 hover:bg-emerald-600 px-2.5 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer">
+                      تحويل إلى فاتورة
+                    </button>
+                  `}
+                ` : ''}
+                <button onclick="deleteVoucher(${v.id})" class="text-red-500 hover:underline">حذف</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error("Error loading data:", error);
+        tableBody.innerHTML = `<tr><td colSpan="6" class="text-center p-4 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
+      }
+    }
+
+    async function deleteVoucher(id) {
+      if (confirm("هل أنت متأكد من حذف هذا السند؟")) {
+        try {
+          const res = await fetch(`${API_VOUCHERS}/${id}`, { method: "DELETE" });
+          if (res.ok) {
+            loadData();
+          } else {
+            alert("فشل الحذف");
+          }
+        } catch (error) {
+          console.error("Error deleting voucher:", error);
+          alert("حدث خطأ أثناء الحذف");
+        }
+      }
+    }
+
+    async function convertToInvoice(id) {
+      try {
+        const response = await fetch(`${API_VOUCHERS}/${id}/convert-to-invoice`, {
+          method: "POST"
+        });
+        if (response.ok) {
+          alert("تم تحويل السند المالي إلى فاتورة ضريبية مبسطة بنجاح!");
+          loadData();
+        } else {
+          const err = await response.json();
+          alert("فشل التحويل: " + (err.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error converting voucher:", error);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      }
+    }
+
+    voucherForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const typeVal = vTypeSelect.value;
+      let data = {};
+      
+      if (typeVal === "سند قبض") {
+        const cash_amount = parseFloat(document.getElementById("v_cash_amount").value || 0);
+        const network_amount = parseFloat(document.getElementById("v_network_amount").value || 0);
+        if (cash_amount === 0 && network_amount === 0) {
+          alert("يرجى إدخال مبلغ سداد كاش أو شبكة");
+          return;
+        }
+        data = {
+          voucher_type: typeVal,
+          voucher_date: document.getElementById("v_date").value,
+          cash_amount,
+          network_amount,
+          related_driver_id: parseInt(driverSelect.value),
+          description: document.getElementById("v_desc").value
+        };
+      } else {
+        const amount = parseFloat(document.getElementById("v_amount").value || 0);
+        if (amount === 0) {
+          alert("يرجى إدخال مبلغ السند");
+          return;
+        }
+        data = {
+          voucher_type: typeVal,
+          voucher_date: document.getElementById("v_date").value,
+          amount,
+          related_driver_id: parseInt(driverSelect.value),
+          description: document.getElementById("v_desc").value,
+          payment_method: 'كاش'
+        };
+      }
+
+      try {
+        const response = await fetch(API_VOUCHERS, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          alert("تم حفظ السند بنجاح!");
+          manualFormContainer.classList.add("hidden");
+          openManualBtn.classList.remove("hidden");
+          voucherForm.reset();
+          document.getElementById("v_date").value = new Date().toISOString().split("T")[0];
+          vTypeSelect.dispatchEvent(new Event("change"));
+          loadData();
+        } else {
+          const err = await response.json();
+          alert("فشل الحفظ: " + (err.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error creating voucher:", error);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      }
+    });
+
+    // Initial Load
+    loadData();
+  </script>
+</body>
+</html>

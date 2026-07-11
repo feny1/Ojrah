@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الإعدادات</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-8 max-w-6xl mx-auto space-y-8 mt-10">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold text-gray-600">الإعدادات</h1>
+        <p class="text-gray-500 mt-2">إدارة النظام وقاعدة البيانات</p>
+      </div>
+      <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
+        العودة للرئيسية
+      </a>
+    </div>
+
+    <!-- Organization/VAT Settings Box -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 border-r-4 border-r-sky-500">
+      <h2 class="text-2xl font-bold text-slate-800 mb-4">إعدادات المؤسسة والفواتير</h2>
+      <form id="vat-form" class="space-y-4 max-w-lg">
+        <div>
+          <label class="block text-sm font-bold text-slate-600 mb-2">الرقم الضريبي للمؤسسة (VAT Registration Number):</label>
+          <input
+            type="text"
+            id="vat_number"
+            placeholder="مثال: 310123456700003"
+            class="w-full border border-slate-200 rounded-xl p-3 font-mono font-bold text-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all text-center"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-600 mb-2">يوم الاستحقاق الأسبوعي للعقود (Weekly Settlement Due Day):</label>
+          <select
+            id="weekly_due_day"
+            class="w-full border border-slate-200 rounded-xl p-3 font-bold text-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+          >
+            <option value="0">الأحد (Sunday)</option>
+            <option value="1">الاثنين (Monday)</option>
+            <option value="2">الثلاثاء (Tuesday)</option>
+            <option value="3">الأربعاء (Wednesday)</option>
+            <option value="4">الخميس (Thursday)</option>
+            <option value="5">الجمعة (Friday)</option>
+            <option value="6">السبت (Saturday)</option>
+          </select>
+        </div>
+        <button
+          type="submit"
+          id="save-vat-btn"
+          class="bg-sky-50 hover:bg-sky-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md cursor-pointer"
+        >
+          حفظ الإعدادات
+        </button>
+      </form>
+    </div>
+
+    <!-- Backup and Restore Settings Box -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 border-r-4 border-r-teal-500">
+      <h2 class="text-2xl font-bold text-slate-800 mb-4">النسخ الاحتياطي واستعادة البيانات</h2>
+      <p class="text-gray-500 mb-6">قم بتنزيل نسخة احتياطية من كافة سجلات النظام والبيانات لاستعادتها في أي وقت أو نقلها لجهاز آخر.</p>
+      
+      <div class="flex flex-wrap gap-4">
+        <button
+          id="export-db-btn"
+          class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          تصدير نسخة احتياطية
+        </button>
+
+        <label
+          class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-2 border border-slate-200"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+          </svg>
+          استيراد نسخة احتياطية (Import JSON)
+          <input type="file" id="import-db-input" accept=".json" class="hidden" />
+        </label>
+      </div>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="bg-white rounded-2xl shadow-sm border border-red-100 p-8 border-r-4 border-r-red-500">
+      <h2 class="text-2xl font-bold text-red-600 mb-4">منطقة الخطر</h2>
+      <p class="text-gray-600 mb-6 font-medium">تحذير: الإجراءات التالية لا يمكن التراجع عنها. يرجى توخي الحذر عند استخدامها.</p>
+      
+      <button 
+        id="clear-db-btn"
+        class="bg-red-500 text-white px-6 py-3 rounded-xl hover:bg-red-600 shadow-md font-bold text-lg transition-colors cursor-pointer"
+      >
+        حذف جميع البيانات
+      </button>
+    </div>
+
+    <!-- Modal Box for DB clearing -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 hidden">
+      <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-red-100 flex flex-col items-center text-center space-y-6 relative overflow-hidden">
+        <!-- Top bar -->
+        <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-red-500 to-rose-600"></div>
+
+        <button id="close-modal-btn" class="absolute top-4 left-4 text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer">✕</button>
+
+        <div id="modal-content-stage1" class="space-y-6 flex flex-col items-center w-full">
+          <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 animate-pulse">
+            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          
+          <div>
+            <h3 class="text-2xl font-black text-slate-800">تأكيد مسح البيانات</h3>
+            <p class="text-gray-500 mt-2 text-sm leading-relaxed">
+              تحذير: هذا الإجراء سيقوم بحذف كافة السجلات بما في ذلك السائقين، المركبات، العقود، العمليات المالية، والتقارير نهائياً. لا يمكن التراجع عن هذا الإجراء!
+            </p>
+          </div>
+
+          <div class="w-full text-right space-y-2">
+            <label class="text-xs font-bold text-slate-500 block">اكتب كلمة <span class="text-red-600 font-black">"حذف"</span> للتأكيد:</label>
+            <input
+              type="text"
+              id="confirm_text"
+              placeholder="حذف"
+              class="w-full border border-slate-200 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+            />
+          </div>
+
+          <div class="flex gap-3 w-full">
+            <button
+              id="confirm-delete-btn"
+              disabled
+              class="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-slate-100 disabled:text-slate-400 text-white py-3.5 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+            >
+              مسح البيانات نهائياً
+            </button>
+            <button
+              id="cancel-modal-btn"
+              class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold transition-all cursor-pointer"
+            >
+              إلغاء
+            </button>
+          </div>
+        </div>
+
+        <!-- Success stage -->
+        <div id="modal-content-success" class="space-y-6 flex flex-col items-center w-full hidden">
+          <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center text-green-500 animate-bounce">
+            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 class="text-2xl font-black text-slate-800">تم المسح بنجاح</h3>
+          <p class="text-gray-500">تم تفريغ كافة جداول قاعدة البيانات وإعادة ضبط المصنع للنظام بالكامل بنجاح.</p>
+          <button
+            id="success-ok-btn"
+            class="w-full bg-slate-800 hover:bg-slate-700 text-white py-3.5 rounded-xl font-bold transition-all shadow-lg cursor-pointer"
+          >
+            حسناً
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_SETTINGS = "/api/settings";
+    const API_CLEAR_ALL = "/api/clear-all";
+
+    const vatForm = document.getElementById("vat-form");
+    const vatInput = document.getElementById("vat_number");
+    const weeklyDueDaySelect = document.getElementById("weekly_due_day");
+    const saveVatBtn = document.getElementById("save-vat-btn");
+
+    const clearDbBtn = document.getElementById("clear-db-btn");
+    const confirmModal = document.getElementById("confirm-modal");
+    const closeModalBtn = document.getElementById("close-modal-btn");
+    const cancelModalBtn = document.getElementById("cancel-modal-btn");
+    const confirmText = document.getElementById("confirm_text");
+    const confirmDeleteBtn = document.getElementById("confirm-delete-btn");
+
+    const stage1Content = document.getElementById("modal-content-stage1");
+    const successContent = document.getElementById("modal-content-success");
+    const successOkBtn = document.getElementById("success-ok-btn");
+
+    async function loadSettings() {
+      try {
+        const response = await fetch(API_SETTINGS);
+        const data = await response.json();
+        if (data.vat_number) {
+          vatInput.value = data.vat_number;
+        }
+        if (data.weekly_due_day !== undefined) {
+          weeklyDueDaySelect.value = data.weekly_due_day;
+        }
+      } catch (err) {
+        console.error("Error loading settings:", err);
+      }
+    }
+
+    vatForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      saveVatBtn.disabled = true;
+      saveVatBtn.textContent = "جاري الحفظ...";
+
+      try {
+        const res = await fetch(API_SETTINGS, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            vat_number: vatInput.value,
+            weekly_due_day: parseInt(weeklyDueDaySelect.value)
+          })
+        });
+        if (res.ok) {
+          alert("تم حفظ الإعدادات بنجاح!");
+        } else {
+          alert("فشل حفظ الإعدادات");
+        }
+      } catch (err) {
+        console.error("Error saving settings:", err);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      } finally {
+        saveVatBtn.disabled = false;
+        saveVatBtn.textContent = "حفظ الإعدادات";
+      }
+    });
+
+    clearDbBtn.addEventListener("click", () => {
+      confirmModal.classList.remove("hidden");
+      stage1Content.classList.remove("hidden");
+      successContent.classList.add("hidden");
+      confirmText.value = "";
+      confirmDeleteBtn.disabled = true;
+    });
+
+    function closeModal() {
+      confirmModal.classList.add("hidden");
+    }
+
+    closeModalBtn.addEventListener("click", closeModal);
+    cancelModalBtn.addEventListener("click", closeModal);
+
+    confirmText.addEventListener("input", () => {
+      if (confirmText.value.trim() === "حذف") {
+        confirmDeleteBtn.disabled = false;
+      } else {
+        confirmDeleteBtn.disabled = true;
+      }
+    });
+
+    confirmDeleteBtn.addEventListener("click", async () => {
+      confirmDeleteBtn.disabled = true;
+      confirmDeleteBtn.innerHTML = `جاري الحذف...`;
+
+      try {
+        const res = await fetch(API_CLEAR_ALL, { method: "DELETE" });
+        if (res.ok) {
+          stage1Content.classList.add("hidden");
+          successContent.classList.remove("hidden");
+        } else {
+          const err = await res.json();
+          alert("حدث خطأ أثناء حذف البيانات: " + (err.error || "خطأ غير معروف"));
+        }
+      } catch (err) {
+        console.error("Error clearing DB:", err);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      } finally {
+        confirmDeleteBtn.disabled = false;
+        confirmDeleteBtn.textContent = "مسح البيانات نهائياً";
+      }
+    });
+
+    successOkBtn.addEventListener("click", () => {
+      closeModal();
+    });
+
+    // Export Backup
+    const exportBtn = document.getElementById("export-db-btn");
+    exportBtn.addEventListener("click", () => {
+      const backupData = {};
+      const TABLES = ['cars', 'drivers', 'contracts', 'violations', 'maintenance', 'vouchers', 'car_documents', 'settings', 'invoices', 'purchases'];
+      TABLES.forEach(table => {
+        const data = localStorage.getItem('db_' + table);
+        if (data) {
+          backupData['db_' + table] = JSON.parse(data);
+        }
+      });
+      const settings = localStorage.getItem('db_settings');
+      if (settings) {
+        backupData['db_settings'] = JSON.parse(settings);
+      }
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      const today = new Date().toISOString().split('T')[0];
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `ojrah_taxi_backup_${today}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    });
+
+    // Import Backup
+    const importInput = document.getElementById("import-db-input");
+    importInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const importedData = JSON.parse(evt.target.result);
+          if (confirm("هل أنت متأكد من استعادة النسخة الاحتياطية؟ سيقوم هذا باستبدال كافة البيانات الحالية في النظام.")) {
+            Object.keys(importedData).forEach(key => {
+              if (key.startsWith('db_') || key === 'db_settings') {
+                localStorage.setItem(key, typeof importedData[key] === 'string' ? importedData[key] : JSON.stringify(importedData[key]));
+              }
+            });
+            alert("تم استعادة النسخة الاحتياطية بنجاح! سيتم إعادة تحميل الصفحة.");
+            window.location.reload();
+          }
+        } catch (error) {
+          alert("خطأ: الملف المختار غير صالح.");
+          console.error(error);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Initial load
+    loadSettings();
+  </script>
+</body>
+</html>

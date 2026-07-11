@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>طباعة الفاتورة الضريبية</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <style>
+    @media print {
+      @page { size: A4 portrait; margin: 12mm; }
+      body { background: white !important; }
+      .no-print { display: none !important; }
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Cairo', 'Arial', sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- Go Back Button (Hidden during printing) -->
+  <div class="no-print" style="padding: 16px; direction: rtl;">
+    <a href="invoices.html" style="background: #1e293b; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-family: Cairo; font-weight: 700; display: inline-block;">
+      ← العودة للفواتير
+    </a>
+  </div>
+
+  <div id="invoice-container">
+    <div style="padding: 40px; text-align: center; font-family: Cairo;">جاري التحميل...</div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const invoiceId = urlParams.get("id");
+
+    if (!invoiceId) {
+      document.getElementById("invoice-container").innerHTML = `<div style="padding: 40px; text-align: center; color: red;">لم يتم تحديد الفاتورة!</div>`;
+    } else {
+      loadInvoice();
+    }
+
+    // ZATCA Base64 TLV Generator
+    function generateZatcaQrB64(sellerName, vatNumber, timestamp, total, vatTotal) {
+      const getTlv = (tag, val) => {
+        const valueBuf = new TextEncoder().encode(val);
+        const tagBuf = new Uint8Array([tag]);
+        const lengthBuf = new Uint8Array([valueBuf.length]);
+        const combined = new Uint8Array(tagBuf.length + lengthBuf.length + valueBuf.length);
+        combined.set(tagBuf, 0);
+        combined.set(lengthBuf, tagBuf.length);
+        combined.set(valueBuf, tagBuf.length + lengthBuf.length);
+        return combined;
+      };
+      
+      try {
+        const parts = [
+          getTlv(1, sellerName),
+          getTlv(2, vatNumber),
+          getTlv(3, timestamp),
+          getTlv(4, total),
+          getTlv(5, vatTotal)
+        ];
+        
+        let totalLen = parts.reduce((acc, part) => acc + part.length, 0);
+        let tlvBytes = new Uint8Array(totalLen);
+        let offset = 0;
+        parts.forEach(part => {
+          tlvBytes.set(part, offset);
+          offset += part.length;
+        });
+        
+        let binary = "";
+        for (let i = 0; i < tlvBytes.length; i++) {
+          binary += String.fromCharCode(tlvBytes[i]);
+        }
+        return btoa(binary);
+      } catch (e) {
+        console.error("Error generating ZATCA TLV Base64", e);
+        return "";
+      }
+    }
+
+    async function loadInvoice() {
+      try {
+        // Load settings first
+        const settingsRes = await fetch("/api/settings");
+        const settings = await settingsRes.json();
+        const vatNumber = settings.vat_number || "310123456700003";
+
+        // Load invoice
+        const response = await fetch(`/api/invoices/${invoiceId}`);
+        const invoice = await response.json();
+
+        const sellerName = "مؤسسة نجلاء القحطاني للأجرة العامة";
+        const totalAmount = invoice.amount || 0;
+        const baseAmount = totalAmount / 1.15;
+        const vatAmount = totalAmount - baseAmount;
+
+        const timestamp = `${invoice.invoice_date}T12:00:00Z`;
+        const qrB64 = generateZatcaQrB64(
+          sellerName,
+          vatNumber,
+          timestamp,
+          totalAmount.toFixed(2),
+          vatAmount.toFixed(2)
+        );
+        
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrB64)}`;
+
+        const container = document.getElementById("invoice-container");
+        container.innerHTML = `
+          <div dir="rtl" style="width: 210mm; min-height: 297mm; margin: 0 auto; padding: 16mm 14mm; background: white; color: #000; font-size: 14px; line-height: 1.8; box-sizing: border-box;">
+            <div style="border: 3px solid #000; padding: 14px 18px; min-height: 255mm; display: flex; flex-direction: column; box-sizing: border-box;">
+              <div style="border: 1px solid #000; padding: 10px 14px; flex: 1; display: flex; flex-direction: column; box-sizing: border-box;">
+                
+                <!-- Header -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 14px;">
+                  <div>
+                    <div style="font-size: 18px; font-weight: 900;">${sellerName}</div>
+                    <div style="font-size: 10px; color: #444; margin-top: 3px;">إدارة أسطول المركبات والامتثال الضريبي</div>
+                    <div style="font-size: 11px; font-weight: bold; margin-top: 4px;">الرقم الضريبي للمنشأة: ${vatNumber}</div>
+                  </div>
+                  <div style="border: 2px solid #000; padding: 5px 18px; text-align: center; font-size: 18px; font-weight: 900; letter-spacing: 1px;">فاتورة ضريبية مبسطة</div>
+                </div>
+
+                <!-- Meta Row -->
+                <div style="display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 12px;">
+                  <div><b>رقم الفاتورة:</b> <span style="border-bottom: 1px solid #000; padding-bottom: 2px; min-width: 90px; display: inline-block; text-align: center; font-weight: 700;">${invoice.invoice_number}</span></div>
+                  <div><b>تاريخ الفاتورة:</b> <span style="border-bottom: 1px solid #000; padding-bottom: 2px; min-width: 90px; display: inline-block; text-align: center; font-weight: 700;">${invoice.invoice_date}</span></div>
+                  <div><b>تاريخ التوريد:</b> <span style="border-bottom: 1px solid #000; padding-bottom: 2px; min-width: 90px; display: inline-block; text-align: center; font-weight: 700;">${invoice.invoice_date}</span></div>
+                </div>
+
+                <!-- Details -->
+                <div style="border: 1px solid #000; padding: 16px 20px; margin-bottom: 16px;">
+                  ${invoice.driver_name ? `
+                    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; font-size: 14px;">
+                      <span style="font-weight: 700; white-space: nowrap; min-width: 180px;">اسم العميل / السائق:</span>
+                      <span style="border-bottom: 1px solid #000; flex: 1; font-weight: 700; padding-bottom: 2px; text-align: center;">${invoice.driver_name}</span>
+                    </div>
+                  ` : ''}
+                  ${invoice.driver_national_id ? `
+                    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; font-size: 14px;">
+                      <span style="font-weight: 700; white-space: nowrap; min-width: 180px;">رقم الهوية الوطنية / الإقامة:</span>
+                      <span style="border-bottom: 1px solid #000; flex: 1; font-weight: 700; padding-bottom: 2px; text-align: center;">${invoice.driver_national_id}</span>
+                    </div>
+                  ` : ''}
+                  ${invoice.plate_number ? `
+                    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; font-size: 14px;">
+                      <span style="font-weight: 700; white-space: nowrap; min-width: 180px;">بيانات المركبة (اللوحة):</span>
+                      <span style="border-bottom: 1px solid #000; flex: 1; font-weight: 700; padding-bottom: 2px; text-align: center;">
+                        ${invoice.plate_number} (${invoice.company} ${invoice.model} - ${invoice.year})
+                      </span>
+                    </div>
+                  ` : `
+                    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; font-size: 14px;">
+                      <span style="font-weight: 700; white-space: nowrap; min-width: 180px;">بيانات المركبة:</span>
+                      <span style="border-bottom: 1px solid #000; flex: 1; font-weight: 700; padding-bottom: 2px; text-align: center;">غير محددة / عامة</span>
+                    </div>
+                  `}
+                  ${invoice.receipt_number ? `
+                    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; font-size: 14px;">
+                      <span style="font-weight: 700; white-space: nowrap; min-width: 180px;">بموجب سند قبض رقم:</span>
+                      <span style="border-bottom: 1px solid #000; flex: 1; font-weight: 700; padding-bottom: 2px; text-align: center;">${invoice.receipt_number}</span>
+                    </div>
+                  ` : ''}
+                </div>
+
+                <!-- Table -->
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 16px; font-size: 13px;">
+                  <thead>
+                    <tr>
+                      <th style="border: 1px solid #000; padding: 8px; background-color: #f8fafc; font-weight: bold; text-align: center; width: 10%;">م</th>
+                      <th style="border: 1px solid #000; padding: 8px; background-color: #f8fafc; font-weight: bold; text-align: center; width: 50%;">البيان / الخدمة</th>
+                      <th style="border: 1px solid #000; padding: 8px; background-color: #f8fafc; font-weight: bold; text-align: center; width: 15%;">معدل الضريبة</th>
+                      <th style="border: 1px solid #000; padding: 8px; background-color: #f8fafc; font-weight: bold; text-align: center; width: 25%;">المبلغ شامل الضريبة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style="border: 1px solid #000; padding: 8px; text-align: center;">١</td>
+                      <td style="border: 1px solid #000; padding: 8px; text-align: right;">${invoice.service_type}</td>
+                      <td style="border: 1px solid #000; padding: 8px; text-align: center;">١٥٪</td>
+                      <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">${totalAmount.toLocaleString()} ر.س</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- Bottom totals -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: auto; padding-top: 10px; border-top: 1px solid #000; box-sizing: border-box;">
+                  <!-- QR Code -->
+                  <div style="display: flex; gap: 14px; align-items: center;">
+                    <div>
+                      <img src="${qrUrl}" alt="ZATCA Compliance QR Code" style="border: 1px solid #ddd; padding: 2px; display: block;" />
+                    </div>
+                    <div style="font-size: 9px; color: #333; line-height: 1.5;">
+                      <div style="font-weight: bold; font-size: 10px; margin-bottom: 2px;">الامتثال الضريبي (هيئة الزكاة والضريبة والجمارك):</div>
+                      <div>• هذه فاتورة ضريبية مبسطة إلكترونية.</div>
+                      <div>• يرجى مسح الرمز للتحقق من هوية المنشأة الضريبية.</div>
+                      <div>• ضريبة القيمة المضافة تحتسب بنسبة 15٪.</div>
+                    </div>
+                  </div>
+
+                  <!-- Totals -->
+                  <div style="display: flex; flex-direction: column; gap: 6px; border-right: 1px solid #000; padding-right: 18px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                      <span style="font-weight: 700;">المجموع الخاضع للضريبة (غير شامل الضريبة):</span>
+                      <span style="font-weight: bold;">${baseAmount.toFixed(2)} ر.س</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                      <span style="font-weight: 700;">ضريبة القيمة المضافة (١٥٪):</span>
+                      <span style="font-weight: bold;">${vatAmount.toFixed(2)} ر.س</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 16px; border-top: 2px solid #000; padding-top: 6px; margin-top: 4px;">
+                      <span style="font-weight: 900;">الإجمالي المستحق شامل الضريبة:</span>
+                      <span style="font-weight: 900; border-bottom: 3px double #000; padding-bottom: 1px;">${totalAmount.toFixed(2)} ر.س</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Signatures -->
+                <div style="display: flex; justify-content: space-between; gap: 20px; margin-top: 40px;">
+                  <div style="flex: 1; text-align: center;">
+                    <div style="font-weight: 700; font-size: 11px;">توقيع العميل / المستلم</div>
+                    <div style="border-bottom: 1px solid #000; margin-top: 36px; margin-bottom: 3px;"></div>
+                    <div style="font-size: 10px; color: #666;">التوقيع والتأكيد</div>
+                  </div>
+                  <div style="flex: 1; text-align: center;">
+                    <div style="font-weight: 700; font-size: 11px;">الموظف المسؤول / الختم</div>
+                    <div style="border-bottom: 1px solid #000; margin-top: 36px; margin-bottom: 3px;"></div>
+                    <div style="font-size: 10px; color: #666;">التوقيع والتأكيد</div>
+                  </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="border-top: 1px solid #ccc; margin-top: 16px; padding-top: 6px; display: flex; justify-content: space-between; font-size: 10px; color: #666;">
+                  <span>تعتبر هذه الفاتورة وثيقة رسمية خاضعة لأحكام ضريبة القيمة المضافة بالمملكة العربية السعودية</span>
+                  <span>الرقم المرجعي: ${invoice.invoice_number} | أجرة © ${new Date().getFullYear()}</span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Trigger print
+        setTimeout(() => window.print(), 700);
+
+      } catch (err) {
+        console.error("Error loading invoice for print:", err);
+        document.getElementById("invoice-container").innerHTML = `<div style="padding: 40px; text-align: center; color: red;">حدث خطأ أثناء تحميل الفاتورة</div>`;
+      }
+    }
+  </script>
+</body>
+</html>

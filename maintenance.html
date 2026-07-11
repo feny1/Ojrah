@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>قائمة صيانات</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-8 max-w-6xl mx-auto space-y-8 mt-10">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold text-red-500">قائمة صيانات</h1>
+        <p class="text-gray-500 mt-2">إدخال وإدارة الصيانات بوقودها المشروطة</p>
+      </div>
+      <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
+        العودة للرئيسية
+      </a>
+    </div>
+
+    <!-- Form Section -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">إضافة صيانة جديدة</h2>
+      <form id="maintenance-form" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">المركبة</label>
+            <select id="car_id" required class="w-full border border-gray-300 p-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-red-500">
+              <option value="">اختر المركبة</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">عدد الكيلومترات</label>
+            <input type="number" required id="kilometers" placeholder="مثال: 50000" class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
+          </div>
+        </div>
+
+        <div class="flex gap-6 items-center">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="oil_change" class="w-5 h-5 text-red-500 rounded border-gray-300 focus:ring-red-500">
+            <span class="font-bold text-slate-700">تغيير زيت</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="filter_change" class="w-5 h-5 text-red-500 rounded border-gray-300 focus:ring-red-500">
+            <span class="font-bold text-slate-700">تغيير فلتر</span>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">تكلفة قطع الغيار</label>
+            <input type="number" step="0.01" required id="cost" placeholder="المبلغ" class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">أجرة الصيانة (اليدوية)</label>
+            <input type="number" step="0.01" required id="labor_cost" placeholder="أدخل أجرة الصيانة" class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" value="0">
+          </div>
+        </div>
+
+        <div class="p-6 bg-red-50 rounded-xl border border-red-100 space-y-4">
+          <h3 class="font-bold text-red-600">الشروط المالية (خيار واحد فقط)</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-gray-700 mb-2 font-bold">المبلغ المطلوب من السائق دفعه</label>
+              <input type="number" step="0.01" id="amount_from_driver" placeholder="يضاف للإجمالي الأسبوعي" class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 disabled:bg-gray-100 disabled:opacity-50">
+            </div>
+            <div>
+              <label class="block text-gray-700 mb-2 font-bold">المبلغ المحسوم من السائق</label>
+              <input type="number" step="0.01" id="deducted_from_weekly" placeholder="يخصم من المطلوب الأسبوعي" class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 disabled:bg-gray-100 disabled:opacity-50">
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="bg-red-500 text-white px-8 py-3 rounded-xl hover:bg-red-600 font-bold w-full md:w-auto transition-all shadow-md">
+          حفظ الصيانة
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API_CARS = "/api/cars";
+    const API_MAINTENANCE = "/api/maintenance";
+
+    const carSelect = document.getElementById("car_id");
+    const mForm = document.getElementById("maintenance-form");
+    const fromDriverInput = document.getElementById("amount_from_driver");
+    const deductedInput = document.getElementById("deducted_from_weekly");
+
+    // Mutual exclusion logic
+    fromDriverInput.addEventListener("input", () => {
+      if (fromDriverInput.value !== "") {
+        deductedInput.value = "";
+        deductedInput.disabled = true;
+      } else {
+        deductedInput.disabled = false;
+      }
+    });
+
+    deductedInput.addEventListener("input", () => {
+      if (deductedInput.value !== "") {
+        fromDriverInput.value = "";
+        fromDriverInput.disabled = true;
+      } else {
+        fromDriverInput.disabled = false;
+      }
+    });
+
+    async function loadCars() {
+      try {
+        const response = await fetch(API_CARS);
+        const cars = await response.json();
+        carSelect.innerHTML = `<option value="">اختر المركبة</option>` +
+          cars.map(c => `<option value="${c.id}">${c.plate_number} - ${c.company} ${c.model}</option>`).join('');
+      } catch (error) {
+        console.error("Error loading cars:", error);
+      }
+    }
+
+    mForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      if (!carSelect.value) {
+        alert("الرجاء اختيار المركبة");
+        return;
+      }
+
+      const data = {
+        car_id: parseInt(carSelect.value),
+        kilometers: parseInt(document.getElementById("kilometers").value) || 0,
+        oil_change: document.getElementById("oil_change").checked,
+        filter_change: document.getElementById("filter_change").checked,
+        cost: parseFloat(document.getElementById("cost").value) || 0,
+        labor_cost: parseFloat(document.getElementById("labor_cost").value) || 0,
+        amount_from_driver: parseFloat(fromDriverInput.value) || 0,
+        deducted_from_weekly: parseFloat(deductedInput.value) || 0
+      };
+
+      try {
+        const response = await fetch(API_MAINTENANCE, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          alert("تم إضافة الصيانة بنجاح");
+          mForm.reset();
+          fromDriverInput.disabled = false;
+          deductedInput.disabled = false;
+        } else {
+          const err = await response.json();
+          alert("فشل إضافة الصيانة: " + (err.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error adding maintenance:", error);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      }
+    });
+
+    // Initial Load
+    loadCars();
+  </script>
+</body>
+</html>

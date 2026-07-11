@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>صفحة المركبة الشاملة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <!-- Screen Layout -->
+  <div class="p-8 max-w-5xl mx-auto space-y-8 mt-10 print:hidden" id="screen-layout">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold text-blue-600">صفحة المركبة الشاملة</h1>
+        <p class="text-gray-500 mt-2">بيانات المركبة، السائقين، ونسبة التغطية وجدول السندات الزمني</p>
+      </div>
+      <div class="space-x-4 space-x-reverse flex">
+        <button id="open-edit-btn" class="bg-yellow-600 text-white px-6 py-3 rounded-xl hover:bg-yellow-700 shadow-lg font-bold">
+          تعديل بيانات المركبة
+        </button>
+        <button onclick="window.print()" class="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 shadow-lg">
+          طباعة التقرير
+        </button>
+        <a href="cars.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
+          العودة
+        </a>
+      </div>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <h2 class="text-xl font-bold text-blue-600 mb-4 border-b pb-2">بيانات المركبة الأساسية</h2>
+        <ul class="space-y-3 text-slate-700" id="car-basic-info">
+          <li><span class="text-gray-500 w-24 inline-block">النوع:</span> --</li>
+          <li><span class="text-gray-500 w-24 inline-block">اللوحة:</span> <span class="font-bold">--</span></li>
+          <li><span class="text-gray-500 w-24 inline-block">سنة الصنع:</span> --</li>
+          <li><span class="text-gray-500 w-24 inline-block">سعر الشراء:</span> -- ريال</li>
+          <li><span class="text-gray-500 w-24 inline-block">الإهلاك:</span> --</li>
+        </ul>
+      </div>
+      
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <h2 class="text-xl font-bold text-orange-500 mb-4 border-b pb-2">السائق الحالي للمركبة</h2>
+        <ul class="space-y-3 text-slate-700" id="car-driver-info">
+          <li class="text-gray-500 italic">لا يوجد سائق مرتبط حالياً</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Depreciation & Current Value -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <div class="flex items-center gap-3 border-b pb-4 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+          💰
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-slate-800">حساب الإهلاك والقيمة الحالية للمركبة</h2>
+          <p class="text-xs text-gray-500">حساب القيمة الحالية بناءً على نسبة الإهلاك وفترة الاستخدام</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Settings Column -->
+        <div id="depreciation-settings-container" class="space-y-5 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+          <h3 class="font-bold text-slate-700 mb-2">إعدادات الحساب</h3>
+          <!-- Loaded Dynamically -->
+        </div>
+
+        <!-- Details Column -->
+        <div class="space-y-4">
+          <h3 class="font-bold text-slate-700 border-b pb-2">تفاصيل الاستهلاك</h3>
+          <ul class="space-y-3 text-sm text-slate-600" id="depreciation-details">
+            <!-- Loaded Dynamically -->
+          </ul>
+        </div>
+
+        <!-- Results Column -->
+        <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex flex-col justify-between" id="depreciation-results">
+          <!-- Loaded Dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h2 class="text-xl font-bold text-slate-800 mb-6">الجدول الزمني الموحد (Timeline)</h2>
+      <div class="relative border-r-2 border-slate-200 pr-6 space-y-6" id="timeline-container">
+        <!-- Loaded Dynamically -->
+      </div>
+    </div>
+
+    <!-- Documents Section -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">مستندات المركبة (استمارة، تأمين، فحص)</h2>
+      
+      <form id="doc-form" class="bg-slate-50 p-6 rounded-xl border border-slate-100 mb-8 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <select id="doc_type" required class="border p-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-slate-800">
+            <option value="">-- نوع المستند --</option>
+            <option value="استمارة">استمارة سير</option>
+            <option value="تأمين">وثيقة تأمين</option>
+            <option value="فحص دوري">فحص دوري</option>
+            <option value="كرت تشغيل">كرت تشغيل</option>
+            <option value="أخرى">أخرى</option>
+          </select>
+          <input type="text" id="doc_num" placeholder="رقم المستند" class="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800">
+          <input type="date" id="doc_expiry" required class="border p-3 rounded-lg text-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-800" title="تاريخ الانتهاء">
+          <input type="text" id="doc_notes" placeholder="ملاحظات" class="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800">
+        </div>
+        <button type="submit" class="bg-slate-800 text-white px-6 py-3 rounded-lg hover:bg-slate-700 w-full md:w-auto mt-4 font-bold">
+          إضافة مستند +
+        </button>
+      </form>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-right">
+          <thead class="bg-slate-50 text-slate-600 border-b-2 border-slate-200">
+            <tr>
+              <th class="p-3 border">نوع المستند</th>
+              <th class="p-3 border">رقم المستند</th>
+              <th class="p-3 border">تاريخ الانتهاء</th>
+              <th class="p-3 border">ملاحظات</th>
+              <th class="p-3 border">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="docs-table-body">
+            <!-- Loaded Dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formal Print Report Section (Visible only when printing) -->
+  <div class="hidden print:block" id="print-layout" dir="rtl" style="font-family: 'Cairo', sans-serif; width: 210mm; height: 297mm; margin: 0 auto; padding: 12mm 14mm; background: white; color: #000; line-height: 1.5; box-sizing: border-box;">
+    <div style="border: 3px solid #000; height: 100%; padding: 10px 14px; display: flex; flexDirection: column; boxSizing: border-box;">
+      <div style="border: 1px solid #000; flex: 1; padding: 8px 12px; display: flex; flexDirection: column; boxSizing: border-box;">
+        <!-- Print Header -->
+        <div style="display: flex; justify-content: space-between; alignItems: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
+          <div>
+            <div style="font-size: 16px; font-weight: 900;">مؤسسة أجرة لتقنية المعلومات</div>
+            <div style="font-size: 10px; color: #444;">إدارة أسطول المركبات — المملكة العربية السعودية</div>
+          </div>
+          <div style="border: 2px solid #000; padding: 4px 16px; font-size: 18px; font-weight: 900; letter-spacing: 1px;">تقرير مركبة شامل</div>
+        </div>
+
+        <!-- Meta Row -->
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 11px;">
+          <div><b>تاريخ طباعة التقرير:</b> <span id="print-date">--</span></div>
+          <div><b>حالة المركبة:</b> <span style="border-bottom: 1px solid #000; padding-bottom: 1px; color: green; font-weight: bold;">نشط</span></div>
+        </div>
+
+        <!-- Section 1 -->
+        <div style="border: 1px solid #000; padding: 8px 12px; margin-bottom: 10px;">
+          <div style="font-weight: 900; font-size: 12px; border-bottom: 1px solid #000; margin-bottom: 8px; padding-bottom: 2px;">أولاً: البيانات الأساسية للمركبة</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px;" id="print-basic-info">
+            <!-- Loaded Dynamically -->
+          </div>
+        </div>
+
+        <!-- Section 2 -->
+        <div style="border: 1px solid #000; padding: 8px 12px; margin-bottom: 10px;">
+          <div style="font-weight: 900; font-size: 12px; border-bottom: 1px solid #000; margin-bottom: 8px; padding-bottom: 2px;">ثانياً: بيانات السائق والتشغيل الحالي</div>
+          <div id="print-driver-info" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px;">
+            <!-- Loaded Dynamically -->
+          </div>
+        </div>
+
+        <!-- Section 3 -->
+        <div style="border: 1px solid #000; padding: 8px 12px; margin-bottom: 10px;">
+          <div style="font-weight: 900; font-size: 12px; border-bottom: 1px solid #000; margin-bottom: 8px; padding-bottom: 2px;">ثالثاً: حسابات القيمة الحالية والإهلاك التقديري</div>
+          <div id="print-depreciation-info" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px;">
+            <!-- Loaded Dynamically -->
+          </div>
+        </div>
+
+        <!-- Section 4 & 5 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; flex: 1;">
+          <div style="border: 1px solid #000; padding: 6px 8px; display: flex; flex-direction: column;">
+            <div style="font-weight: 900; font-size: 11px; border-bottom: 1px solid #000; margin-bottom: 4px; padding-bottom: 2px;">رابعاً: سجل الصيانة الأخير</div>
+            <table style="width: 100%; font-size: 9px; text-align: right; border-collapse: collapse;">
+              <thead>
+                <tr style="border-bottom: 1px solid #000;">
+                  <th>المسافة</th>
+                  <th>التكلفة</th>
+                  <th>التفاصيل</th>
+                </tr>
+              </thead>
+              <tbody id="print-maintenance-body">
+                <!-- Loaded Dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <div style="border: 1px solid #000; padding: 6px 8px; display: flex; flex-direction: column;">
+            <div style="font-weight: 900; font-size: 11px; border-bottom: 1px solid #000; margin-bottom: 4px; padding-bottom: 2px;">خامساً: مستندات المركبة النشطة</div>
+            <table style="width: 100%; font-size: 9px; text-align: right; border-collapse: collapse;">
+              <thead>
+                <tr style="border-bottom: 1px solid #000;">
+                  <th>نوع المستند</th>
+                  <th>الرقم</th>
+                  <th>الانتهاء</th>
+                </tr>
+              </thead>
+              <tbody id="print-docs-body">
+                <!-- Loaded Dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Signatures -->
+        <div style="display: flex; justify-content: space-between; gap: 20px; margin-top: auto; padding-top: 10px;">
+          <div style="flex: 1; text-align: center;">
+            <div style="font-weight: 700; font-size: 11px;">توقيع المسؤول الفني</div>
+            <div style="border-bottom: 1px solid #000; margin-top: 24px; margin-bottom: 2px;"></div>
+            <div style="font-size: 10px; color: #666;">التوقيع والختم</div>
+          </div>
+          <div style="flex: 1; text-align: center;">
+            <div style="font-weight: 700; font-size: 11px;">مدير إدارة الحركة والأسطول</div>
+            <div style="border-bottom: 1px solid #000; margin-top: 24px; margin-bottom: 2px;"></div>
+            <div style="font-size: 10px; color: #666;">التوقيع والختم</div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="border-top: 1px solid #ccc; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 9px; color: #666;">
+          <span>هذه الوثيقة تعتبر تقريراً رسمياً إلكترونياً معتمداً ومسجلاً بالنظام</span>
+          <span id="print-copyright">أجرة © 2026</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="edit-modal" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b pb-2">تعديل بيانات المركبة</h2>
+      <form id="edit-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">الشركة المصنعة</label>
+            <input type="text" id="edit-company" required class="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">الموديل</label>
+            <input type="text" id="edit-model" required class="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">سنة الصنع</label>
+            <input type="number" id="edit-year" required class="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">تاريخ الشراء</label>
+            <input type="date" id="edit-purchase_date" required class="border p-3 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">رقم اللوحة</label>
+            <input type="text" id="edit-plate_number" required class="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">اللون</label>
+            <input type="text" id="edit-color" required class="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">تكلفة الشراء (ريال)</label>
+            <input type="number" id="edit-purchase_cost" required class="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-700 mb-1">طريقة الإهلاك</label>
+            <select id="edit-depreciation_method" class="border p-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="سنوات">سنوات</option>
+              <option value="كيلومترات">كيلومترات</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex gap-4 mt-6 border-t pt-4">
+          <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 font-bold shadow-lg flex-1">حفظ التغييرات</button>
+          <button type="button" id="close-edit-btn" class="bg-slate-200 text-slate-800 px-6 py-3 rounded-xl hover:bg-slate-300 font-bold flex-1">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const carId = urlParams.get("id");
+
+    if (!carId) {
+      alert("المركبة غير محددة");
+      window.location.href = "cars.html";
+    }
+
+    let car = null;
+    let depreciationRate = 15; // default 15%
+    let targetMileage = 250000; // default 250,000 km
+    let currentMileage = 0;
+
+    const openEditBtn = document.getElementById("open-edit-btn");
+    const closeEditBtn = document.getElementById("close-edit-btn");
+    const editModal = document.getElementById("edit-modal");
+    const editForm = document.getElementById("edit-form");
+    const docForm = document.getElementById("doc-form");
+
+    // Populate Print Date
+    document.getElementById("print-date").textContent = new Date().toLocaleDateString('ar-SA');
+    document.getElementById("print-copyright").textContent = `أجرة © ${new Date().getFullYear()}`;
+
+    // Show/Hide Modal
+    openEditBtn.addEventListener("click", () => {
+      if (!car) return;
+      document.getElementById("edit-company").value = car.company;
+      document.getElementById("edit-model").value = car.model;
+      document.getElementById("edit-year").value = car.year;
+      document.getElementById("edit-purchase_date").value = car.purchase_date;
+      document.getElementById("edit-plate_number").value = car.plate_number;
+      document.getElementById("edit-color").value = car.color;
+      document.getElementById("edit-purchase_cost").value = car.purchase_cost;
+      document.getElementById("edit-depreciation_method").value = car.depreciation_method;
+      editModal.classList.remove("hidden");
+    });
+
+    closeEditBtn.addEventListener("click", () => {
+      editModal.classList.add("hidden");
+    });
+
+    // Helper: Formatted print rows
+    function getFR(lbl, val) {
+      return `
+        <div style="display: flex; align-items: baseline; gap: 6px; font-size: 11px;">
+          <span style="font-weight: 700; white-space: nowrap; min-width: 120px; font-size: 10px; color: #333;">${lbl}:</span>
+          <span style="border-bottom: 1px dashed #000; flex: 1; font-weight: 700; padding-bottom: 1px; text-align: center;">
+            ${val || "___________"}
+          </span>
+        </div>
+      `;
+    }
+
+    // Elapsed Period Calculator
+    function getElapsedPeriod(startDateStr) {
+      const start = new Date(startDateStr);
+      const end = new Date();
+      
+      if (isNaN(start.getTime())) return { years: 0, months: 0, days: 0, totalYears: 0, text: "تاريخ غير صالح" };
+      
+      if (start > end) {
+        return { years: 0, months: 0, days: 0, totalYears: 0, text: "تاريخ في المستقبل" };
+      }
+      
+      let years = end.getFullYear() - start.getFullYear();
+      let months = end.getMonth() - start.getMonth();
+      let days = end.getDate() - start.getDate();
+      
+      if (days < 0) {
+        months--;
+        const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+        days += prevMonth.getDate();
+      }
+      
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+      
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const totalYears = diffTime / (1000 * 60 * 60 * 24 * 365.25);
+      
+      const parts = [];
+      if (years > 0) {
+        if (years === 1) parts.push("سنة واحدة");
+        else if (years === 2) parts.push("سنتين");
+        else if (years >= 3 && years <= 10) parts.push(`${years} سنوات`);
+        else parts.push(`${years} سنة`);
+      }
+      if (months > 0) {
+        if (months === 1) parts.push("شهر واحد");
+        else if (months === 2) parts.push("شهرين");
+        else if (months >= 3 && months <= 10) parts.push(`${months} أشهر`);
+        else parts.push(`${months} شهر`);
+      }
+      if (days > 0 || parts.length === 0) {
+        if (days === 1) parts.push("يوم واحد");
+        else if (days === 2) parts.push("يومين");
+        else if (days >= 3 && days <= 10) parts.push(`${days} أيام`);
+        else parts.push(`${days} يوم`);
+      }
+      
+      return { years, months, days, totalYears, text: parts.join(" و ") };
+    }
+
+    // Recalculate Depreciation
+    function calculateDepreciation() {
+      if (!car) return;
+      const cost = car.purchase_cost || 0;
+      const elapsed = getElapsedPeriod(car.purchase_date);
+      
+      let straightLineVal = 0;
+      let decliningVal = 0;
+      let straightLineDepPercent = 0;
+      let decliningDepPercent = 0;
+
+      if (car.depreciation_method === "كيلومترات") {
+        const ratio = targetMileage > 0 ? Math.min(1, currentMileage / targetMileage) : 0;
+        straightLineDepPercent = ratio * 100;
+        decliningDepPercent = ratio * 100;
+        straightLineVal = cost * (1 - ratio);
+        decliningVal = straightLineVal;
+      } else {
+        straightLineDepPercent = Math.min(100, elapsed.totalYears * depreciationRate);
+        straightLineVal = cost * (1 - straightLineDepPercent / 100);
+        
+        decliningVal = cost * Math.pow(1 - depreciationRate / 100, elapsed.totalYears);
+        decliningDepPercent = ((cost - decliningVal) / cost) * 100;
+      }
+
+      // Update Screen layout
+      const resultsContainer = document.getElementById("depreciation-results");
+      const detailsContainer = document.getElementById("depreciation-details");
+
+      detailsContainer.innerHTML = `
+        <li class="flex justify-between"><span>تاريخ الشراء:</span><span class="font-semibold text-slate-800">${car.purchase_date}</span></li>
+        <li class="flex justify-between"><span>سعر الشراء الأساسي:</span><span class="font-semibold text-slate-800">${cost.toLocaleString()} ريال</span></li>
+        <li class="flex justify-between"><span>المدة المنقضية منذ الشراء:</span><span class="font-semibold text-slate-800">${elapsed.text}</span></li>
+        <li class="flex justify-between"><span>طريقة الإهلاك المحددة:</span><span class="font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded text-xs">${car.depreciation_method}</span></li>
+      `;
+
+      if (car.depreciation_method === "سنوات") {
+        resultsContainer.innerHTML = `
+          <div>
+            <h3 class="font-bold text-slate-700 border-b pb-2 mb-3">القيمة التقديرية المتبقية</h3>
+            <div class="space-y-4">
+              <div>
+                <span class="text-xs text-gray-500 block">الإهلاك بقسط ثابت (${straightLineDepPercent.toFixed(1)}%):</span>
+                <span class="text-2xl font-black text-blue-600">${Math.max(0, Math.round(straightLineVal)).toLocaleString()} <span class="text-xs font-normal text-slate-500">ريال</span></span>
+              </div>
+              <div>
+                <span class="text-xs text-gray-500 block">الإهلاك برصيد متناقص (${decliningDepPercent.toFixed(1)}%):</span>
+                <span class="text-2xl font-black text-emerald-600">${Math.max(0, Math.round(decliningVal)).toLocaleString()} <span class="text-xs font-normal text-slate-500">ريال</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4">
+            <div class="flex justify-between text-[10px] text-gray-400 mb-1">
+              <span>المستهلك: ${straightLineDepPercent.toFixed(0)}%</span>
+              <span>المتبقي: ${(100 - straightLineDepPercent).toFixed(0)}%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden flex">
+              <div class="bg-red-500 h-full" style="width: ${straightLineDepPercent}%"></div>
+              <div class="bg-emerald-500 h-full flex-1"></div>
+            </div>
+          </div>
+        `;
+      } else {
+        resultsContainer.innerHTML = `
+          <div>
+            <h3 class="font-bold text-slate-700 border-b pb-2 mb-3">القيمة التقديرية المتبقية</h3>
+            <div class="space-y-4">
+              <div>
+                <span class="text-xs text-gray-500 block">استهلاك المسافة (${straightLineDepPercent.toFixed(1)}%):</span>
+                <span class="text-2xl font-black text-blue-600">${Math.max(0, Math.round(straightLineVal)).toLocaleString()} <span class="text-xs font-normal text-slate-500">ريال</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4">
+            <div class="flex justify-between text-[10px] text-gray-400 mb-1">
+              <span>المستهلك: ${straightLineDepPercent.toFixed(0)}%</span>
+              <span>المتبقي: ${(100 - straightLineDepPercent).toFixed(0)}%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden flex">
+              <div class="bg-red-500 h-full" style="width: ${straightLineDepPercent}%"></div>
+              <div class="bg-emerald-500 h-full flex-1"></div>
+            </div>
+          </div>
+        `;
+      }
+
+      // Update Print layout Section 3
+      const printDep = document.getElementById("print-depreciation-info");
+      if (car.depreciation_method === "سنوات") {
+        printDep.innerHTML = `
+          ${getFR("نسبة الإهلاك المحددة", `${depreciationRate}% سنوياً`)}
+          ${getFR("إجمالي الاستهلاك الثابت", `${straightLineDepPercent.toFixed(1)}%`)}
+          ${getFR("القيمة المتبقية (قسط ثابت)", `${Math.max(0, Math.round(straightLineVal)).toLocaleString()} ريال`)}
+          ${getFR("القيمة المتبقية (رصيد متناقص)", `${Math.max(0, Math.round(decliningVal)).toLocaleString()} ريال`)}
+        `;
+      } else {
+        printDep.innerHTML = `
+          ${getFR("العمر الافتراضي بالمسافة", `${targetMileage.toLocaleString()} كم`)}
+          ${getFR("المسافة المقطوعة الحالية", `${currentMileage.toLocaleString()} كم`)}
+          ${getFR("إجمالي استهلاك المسافة", `${straightLineDepPercent.toFixed(1)}%`)}
+          ${getFR("القيمة المتبقية التقديرية", `${Math.max(0, Math.round(straightLineVal)).toLocaleString()} ريال`)}
+        `;
+      }
+    }
+
+    // Load Car Details
+    async function loadCar() {
+      try {
+        const response = await fetch(`/api/cars/${carId}`);
+        car = await response.json();
+        
+        // Max KM from maintenance
+        const maxKm = car.maintenance && car.maintenance.length > 0 
+          ? Math.max(...car.maintenance.map(m => m.kilometers)) 
+          : 0;
+        currentMileage = maxKm;
+
+        // Basic Info
+        document.getElementById("car-basic-info").innerHTML = `
+          <li><span class="text-gray-500 w-24 inline-block">النوع:</span> ${car.company} ${car.model}</li>
+          <li><span class="text-gray-500 w-24 inline-block">اللوحة:</span> <span class="font-bold text-slate-900">${car.plate_number}</span></li>
+          <li><span class="text-gray-500 w-24 inline-block">سنة الصنع:</span> ${car.year}</li>
+          <li><span class="text-gray-500 w-24 inline-block">سعر الشراء:</span> ${Number(car.purchase_cost).toLocaleString()} ريال</li>
+          <li><span class="text-gray-500 w-24 inline-block">الإهلاك:</span> ${car.depreciation_method}</li>
+        `;
+
+        // Driver Info
+        const driverInfo = document.getElementById("car-driver-info");
+        if (car.current_driver) {
+          driverInfo.innerHTML = `
+            <li class="flex items-center space-x-4 space-x-reverse">
+              <span class="w-32 text-gray-500">اسم السائق:</span>
+              <span class="font-bold text-slate-900">${car.current_driver.name}</span>
+            </li>
+            <li class="flex items-center space-x-4 space-x-reverse">
+              <span class="w-32 text-gray-500">تاريخ التسليم:</span>
+              <span class="text-slate-800">${car.current_driver.start_date}</span>
+            </li>
+          `;
+        } else {
+          driverInfo.innerHTML = `<li class="text-gray-500 italic">لا يوجد سائق مرتبط حالياً</li>`;
+        }
+
+        // Setup Depreciation Controls
+        const settingsContainer = document.getElementById("depreciation-settings-container");
+        if (car.depreciation_method === "سنوات") {
+          settingsContainer.innerHTML = `
+            <h3 class="font-bold text-slate-700 mb-2">إعدادات الحساب</h3>
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-slate-600 flex justify-between">
+                <span>نسبة الإهلاك السنوية:</span>
+                <span id="rate-label" class="text-blue-600 font-bold">${depreciationRate}%</span>
+              </label>
+              <input
+                id="rate-slider"
+                type="range"
+                min="5"
+                max="40"
+                step="1"
+                value="${depreciationRate}"
+                class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <p class="text-[10px] text-gray-400">النسب الشائعة لسيارات الأجرة: 15% - 25% سنوياً</p>
+            </div>
+          `;
+          document.getElementById("rate-slider").addEventListener("input", (e) => {
+            depreciationRate = parseInt(e.target.value);
+            document.getElementById("rate-label").textContent = `${depreciationRate}%`;
+            calculateDepreciation();
+          });
+        } else {
+          settingsContainer.innerHTML = `
+            <h3 class="font-bold text-slate-700 mb-2">إعدادات الحساب</h3>
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-slate-600 flex justify-between">
+                <span>العمر الافتراضي بالمسافة:</span>
+                <span id="target-mileage-label" class="text-blue-600 font-bold">${targetMileage.toLocaleString()} كم</span>
+              </label>
+              <input
+                id="target-mileage-slider"
+                type="range"
+                min="100000"
+                max="500000"
+                step="10000"
+                value="${targetMileage}"
+                class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+            </div>
+            
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-slate-600 flex justify-between">
+                <span>قراءة العداد الحالية:</span>
+                <span class="text-blue-600 font-bold">${currentMileage.toLocaleString()} كم</span>
+              </label>
+              <input
+                id="current-mileage-input"
+                type="number"
+                value="${currentMileage}"
+                class="w-full border p-2 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500"
+              />
+              <p class="text-[10px] text-gray-400">مستوحى تلقائياً من سجلات الصيانة</p>
+            </div>
+          `;
+          document.getElementById("target-mileage-slider").addEventListener("input", (e) => {
+            targetMileage = parseInt(e.target.value);
+            document.getElementById("target-mileage-label").textContent = `${targetMileage.toLocaleString()} كم`;
+            calculateDepreciation();
+          });
+          document.getElementById("current-mileage-input").addEventListener("input", (e) => {
+            currentMileage = Math.max(0, parseInt(e.target.value) || 0);
+            calculateDepreciation();
+          });
+        }
+
+        calculateDepreciation();
+
+        // Timeline
+        const timeline = document.getElementById("timeline-container");
+        if (car.maintenance && car.maintenance.length > 0) {
+          timeline.innerHTML = car.maintenance.map(m => `
+            <div class="relative">
+              <span class="absolute -right-8 top-1 w-4 h-4 rounded-full bg-red-500 border-4 border-white shadow"></span>
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div class="flex justify-between items-center mb-2">
+                  <h3 class="font-bold text-red-600">صيانة دورية</h3>
+                  <span class="text-sm text-gray-500">مسافة: ${m.kilometers} كم</span>
+                  <button onclick="deleteMaintenance(${m.id})" class="text-red-500 hover:underline">حذف</button>
+                </div>
+                <p class="text-slate-600">تكلفة قطع الغيار: ${m.cost || 0} ريال | أجرة الصيانة: ${m.labor_cost || 0} ريال | تغيير زيت: ${m.oil_change ? 'نعم' : 'لا'} | تغيير فلتر: ${m.filter_change ? 'نعم' : 'لا'}</p>
+                ${(m.amount_from_driver > 0 || m.deducted_from_weekly > 0) ? `
+                  <p class="text-sm text-gray-500 mt-2">
+                    مطلوب من السائق: ${m.amount_from_driver} ريال | محسوم من السائق: ${m.deducted_from_weekly} ريال
+                  </p>
+                ` : ''}
+              </div>
+            </div>
+          `).join('');
+        } else {
+          timeline.innerHTML = `<div class="text-gray-500 italic">لا توجد حركات صيانة مسجلة حتى الآن</div>`;
+        }
+
+        // Documents list
+        const docsTable = document.getElementById("docs-table-body");
+        if (car.documents && car.documents.length > 0) {
+          docsTable.innerHTML = car.documents.map(d => {
+            const isExpired = new Date(d.expiry_date) < new Date();
+            return `
+              <tr class="hover:bg-slate-50 text-center">
+                <td class="p-3 border font-bold text-slate-700">${d.document_type}</td>
+                <td class="p-3 border">${d.document_number || '-'}</td>
+                <td class="p-3 border font-bold ${isExpired ? 'text-red-500 bg-red-55' : 'text-green-600'}">${d.expiry_date}</td>
+                <td class="p-3 border text-gray-500">${d.notes || '-'}</td>
+                <td class="p-3 border">
+                  <button onclick="deleteDocument(${d.id})" class="text-red-500 hover:underline font-bold">حذف</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          docsTable.innerHTML = `<tr><td colSpan="5" class="p-4 text-center text-gray-500 italic border">لا يوجد مستندات مسجلة لهذه المركبة</td></tr>`;
+        }
+
+        // --- PRINT LAYOUT POPULATION ---
+        const elapsed = getElapsedPeriod(car.purchase_date);
+        document.getElementById("print-basic-info").innerHTML = `
+          ${getFR("النوع والموديل", `${car.company} ${car.model}`)}
+          ${getFR("رقم اللوحة", car.plate_number)}
+          ${getFR("سنة الصنع", String(car.year))}
+          ${getFR("اللون", car.color || "-")}
+          ${getFR("سعر الشراء", `${Number(car.purchase_cost).toLocaleString()} ريال`)}
+          ${getFR("تاريخ الشراء", car.purchase_date)}
+          ${getFR("طريقة الإهلاك", car.depreciation_method)}
+          ${getFR("المدة المنقضية", elapsed.text)}
+        `;
+
+        const printDriver = document.getElementById("print-driver-info");
+        if (car.current_driver) {
+          printDriver.innerHTML = `
+            ${getFR("اسم السائق", car.current_driver.name)}
+            ${getFR("تاريخ استلام المركبة", car.current_driver.start_date)}
+          `;
+        } else {
+          printDriver.innerHTML = `<div style="font-size: 11px; font-style: italic; color: #666;">لا يوجد سائق مرتبط حالياً بهذه المركبة.</div>`;
+        }
+
+        // Print Maintenance Body (slice to 4 items)
+        const printMaint = document.getElementById("print-maintenance-body");
+        if (car.maintenance && car.maintenance.length > 0) {
+          printMaint.innerHTML = car.maintenance.slice(0, 4).map(m => `
+            <tr style="border-bottom: 1px solid #eee">
+              <td>${Number(m.kilometers).toLocaleString()} كم</td>
+              <td>قطع: ${m.cost || 0} ر.س | أجرة: ${m.labor_cost || 0} ر.س</td>
+              <td>${m.oil_change ? 'تغيير زيت' : ''} ${m.filter_change ? 'وفلتر' : ''}</td>
+            </tr>
+          `).join('');
+        } else {
+          printMaint.innerHTML = `<tr><td colSpan="3" style="font-style: italic; color: #666; text-align: center; padding-top: 8px;">لا يوجد سجل صيانة</td></tr>`;
+        }
+
+        // Print Docs Body (slice to 4 items)
+        const printDocs = document.getElementById("print-docs-body");
+        if (car.documents && car.documents.length > 0) {
+          printDocs.innerHTML = car.documents.slice(0, 4).map(d => `
+            <tr style="border-bottom: 1px solid #eee">
+              <td style="font-weight: bold;">${d.document_type}</td>
+              <td>${d.document_number || "-"}</td>
+              <td>${d.expiry_date}</td>
+            </tr>
+          `).join('');
+        } else {
+          printDocs.innerHTML = `<tr><td colSpan="3" style="font-style: italic; color: #666; text-align: center; padding-top: 8px;">لا يوجد مستندات مسجلة</td></tr>`;
+        }
+
+      } catch (err) {
+        console.error("Error loading car:", err);
+      }
+    }
+
+    async function deleteMaintenance(maintId) {
+      if (confirm("هل أنت متأكد من حذف سجل الصيانة هذا؟")) {
+        try {
+          await fetch(`/api/maintenance/${maintId}`, { method: "DELETE" });
+          loadCar();
+        } catch (error) {
+          console.error("Error deleting maintenance:", error);
+        }
+      }
+    }
+
+    async function deleteDocument(docId) {
+      if (confirm("حذف هذا المستند؟")) {
+        try {
+          await fetch(`/api/car_documents/${docId}`, { method: "DELETE" });
+          loadCar();
+        } catch (error) {
+          console.error("Error deleting document:", error);
+        }
+      }
+    }
+
+    // Submit Edit
+    editForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = {
+        company: document.getElementById("edit-company").value,
+        model: document.getElementById("edit-model").value,
+        year: parseInt(document.getElementById("edit-year").value) || 0,
+        purchase_date: document.getElementById("edit-purchase_date").value,
+        plate_number: document.getElementById("edit-plate_number").value,
+        color: document.getElementById("edit-color").value,
+        purchase_cost: parseFloat(document.getElementById("edit-purchase_cost").value) || 0,
+        depreciation_method: document.getElementById("edit-depreciation_method").value
+      };
+
+      try {
+        const response = await fetch(`/api/cars/${carId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+          alert("تم تحديث بيانات المركبة بنجاح!");
+          editModal.classList.add("hidden");
+          loadCar();
+        } else {
+          const err = await response.json();
+          alert("فشل التحديث: " + (err.error || "خطأ غير معروف"));
+        }
+      } catch (error) {
+        console.error("Error updating car:", error);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      }
+    });
+
+    // Add Document
+    docForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const docData = {
+        car_id: parseInt(carId),
+        document_type: document.getElementById("doc_type").value,
+        document_number: document.getElementById("doc_num").value,
+        expiry_date: document.getElementById("doc_expiry").value,
+        notes: document.getElementById("doc_notes").value
+      };
+
+      try {
+        const response = await fetch("/api/car_documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(docData)
+        });
+
+        if (response.ok) {
+          alert("تمت إضافة المستند بنجاح!");
+          docForm.reset();
+          loadCar();
+        } else {
+          alert("فشل إضافة المستند");
+        }
+      } catch (error) {
+        console.error("Error adding document:", error);
+      }
+    });
+
+    // Initial Load
+    loadCar();
+  </script>
+</body>
+</html>
