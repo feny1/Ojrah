@@ -98,9 +98,12 @@
     // Vouchers (receipts, advances)
     const driverVouchers = vouchers.filter(v => v.related_driver_id == d.id);
     driverVouchers.forEach(v => {
-      if (v.voucher_type === 'سند قبض') {
+      const isCredit = v.voucher_type === 'سند قبض' || v.voucher_type === 'سند تسديد مخالفة' || v.voucher_type === 'سند تأمين (قبض)';
+      const isDebit = v.voucher_type === 'سلفة' || v.voucher_type === 'سند تأمين (مديونية)';
+      
+      if (isCredit) {
         total_credits += parseFloat(v.amount || 0);
-      } else if (v.voucher_type === 'سلفة' || (v.voucher_type !== 'سند تسليم مركبة' && parseFloat(v.amount || 0) > 0)) {
+      } else if (isDebit || (v.voucher_type !== 'سند تسليم مركبة' && parseFloat(v.amount || 0) > 0)) {
         total_debits += parseFloat(v.amount || 0);
       }
     });
@@ -122,7 +125,8 @@
 
       // Vouchers since rollover
       driverVouchers.forEach(v => {
-        if (v.voucher_type === 'سند قبض') {
+        const isCredit = v.voucher_type === 'سند قبض' || v.voucher_type === 'سند تسديد مخالفة' || v.voucher_type === 'سند تأمين (قبض)';
+        if (isCredit) {
           const vTime = new Date(v.voucher_date + 'T00:00:00').getTime();
           if (vTime >= rolloverTime) {
             cash_collected += parseFloat(v.cash_amount || 0);
@@ -253,6 +257,33 @@
             expected_revenue,
             drivers_due
           };
+        }
+        
+        // GET /api/debts
+        else if (path === '/api/debts' && method === 'GET') {
+          const vouchers = getTable('vouchers');
+          const drivers = getTable('drivers');
+          const contracts = getTable('contracts');
+          const violations = getTable('violations');
+          const maintenance = getTable('maintenance');
+          const purchases = getTable('purchases');
+          
+          let all_debts = [];
+          drivers.forEach(d => {
+            const financials = getDriverFinancials(d, contracts, vouchers, violations, maintenance, purchases);
+            if (financials.net_balance > 0 || financials.accumulated_debt > 0) {
+              all_debts.push({
+                driver_id: d.id,
+                driver_name: d.name,
+                net_balance: financials.net_balance,
+                accumulated_debt: financials.accumulated_debt,
+                active_contract: financials.active_contract_id ? true : false
+              });
+            }
+          });
+          
+          all_debts.sort((a, b) => b.net_balance - a.net_balance);
+          responseData = all_debts;
         }
         
         // GET /api/summary
@@ -481,32 +512,42 @@
               
               vouchers.forEach(v => {
                 const inv = invoices.find(i => i.voucher_id === v.id);
-                if (v.voucher_type === "سند قبض") {
+                const isCredit = v.voucher_type === 'سند قبض' || v.voucher_type === 'سند تسديد مخالفة' || v.voucher_type === 'سند تأمين (قبض)';
+                const isDebit = v.voucher_type === 'سلفة' || v.voucher_type === 'سند تأمين (مديونية)';
+
+                if (isCredit) {
                   const cash = parseFloat(v.cash_amount || 0);
                   const net = parseFloat(v.network_amount || 0);
-                  let desc = v.description;
-                  if (cash > 0 && net > 0) {
-                    desc += ` (كاش: ${cash}، شبكة: ${net})`;
-                  } else if (cash > 0) {
-                    desc += ` (كاش: ${cash})`;
-                  } else if (net > 0) {
-                    desc += ` (شبكة: ${net})`;
+                  let baseDesc = v.description + ` (${v.voucher_type})`;
+                  
+                  if (cash > 0) {
+                    statements.push({
+                      id: `voucher-cash-${v.id}`,
+                      date: v.voucher_date,
+                      description: baseDesc + ' (كاش)',
+                      debit: 0,
+                      credit: cash,
+                      category: 'cash',
+                      invoice_id: inv ? inv.id : null
+                    });
                   }
-                  statements.push({
-                    id: `voucher-${v.id}`,
-                    date: v.voucher_date,
-                    description: desc,
-                    debit: 0,
-                    credit: parseFloat(v.amount || 0),
-                    category: net > 0 ? 'network' : 'cash',
-                    invoice_id: inv ? inv.id : null
-                  });
+                  if (net > 0) {
+                    statements.push({
+                      id: `voucher-net-${v.id}`,
+                      date: v.voucher_date,
+                      description: baseDesc + ' (شبكة)',
+                      debit: 0,
+                      credit: net,
+                      category: 'network',
+                      invoice_id: inv ? inv.id : null
+                    });
+                  }
                   current_week_required -= parseFloat(v.amount || 0);
-                } else if (v.voucher_type === "سلفة") {
+                } else if (isDebit) {
                   statements.push({
-                    id: `voucher-${v.id}`,
+                    id: `voucher-debit-${v.id}`,
                     date: v.voucher_date,
-                    description: v.description,
+                    description: v.description + ` (${v.voucher_type})`,
                     debit: parseFloat(v.amount || 0),
                     credit: 0,
                     category: 'advance'
@@ -515,7 +556,7 @@
                 } else {
                   if (parseFloat(v.amount || 0) > 0) {
                     statements.push({
-                      id: `voucher-${v.id}`,
+                      id: `voucher-misc-${v.id}`,
                       date: v.voucher_date,
                       description: v.description,
                       debit: parseFloat(v.amount || 0),

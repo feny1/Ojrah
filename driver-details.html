@@ -21,6 +21,14 @@
       }
     }
   </script>
+  <style>
+    @media print {
+      @page { size: A4; margin: 0; }
+      body { margin: 0 !important; padding: 0 !important; background: white !important; }
+      .print\:hidden { display: none !important; }
+      #print-layout { display: block !important; }
+    }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
   <!-- Screen Layout (Hidden during printing) -->
@@ -75,16 +83,16 @@
           <select id="fin-type" class="border p-3 rounded-lg bg-white font-bold focus:outline-none focus:ring-2 focus:ring-green-500">
             <option value="سند قبض" class="text-green-600">سند قبض (دفعة من السائق)</option>
             <option value="سلفة" class="text-purple-600">سند صرف (سلفة للسائق)</option>
+            <option value="سند تأمين (قبض)" class="text-blue-600">سند تأمين (قبض)</option>
+            <option value="سند تأمين (مديونية)" class="text-orange-600">سند تأمين (مديونية)</option>
+            <option value="سند تسديد مخالفة" class="text-red-600">سند تسديد مخالفة</option>
           </select>
           
           <div id="payment-method-container" class="contents">
-            <select id="fin-payment-method" class="border p-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
-              <option value="كاش">كاش</option>
-              <option value="شبكة">شبكة</option>
-            </select>
+            <input type="number" step="0.01" id="fin-cash-amount" placeholder="مبلغ الكاش" class="border p-3 rounded-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-green-500">
+            <input type="number" step="0.01" id="fin-network-amount" placeholder="مبلغ الشبكة" class="border p-3 rounded-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-green-500">
           </div>
           
-          <input type="number" step="0.01" required id="fin-amount" placeholder="المبلغ" class="border p-3 rounded-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-green-500">
           <input type="text" id="fin-desc" placeholder="البيان / ملاحظات" class="border p-3 rounded-lg md:col-span-2 focus:outline-none focus:ring-2 focus:ring-green-500">
         </div>
         
@@ -274,20 +282,19 @@
 
     // Dynamic voucher inputs
     finType.addEventListener("change", () => {
-      if (finType.value === "سند قبض") {
+      const isReceipt = finType.value === "سند قبض" || finType.value === "سند تسديد مخالفة" || finType.value === "سند تأمين (قبض)";
+      if (isReceipt) {
         paymentMethodContainer.innerHTML = `
-          <select id="fin-payment-method" class="border p-3 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
-            <option value="كاش">كاش</option>
-            <option value="شبكة">شبكة</option>
-          </select>
+          <input type="number" step="0.01" id="fin-cash-amount" placeholder="مبلغ الكاش" class="border p-3 rounded-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-green-500">
+          <input type="number" step="0.01" id="fin-network-amount" placeholder="مبلغ الشبكة" class="border p-3 rounded-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-green-500">
         `;
-        submitFinBtn.textContent = "تسجيل سند قبض +";
+        submitFinBtn.textContent = "تسجيل السند +";
         submitFinBtn.className = "bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg";
       } else {
         paymentMethodContainer.innerHTML = `
-          <div class="border p-3 rounded-lg bg-gray-100 text-gray-500 text-center font-bold flex items-center justify-center">كاش/تحويل</div>
+          <input type="number" step="0.01" id="fin-cash-amount" placeholder="مبلغ السلفة/المديونية" class="border p-3 rounded-lg font-bold text-center md:col-span-2 focus:outline-none focus:ring-2 focus:ring-green-500">
         `;
-        submitFinBtn.textContent = "تسجيل سند صرف +";
+        submitFinBtn.textContent = "تسجيل العملية +";
         submitFinBtn.className = "bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg";
       }
     });
@@ -327,7 +334,7 @@
         driver = await response.json();
 
         // Print links
-        document.getElementById("print-all-vouchers-btn").href = `/driver-vouchers-print?id=${driver.id}`;
+        document.getElementById("print-all-vouchers-btn").href = `driver-vouchers-print.html?id=${driver.id}`;
 
         // Basic Info
         document.getElementById("driver-basic-info").innerHTML = `
@@ -518,11 +525,16 @@
         if (category === "contract") endpoint = "contracts";
         else if (category === "violation") endpoint = "violations";
         else if (category === "maintenance") endpoint = "maintenance";
-        else if (category === "cash" || category === "network") endpoint = "vouchers";
+        else if (category === "cash" || category === "network" || category === "advance") endpoint = "vouchers";
+        
+        let actualId = statementId;
+        if (typeof statementId === 'string' && statementId.startsWith('voucher-')) {
+          actualId = statementId.split('-').pop();
+        }
         
         if (endpoint) {
           try {
-            const res = await fetch(`/api/${endpoint}/${statementId}`, { method: "DELETE" });
+            const res = await fetch(`/api/${endpoint}/${actualId}`, { method: "DELETE" });
             if (res.ok) {
               loadDriver();
             } else {
@@ -569,20 +581,34 @@
     // Create Voucher
     financialForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const amountVal = parseFloat(document.getElementById("fin-amount").value);
-      if (isNaN(amountVal) || amountVal <= 0) return;
-
+      
       const typeVal = document.getElementById("fin-type").value;
+      const isReceipt = typeVal === "سند قبض" || typeVal === "سند تسديد مخالفة" || typeVal === "سند تأمين (قبض)";
+      
+      let cashAmt = 0;
+      let netAmt = 0;
+      
+      if (isReceipt) {
+        cashAmt = parseFloat(document.getElementById("fin-cash-amount")?.value || 0);
+        netAmt = parseFloat(document.getElementById("fin-network-amount")?.value || 0);
+      } else {
+        cashAmt = parseFloat(document.getElementById("fin-cash-amount")?.value || 0);
+      }
+      
+      if (cashAmt <= 0 && netAmt <= 0) {
+        alert("يرجى إدخال مبلغ صحيح.");
+        return;
+      }
+
       const descVal = document.getElementById("fin-desc").value;
-      const paymentMethodVal = typeVal === "سند قبض" ? document.getElementById("fin-payment-method").value : "كاش";
 
       const data = {
         voucher_type: typeVal,
         voucher_date: document.getElementById("fin-date").value,
-        amount: amountVal,
+        cash_amount: cashAmt,
+        network_amount: netAmt,
         related_driver_id: parseInt(driverId),
-        description: descVal || (typeVal === 'سند قبض' ? 'دفعة من السائق' : 'سلفة للسائق'),
-        payment_method: paymentMethodVal
+        description: descVal || (typeVal === 'سند قبض' ? 'دفعة من السائق' : typeVal)
       };
 
       try {
@@ -594,7 +620,8 @@
 
         if (response.ok) {
           alert("تم تسجيل العملية بنجاح!");
-          document.getElementById("fin-amount").value = "";
+          if (document.getElementById("fin-cash-amount")) document.getElementById("fin-cash-amount").value = "";
+          if (document.getElementById("fin-network-amount")) document.getElementById("fin-network-amount").value = "";
           document.getElementById("fin-desc").value = "";
           loadDriver();
         } else {

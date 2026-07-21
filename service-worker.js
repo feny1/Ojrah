@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ojrah-win-v1';
+const CACHE_NAME = 'ojrah-win-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -17,6 +17,8 @@ const ASSETS = [
   './invoice-print.html',
   './voucher-print.html',
   './invoices.html',
+  './debts.html',
+  './update.html',
   './js/db.js',
   './js/tailwind.js',
   './css/style.css',
@@ -52,7 +54,7 @@ self.addEventListener('fetch', (e) => {
   if (!url.startsWith('http') && !url.startsWith(self.location.origin)) {
     return;
   }
-  
+
   // Do not intercept API mock endpoints
   if (url.includes('/api/')) {
     return;

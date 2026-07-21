@@ -51,6 +51,9 @@
             <select id="v_type" class="w-full border p-3 rounded-lg bg-white focus:ring-2 focus:ring-sky-400">
               <option value="سند قبض">سند قبض (قبض نقدي/شبكة)</option>
               <option value="سلفة">سند صرف (صيانة/سلفة)</option>
+              <option value="سند تأمين (قبض)">سند تأمين (قبض)</option>
+              <option value="سند تأمين (مديونية)">سند تأمين (مديونية)</option>
+              <option value="سند تسديد مخالفة">سند تسديد مخالفة</option>
             </select>
           </div>
           <div>
@@ -131,7 +134,8 @@
     const singleField = document.getElementById("single-payment-field");
 
     vTypeSelect.addEventListener("change", () => {
-      if (vTypeSelect.value === "سند قبض") {
+      const isReceipt = vTypeSelect.value === "سند قبض" || vTypeSelect.value === "سند تسديد مخالفة" || vTypeSelect.value === "سند تأمين (قبض)";
+      if (isReceipt) {
         splitFields.classList.remove("hidden");
         singleField.classList.add("hidden");
       } else {
@@ -253,9 +257,10 @@
       e.preventDefault();
 
       const typeVal = vTypeSelect.value;
+      const isReceipt = typeVal === "سند قبض" || typeVal === "سند تسديد مخالفة" || typeVal === "سند تأمين (قبض)";
       let data = {};
       
-      if (typeVal === "سند قبض") {
+      if (isReceipt) {
         const cash_amount = parseFloat(document.getElementById("v_cash_amount").value || 0);
         const network_amount = parseFloat(document.getElementById("v_network_amount").value || 0);
         if (cash_amount === 0 && network_amount === 0) {

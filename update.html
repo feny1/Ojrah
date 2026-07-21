@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تحديث النظام</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 flex items-center justify-center min-h-screen font-sans">
+  <div class="bg-white p-8 rounded-2xl shadow-xl text-center max-w-sm w-full border border-slate-100">
+    <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-spin">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+    </div>
+    <h1 class="text-2xl font-black text-slate-800 mb-2">جاري تحديث النظام...</h1>
+    <p class="text-slate-500 mb-6 text-sm">جاري مسح الذاكرة المؤقتة وتنزيل آخر التحديثات، يرجى الانتظار...</p>
+    <div class="w-full bg-slate-100 rounded-full h-2 mb-2 overflow-hidden">
+      <div class="bg-emerald-500 h-2 rounded-full transition-all duration-700 ease-out w-0" id="progress-bar"></div>
+    </div>
+    <p id="status-text" class="text-xs text-emerald-600 font-bold">بدء التحديث...</p>
+  </div>
+
+  <script>
+    async function forceUpdate() {
+      const progressBar = document.getElementById('progress-bar');
+      const statusText = document.getElementById('status-text');
+      
+      setTimeout(async () => {
+        progressBar.style.width = '40%';
+        statusText.textContent = "جاري مسح Service Worker...";
+        
+        try {
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (let registration of registrations) {
+              await registration.unregister();
+            }
+          }
+          
+          progressBar.style.width = '70%';
+          statusText.textContent = "جاري مسح الذاكرة المؤقتة (Cache)...";
+          
+          if (window.caches) {
+            const keys = await caches.keys();
+            for (let key of keys) {
+              await caches.delete(key);
+            }
+          }
+        } catch (e) {
+          console.error("Error clearing caches:", e);
+        }
+        
+        progressBar.style.width = '100%';
+        statusText.textContent = "اكتمل التحديث بنجاح! جاري التحويل...";
+        
+        // Force reload from server bypassing cache
+        setTimeout(() => {
+          window.location.replace('index.html?t=' + new Date().getTime());
+        }, 1000);
+        
+      }, 500);
+    }
+    
+    // Start automatically
+    forceUpdate();
+  </script>
+</body>
+</html>
