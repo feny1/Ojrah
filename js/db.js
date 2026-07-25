@@ -783,7 +783,7 @@
         }
         
         // GET /api/vouchers/:id
-        else if (path.startsWith('/api/vouchers/') && !path.endsWith('/convert-to-invoice')) {
+        else if (path.startsWith('/api/vouchers/') && !path.endsWith('/convert-to-invoice') && method === 'GET') {
           const id = parseInt(path.split('/')[3]);
           const vouchers = getTable('vouchers');
           const voucher = vouchers.find(v => v.id === id);

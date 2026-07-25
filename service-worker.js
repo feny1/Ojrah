@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ojrah-win-v3';
+const CACHE_NAME = 'ojrah-win-v4';
 const ASSETS = [
   './',
   './index.html',
