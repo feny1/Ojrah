@@ -93,20 +93,21 @@
           <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-100">
             <tr>
               <th class="p-4 rounded-tr-xl">السائق / المركبة</th>
-              <th class="p-4 text-center">كاش الدورة (ريال)</th>
-              <th class="p-4 text-center">شبكة الدورة (ريال)</th>
-              <th class="p-4 text-center">التعويضات/الفواتير</th>
+              <th class="p-4 text-center">المبلغ المدفوع (ريال)</th>
+              <th class="p-4 text-center">المخصوم (صيانة ومصاريف)</th>
               <th class="p-4 text-center">التوريد الأسبوعي (الهدف)</th>
               <th class="p-4 text-center">المديونية المتراكمة</th>
-              <th class="p-4 text-center">الصافي المطلوب</th>
+              <th class="p-4 text-center">المبلغ المتبقي (الصافي)</th>
               <th class="p-4 rounded-tl-xl text-center">الإجراءات</th>
             </tr>
           </thead>
           <tbody id="summary-table-body">
             <tr>
-              <td colSpan="8" class="text-center p-8 text-slate-400 font-bold">جاري تحميل البيانات...</td>
+              <td colSpan="7" class="text-center p-8 text-slate-400 font-bold">جاري تحميل البيانات...</td>
             </tr>
           </tbody>
+          <tfoot id="summary-table-foot" class="hidden">
+          </tfoot>
         </table>
       </div>
     </div>
@@ -242,15 +243,29 @@
         actualRevenueVal.textContent = dashboardData.actual_revenue.toLocaleString();
 
         if (dashboardData.drivers_due.length === 0) {
-          tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-slate-400 italic">لا يوجد سائقون بعقود نشطة حالياً</td></tr>`;
+          tableBody.innerHTML = `<tr><td colSpan="7" class="text-center p-8 text-slate-400 italic">لا يوجد سائقون بعقود نشطة حالياً</td></tr>`;
+          const tableFoot = document.getElementById("summary-table-foot");
+          if (tableFoot) tableFoot.classList.add("hidden");
           return;
         }
 
-        tableBody.innerHTML = dashboardData.drivers_due.map(d => {
-          // تطبيق معادلتك الصحيحة: (المديونية + التوريد الأسبوعي) - (التعويضات + الكاش + الشبكة)
-          const netBalanceCorrect = (d.accumulated_debt + d.weekly_target) - (d.reimbursements + d.cash_collected + d.network_collected);
+        let totalPaid = 0;
+        let totalDeductions = 0;
+        let totalWeeklyTarget = 0;
+        let totalAccumulatedDebt = 0;
+        let totalRemaining = 0;
 
-          // تحديث التنبيه: يظهر فقط إذا كان الصافي المطلوب أكبر من 0 (السائق عليه مديونية فعليّة)
+        tableBody.innerHTML = dashboardData.drivers_due.map(d => {
+          const paidAmount = d.cash_collected + d.network_collected;
+          const deductions = d.reimbursements;
+          const netBalanceCorrect = (d.accumulated_debt + d.weekly_target) - (deductions + paidAmount);
+
+          totalPaid += paidAmount;
+          totalDeductions += deductions;
+          totalWeeklyTarget += d.weekly_target;
+          totalAccumulatedDebt += d.accumulated_debt;
+          totalRemaining += netBalanceCorrect;
+
           let warningBadge = "";
           if (netBalanceCorrect > 0) {
             warningBadge = `<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200/50 mr-2">⚠️ متأخر</span>`;
@@ -262,13 +277,15 @@
                 <div class="font-bold text-slate-800">${d.driver_name}</div>
                 <div class="text-xs text-slate-400 mt-0.5">${d.vehicle}</div>
               </td>
-              <td class="p-4 text-center font-semibold text-slate-700">${d.cash_collected.toFixed(2)}</td>
-              <td class="p-4 text-center font-semibold text-slate-700">${d.network_collected.toFixed(2)}</td>
-              <td class="p-4 text-center font-semibold text-teal-600">${d.reimbursements.toFixed(2)}</td>
-              <td class="p-4 text-center font-bold text-slate-700">${d.weekly_target.toFixed(2)}</td>
-              <td class="p-4 text-center font-semibold text-rose-600">${d.accumulated_debt.toFixed(2)}</td>
               <td class="p-4 text-center">
-                <div class="font-black text-slate-800">${netBalanceCorrect.toFixed(2)}</div>
+                <div class="font-black text-emerald-600">${paidAmount.toFixed(2)} ر.س</div>
+                <div class="text-[11px] text-slate-400">كاش: ${d.cash_collected.toFixed(2)} | شبكة: ${d.network_collected.toFixed(2)}</div>
+              </td>
+              <td class="p-4 text-center font-semibold text-teal-600">${deductions.toFixed(2)} ر.س</td>
+              <td class="p-4 text-center font-bold text-slate-700">${d.weekly_target.toFixed(2)} ر.س</td>
+              <td class="p-4 text-center font-semibold text-rose-600">${d.accumulated_debt.toFixed(2)} ر.س</td>
+              <td class="p-4 text-center">
+                <div class="font-black text-slate-800">${netBalanceCorrect.toFixed(2)} ر.س</div>
                 ${warningBadge}
               </td>
               <td class="p-4 text-center">
@@ -290,9 +307,25 @@
             </tr>
           `;
         }).join('');
+
+        const tableFoot = document.getElementById("summary-table-foot");
+        if (tableFoot) {
+          tableFoot.innerHTML = `
+            <tr class="bg-slate-100/90 font-black border-t-2 border-slate-200 text-slate-800 text-sm">
+              <td class="p-4 text-base font-black text-slate-900">المجموع الكلي</td>
+              <td class="p-4 text-center text-emerald-700 text-base font-extrabold">${totalPaid.toFixed(2)} ر.س</td>
+              <td class="p-4 text-center text-teal-700 font-extrabold text-base">${totalDeductions.toFixed(2)} ر.س</td>
+              <td class="p-4 text-center font-bold text-slate-700">${totalWeeklyTarget.toFixed(2)} ر.س</td>
+              <td class="p-4 text-center text-rose-600 font-bold">${totalAccumulatedDebt.toFixed(2)} ر.س</td>
+              <td class="p-4 text-center text-purple-900 text-base font-black">${totalRemaining.toFixed(2)} ر.س</td>
+              <td class="p-4 text-center text-slate-400 text-xs">-</td>
+            </tr>
+          `;
+          tableFoot.classList.remove("hidden");
+        }
       } catch (error) {
         console.error("Error loading dashboard summary:", error);
-        tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
+        tableBody.innerHTML = `<tr><td colSpan="7" class="text-center p-8 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
       }
     }
     window.openPaymentModal = function (driverId) {

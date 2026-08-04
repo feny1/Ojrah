@@ -46,7 +46,7 @@
     </div>
 
     <div id="add-purchase-form" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8 hidden">
-      <h2 class="text-2xl font-bold text-slate-800 mb-6">تسجيل مشتريات جديدة</h2>
+      <h2 id="form-title" class="text-2xl font-bold text-slate-800 mb-6">تسجيل مشتريات جديدة</h2>
       <form id="purchase-form" class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div>
@@ -145,7 +145,7 @@
         </div>
 
         <div class="flex gap-4 mt-6">
-          <button type="submit"
+          <button type="submit" id="submit-form-btn"
             class="bg-teal-600 text-white px-8 py-3 rounded-xl hover:bg-teal-700 font-bold shadow-lg transition-colors">
             حفظ الفاتورة
           </button>
@@ -291,18 +291,30 @@
 
     document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
 
+    let editingPurchaseId = null;
+    let allPurchases = [];
+    const formTitle = document.getElementById("form-title");
+    const submitFormBtn = document.getElementById("submit-form-btn");
+
+    function resetFormState() {
+      editingPurchaseId = null;
+      if (formTitle) formTitle.textContent = "تسجيل مشتريات جديدة";
+      if (submitFormBtn) submitFormBtn.textContent = "حفظ الفاتورة";
+      purchaseForm.reset();
+      document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
+      toggleSections();
+    }
+
     showFormBtn.addEventListener("click", () => {
+      resetFormState();
       addPurchaseForm.classList.remove("hidden");
       showFormBtn.classList.add("hidden");
-      toggleSections();
     });
 
     cancelFormBtn.addEventListener("click", () => {
       addPurchaseForm.classList.add("hidden");
       showFormBtn.classList.remove("hidden");
-      purchaseForm.reset();
-      document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
-      toggleSections();
+      resetFormState();
     });
 
     async function loadData() {
@@ -319,6 +331,7 @@
 
         const purchasesRes = await fetch(API_PURCHASES);
         const purchases = await purchasesRes.json();
+        allPurchases = purchases;
 
         if (purchases.length === 0) {
           tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-gray-500 italic">لا توجد فواتير مشتريات مسجلة</td></tr>`;
@@ -336,7 +349,10 @@
             <td class="p-4 text-center font-mono font-bold text-emerald-600">${parseFloat(p.reimbursement_amount || 0).toFixed(2)} ر.س</td>
             <td class="p-4 text-center font-mono font-bold text-red-500">${parseFloat(p.debt_charge_amount || 0).toFixed(2)} ر.س</td>
             <td class="p-4 text-center">
-              <button onclick="deletePurchase(${p.id})" class="text-red-500 hover:text-red-700 font-bold hover:underline">حذف</button>
+              <div class="flex justify-center items-center gap-3">
+                <button onclick="editPurchase(${p.id})" class="text-amber-600 hover:text-amber-800 font-bold hover:underline">تعديل</button>
+                <button onclick="deletePurchase(${p.id})" class="text-red-500 hover:text-red-700 font-bold hover:underline">حذف</button>
+              </div>
             </td>
           </tr>
         `).join('');
@@ -345,6 +361,40 @@
         tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
       }
     }
+
+    window.editPurchase = function(id) {
+      const p = allPurchases.find(item => item.id === id);
+      if (!p) return;
+
+      editingPurchaseId = id;
+      if (formTitle) formTitle.textContent = "تعديل فاتورة مشتريات";
+      if (submitFormBtn) submitFormBtn.textContent = "حفظ التعديلات";
+
+      driverSelect.value = p.driver_id || "";
+      carSelect.value = p.car_id || "";
+      document.getElementById("invoice_date").value = p.invoice_date || new Date().toISOString().split("T")[0];
+      document.getElementById("product_name").value = p.product_name || "";
+      totalAmountInput.value = p.total_amount || 0;
+      driverPaidInput.value = p.driver_paid_amount || 0;
+
+      const debtAmount = parseFloat(p.debt_charge_amount || 0);
+      if (debtAmount > 0) {
+        const radioDebt = document.querySelector('input[name="settlement_type"][value="debt"]');
+        if (radioDebt) radioDebt.checked = true;
+        debtChargeInput.value = debtAmount;
+        reimbursementInput.value = 0;
+      } else {
+        const radioReimb = document.querySelector('input[name="settlement_type"][value="reimbursement"]');
+        if (radioReimb) radioReimb.checked = true;
+        reimbursementInput.value = parseFloat(p.reimbursement_amount || 0);
+        debtChargeInput.value = 0;
+      }
+
+      toggleSections();
+      addPurchaseForm.classList.remove("hidden");
+      showFormBtn.classList.add("hidden");
+      addPurchaseForm.scrollIntoView({ behavior: 'smooth' });
+    };
 
     async function deletePurchase(id) {
       if (confirm("هل أنت متأكد من حذف فاتورة المشتريات هذه؟")) {
@@ -391,27 +441,29 @@
         debt_charge_amount: debtCharge
       };
 
+      const isEdit = editingPurchaseId !== null;
+      const targetUrl = isEdit ? `${API_PURCHASES}/${editingPurchaseId}` : API_PURCHASES;
+      const targetMethod = isEdit ? "PUT" : "POST";
+
       try {
-        const response = await fetch(API_PURCHASES, {
-          method: "POST",
+        const response = await fetch(targetUrl, {
+          method: targetMethod,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data)
         });
 
         if (response.ok) {
-          alert("تم تسجيل المشتريات بنجاح");
+          alert(isEdit ? "تم تحديث المشتريات بنجاح" : "تم تسجيل المشتريات بنجاح");
           addPurchaseForm.classList.add("hidden");
           showFormBtn.classList.remove("hidden");
-          purchaseForm.reset();
-          document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
-          toggleSections();
+          resetFormState();
           loadData();
         } else {
           const err = await response.json();
           alert("فشل الحفظ: " + (err.error || "خطأ غير معروف"));
         }
       } catch (error) {
-        console.error("Error creating purchase:", error);
+        console.error("Error saving purchase:", error);
         alert("حدث خطأ أثناء الاتصال بالخادم");
       }
     });

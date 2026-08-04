@@ -916,6 +916,41 @@
           }
         }
         
+        // PUT /api/purchases/:id
+        else if (path.startsWith('/api/purchases/') && method === 'PUT') {
+          const id = parseInt(path.split('/')[3]);
+          const purchases = getTable('purchases');
+          const index = purchases.findIndex(p => p.id === id);
+          if (index === -1) {
+            status = 404;
+            responseData = { error: 'السجل غير موجود' };
+          } else {
+            const updatedPurchase = {
+              id: id,
+              driver_id: parseInt(body.driver_id),
+              car_id: parseInt(body.car_id),
+              invoice_date: body.invoice_date,
+              product_name: body.product_name,
+              total_amount: parseFloat(body.total_amount || 0),
+              driver_paid_amount: parseFloat(body.driver_paid_amount || 0),
+              reimbursement_amount: parseFloat(body.reimbursement_amount || 0),
+              debt_charge_amount: parseFloat(body.debt_charge_amount || 0)
+            };
+            
+            if ((updatedPurchase.driver_paid_amount + updatedPurchase.debt_charge_amount) > updatedPurchase.total_amount) {
+              status = 400;
+              responseData = { error: 'مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.' };
+            } else if (updatedPurchase.reimbursement_amount > updatedPurchase.driver_paid_amount) {
+              status = 400;
+              responseData = { error: 'لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.' };
+            } else {
+              purchases[index] = updatedPurchase;
+              setTable('purchases', purchases);
+              responseData = { message: 'تم تحديث المشتريات بنجاح' };
+            }
+          }
+        }
+        
         // DELETE /api/purchases/:id
         else if (path.startsWith('/api/purchases/') && method === 'DELETE') {
           const id = parseInt(path.split('/')[3]);
