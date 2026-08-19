@@ -23,7 +23,7 @@
   </script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
-  <div class="p-8 max-w-6xl mx-auto space-y-8 mt-10">
+  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 mt-4">
     <!-- Header -->
     <div class="flex justify-between items-center mb-8">
       <div>
@@ -63,6 +63,16 @@
             <option value="6">السبت (Saturday)</option>
           </select>
         </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-600 mb-2">أتمتة الاستحقاق الدوري والتكرار الأسبوعي (Recurring Billing):</label>
+          <select
+            id="auto_recurring_enabled"
+            class="w-full border border-slate-200 rounded-xl p-3 font-bold text-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+          >
+            <option value="1">مفعل (أتمتة الاستحقاق الأسبوعي تلقائياً بداية كل أسبوع)</option>
+            <option value="0">معطل (الترحيل اليدوي فقط)</option>
+          </select>
+        </div>
         <button
           type="submit"
           id="save-vat-btn"
@@ -98,6 +108,28 @@
           استيراد نسخة احتياطية (Import JSON)
           <input type="file" id="import-db-input" accept=".json" class="hidden" />
         </label>
+      </div>
+    </div>
+
+    <!-- System Update & Version Box -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 border-r-4 border-r-indigo-500">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800">تحديثات النظام والذاكرة المؤقتة</h2>
+          <p class="text-gray-500 mt-1">تفريغ الكاش المحلي وتثبيت آخر تحديثات الواجهة وعرض الشاشة بالكامل.</p>
+        </div>
+        <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs px-3 py-1.5 rounded-xl font-black">
+          الإصدار الحالي: v1.2.0
+        </span>
+      </div>
+      
+      <div class="flex flex-wrap items-center gap-4">
+        <a
+          href="update.html"
+          class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md flex items-center gap-2"
+        >
+          🚀 تشغيل تحديث النظام فوراً (تحديث v1.2.0 ومسح الكاش)
+        </a>
       </div>
     </div>
 
@@ -203,6 +235,8 @@
     const successContent = document.getElementById("modal-content-success");
     const successOkBtn = document.getElementById("success-ok-btn");
 
+    const autoRecurringSelect = document.getElementById("auto_recurring_enabled");
+
     async function loadSettings() {
       try {
         const response = await fetch(API_SETTINGS);
@@ -212,6 +246,9 @@
         }
         if (data.weekly_due_day !== undefined) {
           weeklyDueDaySelect.value = data.weekly_due_day;
+        }
+        if (data.auto_recurring_enabled !== undefined) {
+          autoRecurringSelect.value = data.auto_recurring_enabled;
         }
       } catch (err) {
         console.error("Error loading settings:", err);
@@ -229,7 +266,8 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             vat_number: vatInput.value,
-            weekly_due_day: parseInt(weeklyDueDaySelect.value)
+            weekly_due_day: parseInt(weeklyDueDaySelect.value),
+            auto_recurring_enabled: parseInt(autoRecurringSelect.value)
           })
         });
         if (res.ok) {

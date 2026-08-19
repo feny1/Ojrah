@@ -10,7 +10,10 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
-          .then(reg => console.log('Service Worker registered:', reg.scope))
+          .then(reg => {
+            console.log('Service Worker registered:', reg.scope);
+            reg.update();
+          })
           .catch(err => console.error('Service Worker registration failed:', err));
       });
     }
@@ -57,7 +60,25 @@
     ]);
   }
 
-  // 2. Helper to compute driver financials
+  // Helper to compute weeks count for a contract based on auto recurring calculation & manual rollover
+  function getContractWeeksCount(c) {
+    if (!c || !c.start_date) return 1;
+    const startDate = new Date(c.start_date + 'T00:00:00');
+    const today = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    
+    let autoWeeks = 0;
+    if (today >= startDate) {
+      const diffTime = Math.abs(today - startDate);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      autoWeeks = Math.floor(diffDays / 7);
+    }
+    const manualRollover = parseInt(c.rollover_count || 0);
+    return Math.max(1, autoWeeks + 1, manualRollover + 1);
+  }
+
+  // 2. Helper to compute driver financials with Netting & Recurring Billing
   function getDriverFinancials(d, contracts, vouchers, violations, maintenance, purchases) {
     const driverContracts = contracts.filter(c => c.driver_id == d.id);
     const activeContract = driverContracts.length > 0 ? driverContracts[driverContracts.length - 1] : null;
@@ -65,10 +86,10 @@
     let total_debits = 0;
     let total_credits = 0;
 
-    // Contracts rent
+    // Contracts rent (recurring weekly entitlement)
     driverContracts.forEach(c => {
-      const count = parseInt(c.rollover_count || 0);
-      total_debits += (count + 1) * parseFloat(c.weekly_required || 0);
+      const weeksCount = getContractWeeksCount(c);
+      total_debits += weeksCount * parseFloat(c.weekly_required || 0);
     });
 
     // Violations
@@ -79,7 +100,7 @@
       total_debits += parseFloat(v.amount || 0);
     });
 
-    // Maintenance
+    // Maintenance (Netting & driver charges)
     const maints = maintenance.filter(m => {
       return driverContracts.some(c => c.car_id == m.car_id);
     });
@@ -88,7 +109,7 @@
       total_credits += parseFloat(m.deducted_from_weekly || 0);
     });
 
-    // Purchases
+    // Purchases (Netting reimbursements & debt charges)
     const driverPurchases = purchases.filter(p => p.driver_id == d.id);
     driverPurchases.forEach(p => {
       total_credits += parseFloat(p.reimbursement_amount || 0);
@@ -110,20 +131,27 @@
 
     const net_balance = total_debits - total_credits;
 
-    // Current Cycle Calculations
+    // Current Cycle Calculations & Netting
     let weekly_target = 0;
     let cash_collected = 0;
     let network_collected = 0;
     let reimbursements = 0;
     let last_rollover_date = '';
+    let current_week_index = 1;
 
     if (activeContract) {
+      const weeksCount = getContractWeeksCount(activeContract);
+      current_week_index = weeksCount;
       weekly_target = parseFloat(activeContract.weekly_required || 0);
-      last_rollover_date = activeContract.last_rollover_date || activeContract.start_date;
+
+      const currentCycleIndex = weeksCount - 1;
+      const startDateObj = new Date(activeContract.start_date + 'T00:00:00');
+      const currentCycleDate = new Date(startDateObj.getTime() + currentCycleIndex * 7 * 24 * 60 * 60 * 1000);
+      last_rollover_date = activeContract.last_rollover_date || currentCycleDate.toISOString().split('T')[0];
 
       const rolloverTime = new Date(last_rollover_date + 'T00:00:00').getTime();
 
-      // Vouchers since rollover
+      // Vouchers since current cycle rollover
       driverVouchers.forEach(v => {
         const isCredit = v.voucher_type === 'سند قبض' || v.voucher_type === 'سند تسديد مخالفة' || v.voucher_type === 'سند تأمين (قبض)';
         if (isCredit) {
@@ -135,7 +163,15 @@
         }
       });
 
-      // Purchases since rollover
+      // Maintenance deductions in current cycle
+      maints.forEach(m => {
+        const mTime = new Date((m.maintenance_date || activeContract.start_date) + 'T00:00:00').getTime();
+        if (mTime >= rolloverTime) {
+          reimbursements += parseFloat(m.deducted_from_weekly || 0);
+        }
+      });
+
+      // Purchases reimbursements since current cycle rollover
       driverPurchases.forEach(p => {
         const pTime = new Date(p.invoice_date + 'T00:00:00').getTime();
         if (pTime >= rolloverTime) {
@@ -155,6 +191,7 @@
       reimbursements,
       accumulated_debt,
       last_rollover_date,
+      current_week_index,
       active_contract_id: activeContract ? activeContract.id : null,
       active_car_id: activeContract ? activeContract.car_id : null
     };
@@ -301,7 +338,7 @@
         
         // GET /api/settings
         else if (path === '/api/settings' && method === 'GET') {
-          const settings = JSON.parse(localStorage.getItem('db_settings') || '{"vat_number":"310123456700003","weekly_due_day":0}');
+          const settings = JSON.parse(localStorage.getItem('db_settings') || '{"vat_number":"310123456700003","weekly_due_day":0,"auto_recurring_enabled":1}');
           responseData = settings;
         }
         
@@ -309,7 +346,8 @@
         else if (path === '/api/settings' && method === 'POST') {
           localStorage.setItem('db_settings', JSON.stringify({ 
             vat_number: body.vat_number, 
-            weekly_due_day: parseInt(body.weekly_due_day || 0) 
+            weekly_due_day: parseInt(body.weekly_due_day || 0),
+            auto_recurring_enabled: body.auto_recurring_enabled !== undefined ? parseInt(body.auto_recurring_enabled) : 1
           }));
           responseData = { message: 'تم حفظ الإعدادات بنجاح' };
         }
@@ -419,21 +457,24 @@
               let statements = [];
               
               if (contracts.length > 0) {
-                // Rent debits
+                // Rent debits (Recurring Weekly Entitlements)
                 contracts.forEach(c => {
-                  const count = parseInt(c.rollover_count || 0);
-                  const startDate = new Date(c.start_date);
-                  for (let i = 0; i <= count; i++) {
+                  const weeksCount = getContractWeeksCount(c);
+                  const startDate = new Date(c.start_date + 'T00:00:00');
+                  for (let i = 0; i < weeksCount; i++) {
                     const cycleDate = new Date(startDate.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+                    const isCurrent = (i === weeksCount - 1);
                     statements.push({
                       id: `${c.id}-rent-${i}`,
                       date: cycleDate.toISOString().split('T')[0],
-                      description: `قيمة العقد الأسبوعية - الأسبوع ${i + 1}`,
+                      description: `استحقاق أجرة أسبوعية تلقائي - الأسبوع ${i + 1}${isCurrent ? ' (الدورة الحالية)' : ' (دورة سابقة مغلقة)'}`,
                       debit: parseFloat(c.weekly_required || 0),
                       credit: 0,
-                      category: 'contract'
+                      category: 'contract',
+                      week_index: i + 1,
+                      is_current_cycle: isCurrent,
+                      is_auto_recurring: true
                     });
-                    current_week_required += parseFloat(c.weekly_required || 0);
                   }
                 });
                 
@@ -585,7 +626,8 @@
                 statements.reverse();
               }
               
-              responseData = { ...driver, contracts, statements, current_week_required };
+              const financials = getDriverFinancials(driver, contracts, getTable('vouchers'), getTable('violations'), getTable('maintenance'), getTable('purchases'));
+              responseData = { ...driver, contracts, statements, current_week_required: financials.net_balance, financials };
             }
           } else if (method === 'PUT') {
             if (driverIndex === -1) {
@@ -863,12 +905,28 @@
             responseData = { error: 'العقد غير موجود' };
           } else {
             const contract = contracts[contractIndex];
-            contract.rollover_count = parseInt(contract.rollover_count || 0) + 1;
+            const currentWeeks = getContractWeeksCount(contract);
+            contract.rollover_count = Math.max(parseInt(contract.rollover_count || 0), currentWeeks);
             contract.last_rollover_date = new Date().toISOString().split('T')[0];
             contracts[contractIndex] = contract;
             setTable('contracts', contracts);
-            responseData = { message: 'تم ترحيل الأسبوع بنجاح' };
+            responseData = { message: 'تم ترحيل وفتح الدورة الأسبوعية الجديدة بنجاح', week_number: contract.rollover_count + 1 };
           }
+        }
+
+        // POST /api/recurring-billing/process
+        else if (path === '/api/recurring-billing/process' && method === 'POST') {
+          const contracts = getTable('contracts');
+          let updatedCount = 0;
+          contracts.forEach(c => {
+            const autoWeeks = getContractWeeksCount(c);
+            if (autoWeeks > (c.rollover_count || 0) + 1) {
+              c.rollover_count = autoWeeks - 1;
+              updatedCount++;
+            }
+          });
+          setTable('contracts', contracts);
+          responseData = { message: 'تم تحديث وأتمتة الاستحقاق الأسبوعي بنجاح', updated_contracts: updatedCount };
         }
         
         // GET /api/purchases

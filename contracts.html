@@ -23,7 +23,7 @@
   </script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
-  <div class="p-8 max-w-6xl mx-auto space-y-8 mt-10">
+  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 mt-4">
     <!-- Header -->
     <div class="flex justify-between items-center mb-8">
       <div>
@@ -37,8 +37,10 @@
 
     <!-- Actions / Add Button -->
     <div class="flex justify-between items-center mb-6" id="contracts-actions">
-      <div></div>
-      <button id="show-form-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">إنشاء عقد جديد</button>
+      <button onclick="processGlobalRecurringBilling()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow transition-all flex items-center gap-2">
+        ⚡ تشغيل وتحديث أتمتة الاستحقاق الأسبوعي
+      </button>
+      <button id="show-form-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-bold">إنشاء عقد جديد</button>
     </div>
 
     <!-- Add Form (hidden by default) -->
@@ -89,7 +91,7 @@
               <th class="p-4">المركبة (اللوحة)</th>
               <th class="p-4">تاريخ الاستلام</th>
               <th class="p-4">المطلوب أسبوعياً</th>
-              <th class="p-4">الإجمالي</th>
+              <th class="p-4">الدورة والتكرار الدوري</th>
               <th class="p-4 rounded-tl-lg">الإجراءات</th>
             </tr>
           </thead>
@@ -130,6 +132,34 @@
       document.getElementById("start_date").value = new Date().toISOString().split("T")[0];
     });
 
+    async function processGlobalRecurringBilling() {
+      try {
+        const res = await fetch("/api/recurring-billing/process", { method: "POST" });
+        const data = await res.json();
+        alert(data.message || "تم تشغيل الأتمتة بنجاح");
+        loadData();
+      } catch (err) {
+        console.error("Error processing recurring billing:", err);
+      }
+    }
+
+    async function rolloverContract(id) {
+      if (confirm("هل أنت متأكد من ترحيل الدورة الأسبوعية وفتح الأسبوع التالي لهذا العقد؟")) {
+        try {
+          const res = await fetch(`/api/contracts/${id}/rollover`, { method: "POST" });
+          const data = await res.json();
+          if (res.ok) {
+            alert(data.message || "تم الترحيل بنجاح");
+            loadData();
+          } else {
+            alert("فشل الترحيل: " + (data.error || "خطأ غير معروف"));
+          }
+        } catch (err) {
+          console.error("Error in contract rollover:", err);
+        }
+      }
+    }
+
     async function loadData() {
       try {
         // Load Drivers
@@ -153,19 +183,37 @@
           return;
         }
 
-        tableBody.innerHTML = contracts.map(c => `
+        tableBody.innerHTML = contracts.map(c => {
+          const startDate = new Date(c.start_date + 'T00:00:00');
+          const today = new Date();
+          startDate.setHours(0,0,0,0);
+          today.setHours(0,0,0,0);
+          let weeksPassed = 0;
+          if (today >= startDate) {
+            weeksPassed = Math.floor(Math.abs(today - startDate) / (1000 * 60 * 60 * 24 * 7));
+          }
+          const weekNum = Math.max(1, weeksPassed + 1, parseInt(c.rollover_count || 0) + 1);
+
+          return `
           <tr class="border-b border-slate-50 hover:bg-slate-50">
             <td class="p-4 font-bold">${c.driver_name}</td>
             <td class="p-4 text-blue-600 font-bold">${c.plate_number}</td>
             <td class="p-4">${c.start_date}</td>
-            <td class="p-4 text-green-600">${c.weekly_required} ريال</td>
-            <td class="p-4">${c.total_required} ريال</td>
+            <td class="p-4 text-green-600 font-bold">${c.weekly_required} ريال</td>
             <td class="p-4">
-              <a href="driver-details.html?id=${c.driver_id}" class="text-indigo-500 hover:underline mx-2">كشف السائق</a>
+              <div class="flex items-center gap-2">
+                <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-bold">تكرار أسبوعي تلقائي</span>
+                <span class="text-xs text-slate-500 font-bold">الأسبوع ${weekNum}</span>
+              </div>
+            </td>
+            <td class="p-4">
+              <a href="driver-details.html?id=${c.driver_id}" class="text-indigo-600 font-bold hover:underline mx-2">كشف الحساب</a>
+              <button onclick="rolloverContract(${c.id})" class="text-emerald-600 font-bold hover:underline mx-2">ترحيل الأسبوع</button>
               <button onclick="deleteContract(${c.id})" class="text-red-500 hover:underline mx-2">حذف</button>
             </td>
           </tr>
-        `).join('');
+        `;
+        }).join('');
       } catch (error) {
         console.error("Error loading data:", error);
         tableBody.innerHTML = `<tr><td colSpan="6" class="text-center p-4 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;

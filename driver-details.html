@@ -32,7 +32,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
   <!-- Screen Layout (Hidden during printing) -->
-  <div class="p-8 max-w-5xl mx-auto space-y-8 mt-10 print:hidden" id="screen-layout">
+  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 mt-4 print:hidden" id="screen-layout">
     <!-- Header -->
     <div class="flex justify-between items-center mb-8">
       <div>
@@ -72,6 +72,48 @@
         <ul class="space-y-3 text-slate-700" id="driver-contract-info">
           <li class="text-gray-500 italic">لا يوجد عقد نشط حالياً</li>
         </ul>
+      </div>
+    </div>
+
+    <!-- Netting & Weekly Cycle Breakdown Card -->
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 shadow-xl text-white border border-indigo-500/20 mb-8" id="netting-cycle-card">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-white/10">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs px-3 py-1 rounded-full font-bold">⚡ أتمتة الاستحقاق الدوري نشطة</span>
+            <span id="cycle-badge" class="bg-indigo-500/30 text-indigo-200 border border-indigo-500/30 text-xs px-3 py-1 rounded-full font-bold">الدورة الحالية: الأسبوع 1</span>
+          </div>
+          <h2 class="text-2xl font-black mt-2">ملخص المقاصة المالية والدورة الحالية</h2>
+          <p class="text-xs text-slate-300">يتم احتساب استحقاق الأسبوع تلقائياً وخصم مصاريف المقاصة والدفعات للوصول للصافي المالي الدقيق.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="force-rollover-btn" onclick="forceCycleRollover()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2.5 rounded-xl shadow-lg transition-all border border-indigo-400/30">
+            🔄 ترحيل وتأكيد الدورة الجديدة
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-right">
+        <div class="bg-white/5 p-4 rounded-2xl border border-white/10">
+          <span class="text-xs text-indigo-200 block font-bold">إجمالي الاستحقاق الأسبوعي</span>
+          <span id="netting-total-rent" class="text-2xl font-black text-white block mt-1">0 ر.س</span>
+          <span class="text-[10px] text-slate-400">إجمالي الأسابيع المنقضية × قيمة العقد</span>
+        </div>
+        <div class="bg-white/5 p-4 rounded-2xl border border-white/10">
+          <span class="text-xs text-amber-300 block font-bold">خصومات المقاصة (صيانة ومشتريات)</span>
+          <span id="netting-total-offsets" class="text-2xl font-black text-amber-400 block mt-1">0 ر.س</span>
+          <span class="text-[10px] text-slate-400">تعويضات المشتريات وخصم الصيانة</span>
+        </div>
+        <div class="bg-white/5 p-4 rounded-2xl border border-white/10">
+          <span class="text-xs text-emerald-300 block font-bold">إجمالي المقبوضات (كاش وشبكة)</span>
+          <span id="netting-total-paid" class="text-2xl font-black text-emerald-400 block mt-1">0 ر.س</span>
+          <span class="text-[10px] text-slate-400">سندات القبض المسجلة بالدورة</span>
+        </div>
+        <div class="bg-indigo-500/20 p-4 rounded-2xl border border-indigo-400/30">
+          <span class="text-xs text-indigo-200 block font-bold">الصافي النهائي المطالب به</span>
+          <span id="netting-final-net" class="text-2xl font-black text-red-400 block mt-1">0 ر.س</span>
+          <span class="text-[10px] text-indigo-300">الرصيد المتبقي ذمة على السائق</span>
+        </div>
       </div>
     </div>
 
@@ -377,20 +419,61 @@
           });
         }
 
+        // Populate Netting Breakdown Card
+        if (driver.financials) {
+          document.getElementById("cycle-badge").textContent = `الدورة الحالية: الأسبوع ${driver.financials.current_week_index || 1}`;
+          const totalOffsets = (driver.financials.reimbursements || 0);
+          document.getElementById("netting-total-offsets").textContent = `${totalOffsets} ر.س`;
+          
+          const totalPaid = totalCash + totalNetwork;
+          document.getElementById("netting-total-paid").textContent = `${totalPaid} ر.س`;
+          
+          const finalNet = driver.current_week_required || 0;
+          const finalElem = document.getElementById("netting-final-net");
+          finalElem.textContent = `${finalNet} ر.س`;
+          finalElem.className = `text-2xl font-black block mt-1 ${finalNet > 0 ? 'text-red-400' : 'text-emerald-400'}`;
+        }
+        document.getElementById("netting-total-rent").textContent = `${totalContract} ر.س`;
+
         // Populate Table Body
         const ledgerBody = document.getElementById("ledger-table-body");
         if (driver.statements && driver.statements.length > 0) {
-          ledgerBody.innerHTML = driver.statements.map(s => `
-            <tr class="hover:bg-slate-50 text-center">
-              <td class="p-3 border text-right">${s.date}</td>
-              <td class="p-3 border text-right">${s.description}</td>
-              <td class="p-3 border font-bold text-slate-700">${s.category === 'contract' ? s.debit : ''}</td>
-              <td class="p-3 border font-bold text-purple-500">${s.category === 'advance' ? s.debit : ''}</td>
-              <td class="p-3 border font-bold text-green-500">${s.category === 'cash' ? (s.credit || s.debit) : ''}</td>
-              <td class="p-3 border font-bold text-green-500">${s.category === 'network' ? (s.credit || s.debit) : ''}</td>
-              <td class="p-3 border font-bold text-orange-500">${s.category === 'maintenance' ? (s.debit || s.credit) : ''}</td>
-              <td class="p-3 border font-bold text-red-500">${s.category === 'violation' ? s.debit : ''}</td>
-              <td class="p-3 border font-bold ${s.balance > 0 ? 'text-red-500' : 'text-green-500'}">${s.balance}</td>
+          ledgerBody.innerHTML = driver.statements.map(s => {
+            let descContent = s.description;
+            if (s.category === 'contract') {
+              descContent = `
+                <div class="flex items-center gap-2">
+                  <span class="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded font-bold">استحقاق أسبوعي تلقائي</span>
+                  <span>${s.description}</span>
+                </div>
+              `;
+            } else if (s.category === 'maintenance' && s.credit > 0) {
+              descContent = `
+                <div class="flex items-center gap-2">
+                  <span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded font-bold">خصم مقاصة صيانة</span>
+                  <span>${s.description}</span>
+                </div>
+              `;
+            } else if (s.category === 'purchase' && s.credit > 0) {
+              descContent = `
+                <div class="flex items-center gap-2">
+                  <span class="bg-teal-100 text-teal-800 text-xs px-2 py-0.5 rounded font-bold">مقاصة مشتريات</span>
+                  <span>${s.description}</span>
+                </div>
+              `;
+            }
+
+            return `
+            <tr class="hover:bg-slate-50 text-center ${s.is_current_cycle ? 'bg-indigo-50/40' : ''}">
+              <td class="p-3 border text-right font-medium">${s.date}</td>
+              <td class="p-3 border text-right">${descContent}</td>
+              <td class="p-3 border font-bold text-slate-700">${s.category === 'contract' ? `${s.debit} ر.س` : ''}</td>
+              <td class="p-3 border font-bold text-purple-500">${s.category === 'advance' ? `${s.debit} ر.س` : ''}</td>
+              <td class="p-3 border font-bold text-green-500">${s.category === 'cash' ? `${s.credit || s.debit} ر.س` : ''}</td>
+              <td class="p-3 border font-bold text-green-500">${s.category === 'network' ? `${s.credit || s.debit} ر.س` : ''}</td>
+              <td class="p-3 border font-bold text-orange-500">${s.category === 'maintenance' ? `${s.debit || s.credit} ر.س` : ''}</td>
+              <td class="p-3 border font-bold text-red-500">${s.category === 'violation' ? `${s.debit} ر.س` : ''}</td>
+              <td class="p-3 border font-bold ${s.balance > 0 ? 'text-red-500' : 'text-green-500'}">${s.balance} ر.س</td>
               <td class="p-3 border flex items-center justify-center gap-2">
                 ${s.id && (s.category === 'cash' || s.category === 'network') ? `
                   ${s.invoice_id ? `
@@ -406,12 +489,15 @@
                     سند A4
                   </a>
                 ` : ''}
-                <button onclick="deleteStatement(${s.id}, '${s.category}')" class="text-red-500 hover:text-red-700 font-bold" title="حذف هذه الحركة">
+                ${s.category !== 'contract' ? `
+                <button onclick="deleteStatement('${s.id}', '${s.category}')" class="text-red-500 hover:text-red-700 font-bold" title="حذف هذه الحركة">
                   ✕
                 </button>
+                ` : `<span class="text-xs text-gray-400 font-medium" title="قيد أسبوعي دوري">آلي</span>`}
               </td>
             </tr>
-          `).join('');
+          `;
+          }).join('');
 
           // Table Foot
           const ledgerFoot = document.getElementById("ledger-table-foot");
@@ -419,12 +505,12 @@
           ledgerFoot.innerHTML = `
             <tr class="text-center">
               <td class="p-4 border text-left font-black" colSpan="2">الإجمالي العام</td>
-              <td class="p-4 border text-slate-800">${totalContract > 0 ? totalContract : ''}</td>
-              <td class="p-4 border text-purple-700">${totalAdvance > 0 ? totalAdvance : ''}</td>
-              <td class="p-4 border text-green-700">${totalCash > 0 ? totalCash : ''}</td>
-              <td class="p-4 border text-green-700">${totalNetwork > 0 ? totalNetwork : ''}</td>
-              <td class="p-4 border text-orange-600">${totalMaintenance > 0 ? totalMaintenance : ''}</td>
-              <td class="p-4 border text-red-600">${totalViolation > 0 ? totalViolation : ''}</td>
+              <td class="p-4 border text-slate-800">${totalContract > 0 ? `${totalContract} ر.س` : ''}</td>
+              <td class="p-4 border text-purple-700">${totalAdvance > 0 ? `${totalAdvance} ر.س` : ''}</td>
+              <td class="p-4 border text-green-700">${totalCash > 0 ? `${totalCash} ر.س` : ''}</td>
+              <td class="p-4 border text-green-700">${totalNetwork > 0 ? `${totalNetwork} ر.س` : ''}</td>
+              <td class="p-4 border text-orange-600">${totalMaintenance > 0 ? `${totalMaintenance} ر.س` : ''}</td>
+              <td class="p-4 border text-red-600">${totalViolation > 0 ? `${totalViolation} ر.س` : ''}</td>
               <td class="p-4 border text-gray-500 text-sm">--</td>
               <td class="p-4 border text-gray-500 text-sm">--</td>
             </tr>
@@ -498,6 +584,29 @@
 
       } catch (err) {
         console.error("Error loading driver account:", err);
+      }
+    }
+
+    async function forceCycleRollover() {
+      if (!driver || !driver.contracts || driver.contracts.length === 0) {
+        alert("لا يوجد عقد نشط لهذا السائق لترحيله.");
+        return;
+      }
+      const activeContract = driver.contracts[driver.contracts.length - 1];
+      if (confirm("هل أنت متأكد من ترحيل وتأكيد الدورة الأسبوعية وفتح الأسبوع التالي؟")) {
+        try {
+          const res = await fetch(`/api/contracts/${activeContract.id}/rollover`, { method: "POST" });
+          const data = await res.json();
+          if (res.ok) {
+            alert(data.message || "تم ترحيل الدورة بنجاح!");
+            loadDriver();
+          } else {
+            alert("فشل الترحيل: " + (data.error || "خطأ غير معروف"));
+          }
+        } catch (err) {
+          console.error("Error doing rollover:", err);
+          alert("حدث خطأ أثناء الاتصال بالخادم");
+        }
       }
     }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ojrah-win-v5';
+const CACHE_NAME = 'ojrah-win-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -48,8 +48,8 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// Network-First Strategy for fresh UI updates while preserving offline support
 self.addEventListener('fetch', (e) => {
-  // Only handle local/http requests
   const url = e.request.url;
   if (!url.startsWith('http') && !url.startsWith(self.location.origin)) {
     return;
@@ -61,21 +61,16 @@ self.addEventListener('fetch', (e) => {
   }
 
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
+    fetch(e.request).then((networkResponse) => {
+      if (networkResponse && networkResponse.status === 200) {
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(e.request, responseToCache);
+        });
       }
-      return fetch(e.request).then((response) => {
-        if (response && response.status === 200) {
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(e.request, responseToCache);
-          });
-        }
-        return response;
-      }).catch(() => {
-        // Offline fallback
-      });
+      return networkResponse;
+    }).catch(() => {
+      return caches.match(e.request, { ignoreSearch: true });
     })
   );
 });
