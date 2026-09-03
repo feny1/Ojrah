@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>حركة الصندوق والتسويات العامة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      @page { size: A4 landscape; margin: 8mm; }
+      body { background: white !important; }
+      .print\:hidden { display: none !important; }
+      #print-area { display: block !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 mt-4">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 print:hidden">
+      <div>
+        <h1 class="text-4xl font-bold text-violet-600">حركة الصندوق والتسويات العامة</h1>
+        <p class="text-gray-500 mt-2">تقرير مفصل للوارد والمنصرف وصافي رصيد الخزينة</p>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="exportCSV()" class="bg-teal-600 text-white px-5 py-3 rounded-xl hover:bg-teal-700 shadow-lg font-bold flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          تصدير CSV
+        </button>
+        <button onclick="window.print()" class="bg-violet-600 text-white px-5 py-3 rounded-xl hover:bg-violet-700 shadow-lg font-bold">طباعة التقرير</button>
+        <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">العودة للرئيسية</a>
+      </div>
+    </div>
+
+    <!-- Date Filters -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 print:hidden">
+      <h2 class="text-lg font-bold text-slate-700 mb-4">🔍 فلترة حسب التاريخ</h2>
+      <div class="flex flex-wrap items-end gap-4">
+        <div class="flex flex-col">
+          <label class="text-sm font-bold text-slate-500 mb-2">من تاريخ</label>
+          <input type="date" id="filter-from" class="border border-slate-200 p-3 rounded-lg font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500">
+        </div>
+        <div class="flex flex-col">
+          <label class="text-sm font-bold text-slate-500 mb-2">إلى تاريخ</label>
+          <input type="date" id="filter-to" class="border border-slate-200 p-3 rounded-lg font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500">
+        </div>
+        <button onclick="loadReport()" class="bg-violet-600 text-white px-6 py-3 rounded-lg hover:bg-violet-700 font-bold shadow-md">عرض التقرير</button>
+        <div class="flex gap-2 mr-4">
+          <button onclick="setQuickFilter('week')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-3 rounded-lg text-sm font-bold">هذا الأسبوع</button>
+          <button onclick="setQuickFilter('month')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-3 rounded-lg text-sm font-bold">هذا الشهر</button>
+          <button onclick="setQuickFilter('30days')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-3 rounded-lg text-sm font-bold">آخر 30 يوم</button>
+          <button onclick="setQuickFilter('all')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-3 rounded-lg text-sm font-bold">الكل</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="summary-cards">
+      <!-- Inflow Card -->
+      <div class="bg-gradient-to-br from-emerald-500 to-green-600 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+        <div class="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+        <h3 class="text-emerald-100 text-lg font-bold">إجمالي الوارد (Inflow)</h3>
+        <p class="text-4xl font-black mt-3 flex items-baseline gap-2">
+          <span id="total-inflow">0</span>
+          <span class="text-sm text-emerald-200">ر.س</span>
+        </p>
+        <div class="mt-4 space-y-1 text-xs text-emerald-100">
+          <div class="flex justify-between"><span>سندات قبض:</span><span id="inflow-vouchers" class="font-bold">0</span></div>
+          <div class="flex justify-between"><span>تسديد مخالفات:</span><span id="inflow-violations" class="font-bold">0</span></div>
+          <div class="flex justify-between"><span>تأمينات:</span><span id="inflow-insurance" class="font-bold">0</span></div>
+        </div>
+      </div>
+
+      <!-- Outflow Card -->
+      <div class="bg-gradient-to-br from-red-500 to-rose-600 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+        <div class="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+        <h3 class="text-red-100 text-lg font-bold">إجمالي المنصرف (Outflow)</h3>
+        <p class="text-4xl font-black mt-3 flex items-baseline gap-2">
+          <span id="total-outflow">0</span>
+          <span class="text-sm text-red-200">ر.س</span>
+        </p>
+        <div class="mt-4 space-y-1 text-xs text-red-100">
+          <div class="flex justify-between"><span>مشتريات وقطع غيار:</span><span id="outflow-purchases" class="font-bold">0</span></div>
+          <div class="flex justify-between"><span>صيانة:</span><span id="outflow-maintenance" class="font-bold">0</span></div>
+          <div class="flex justify-between"><span>سلف:</span><span id="outflow-advances" class="font-bold">0</span></div>
+        </div>
+      </div>
+
+      <!-- Net Balance Card -->
+      <div class="bg-gradient-to-br from-violet-600 to-indigo-700 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+        <div class="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+        <h3 class="text-violet-100 text-lg font-bold">صافي رصيد الصندوق</h3>
+        <p class="text-5xl font-black mt-3 flex items-baseline gap-2">
+          <span id="net-balance">0</span>
+          <span class="text-sm text-violet-200">ر.س</span>
+        </p>
+        <div class="mt-4 text-xs text-violet-200 font-medium">
+          <span id="net-status">الوارد − المنصرف = الصافي</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs for Details -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <div class="flex gap-4 mb-6 border-b border-slate-100 pb-4">
+        <button onclick="showTab('all')" id="tab-all" class="tab-btn bg-violet-600 text-white px-5 py-2 rounded-lg font-bold shadow-md">كل الحركات</button>
+        <button onclick="showTab('inflow')" id="tab-inflow" class="tab-btn bg-slate-100 text-slate-600 px-5 py-2 rounded-lg font-bold hover:bg-slate-200">الوارد فقط</button>
+        <button onclick="showTab('outflow')" id="tab-outflow" class="tab-btn bg-slate-100 text-slate-600 px-5 py-2 rounded-lg font-bold hover:bg-slate-200">المنصرف فقط</button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+            <tr>
+              <th class="p-4 rounded-tr-lg">التاريخ</th>
+              <th class="p-4">البيان</th>
+              <th class="p-4 text-center">النوع</th>
+              <th class="p-4 text-center">الاتجاه</th>
+              <th class="p-4 text-center rounded-tl-lg">المبلغ (ر.س)</th>
+            </tr>
+          </thead>
+          <tbody id="details-table-body">
+            <tr><td colSpan="5" class="text-center p-8 text-slate-400 font-bold">اختر الفترة الزمنية ثم اضغط "عرض التقرير"</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let reportData = null;
+    let currentTab = 'all';
+
+    const filterFrom = document.getElementById('filter-from');
+    const filterTo = document.getElementById('filter-to');
+
+    // Set default to this month
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    filterFrom.value = firstDay.toISOString().split('T')[0];
+    filterTo.value = today.toISOString().split('T')[0];
+
+    function setQuickFilter(type) {
+      const now = new Date();
+      let from, to;
+
+      if (type === 'week') {
+        const day = now.getDay();
+        const diffToSat = day === 6 ? 0 : day + 1;
+        from = new Date(now);
+        from.setDate(now.getDate() - diffToSat);
+        to = now;
+      } else if (type === 'month') {
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        to = now;
+      } else if (type === '30days') {
+        from = new Date(now);
+        from.setDate(now.getDate() - 30);
+        to = now;
+      } else {
+        from = new Date('2020-01-01');
+        to = now;
+      }
+
+      filterFrom.value = from.toISOString().split('T')[0];
+      filterTo.value = to.toISOString().split('T')[0];
+      loadReport();
+    }
+
+    async function loadReport() {
+      const fromVal = filterFrom.value;
+      const toVal = filterTo.value;
+
+      if (!fromVal || !toVal) {
+        alert('يرجى تحديد تاريخ البداية والنهاية');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/treasury-report?from=${fromVal}&to=${toVal}`);
+        reportData = await res.json();
+
+        // Update summary cards
+        document.getElementById('total-inflow').textContent = reportData.inflow.total.toLocaleString();
+        document.getElementById('inflow-vouchers').textContent = reportData.inflow.vouchers_receipts.toLocaleString() + ' ر.س';
+        document.getElementById('inflow-violations').textContent = reportData.inflow.violation_payments.toLocaleString() + ' ر.س';
+        document.getElementById('inflow-insurance').textContent = reportData.inflow.insurance_receipts.toLocaleString() + ' ر.س';
+
+        document.getElementById('total-outflow').textContent = reportData.outflow.total.toLocaleString();
+        document.getElementById('outflow-purchases').textContent = reportData.outflow.purchases.toLocaleString() + ' ر.س';
+        document.getElementById('outflow-maintenance').textContent = reportData.outflow.maintenance.toLocaleString() + ' ر.س';
+        document.getElementById('outflow-advances').textContent = reportData.outflow.advances.toLocaleString() + ' ر.س';
+
+        const netEl = document.getElementById('net-balance');
+        netEl.textContent = reportData.net_balance.toLocaleString();
+        const statusEl = document.getElementById('net-status');
+        statusEl.textContent = reportData.net_balance >= 0
+          ? `✅ فائض في الصندوق: ${reportData.net_balance.toLocaleString()} ر.س`
+          : `⚠️ عجز في الصندوق: ${Math.abs(reportData.net_balance).toLocaleString()} ر.س`;
+
+        renderTable();
+      } catch (err) {
+        console.error('Error loading treasury report:', err);
+        alert('حدث خطأ أثناء تحميل التقرير');
+      }
+    }
+
+    function showTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-violet-600', 'text-white', 'shadow-md');
+        btn.classList.add('bg-slate-100', 'text-slate-600');
+      });
+      document.getElementById(`tab-${tab}`).classList.add('bg-violet-600', 'text-white', 'shadow-md');
+      document.getElementById(`tab-${tab}`).classList.remove('bg-slate-100', 'text-slate-600');
+      renderTable();
+    }
+
+    function renderTable() {
+      if (!reportData) return;
+
+      const tbody = document.getElementById('details-table-body');
+      let rows = [];
+
+      if (currentTab === 'all' || currentTab === 'inflow') {
+        reportData.inflow.details.forEach(item => {
+          rows.push({ ...item, direction: 'وارد', dirClass: 'text-emerald-600 bg-emerald-50' });
+        });
+      }
+
+      if (currentTab === 'all' || currentTab === 'outflow') {
+        reportData.outflow.details.forEach(item => {
+          rows.push({ ...item, direction: 'منصرف', dirClass: 'text-red-600 bg-red-50' });
+        });
+      }
+
+      // Sort by date
+      rows.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colSpan="5" class="text-center p-8 text-slate-400 italic">لا توجد حركات مالية في الفترة المحددة</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = rows.map(r => `
+        <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+          <td class="p-4 font-medium text-sm">${r.date}</td>
+          <td class="p-4">${r.description}</td>
+          <td class="p-4 text-center">
+            <span class="text-xs font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-600">${r.type}</span>
+          </td>
+          <td class="p-4 text-center">
+            <span class="text-xs font-bold px-3 py-1 rounded-lg ${r.dirClass}">${r.direction}</span>
+          </td>
+          <td class="p-4 text-center font-black text-lg ${r.direction === 'وارد' ? 'text-emerald-600' : 'text-red-600'}">${r.amount.toLocaleString()}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportCSV() {
+      if (!reportData) {
+        alert('يرجى عرض التقرير أولاً');
+        return;
+      }
+
+      let csvContent = '\uFEFF'; // BOM for Arabic support
+      csvContent += 'التاريخ,البيان,النوع,الاتجاه,المبلغ\n';
+
+      reportData.inflow.details.forEach(item => {
+        csvContent += `${item.date},"${item.description}","${item.type}","وارد",${item.amount}\n`;
+      });
+
+      reportData.outflow.details.forEach(item => {
+        csvContent += `${item.date},"${item.description}","${item.type}","منصرف",${item.amount}\n`;
+      });
+
+      csvContent += `\n,,,"إجمالي الوارد",${reportData.inflow.total}\n`;
+      csvContent += `,,,"إجمالي المنصرف",${reportData.outflow.total}\n`;
+      csvContent += `,,,"صافي الصندوق",${reportData.net_balance}\n`;
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `treasury_report_${filterFrom.value}_to_${filterTo.value}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    // Auto-load on page open
+    loadReport();
+  </script>
+</body>
+</html>

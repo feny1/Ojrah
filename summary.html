@@ -289,16 +289,23 @@
                 ${warningBadge}
               </td>
               <td class="p-4 text-center">
-                <div class="flex justify-center gap-3">
+                <div class="flex justify-center gap-2 flex-wrap">
                   <button
                     onclick="openPaymentModal(${d.driver_id})"
-                    class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-emerald-500/10 transition-all cursor-pointer"
+                    class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-emerald-500/10 transition-all cursor-pointer"
                   >
                     سداد مختصر
                   </button>
+                  <button
+                    onclick="manualRollover(${d.contract_id}, '${d.driver_name.replace(/'/g, "\\'")}')"
+                    class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded-xl text-sm font-bold shadow-md transition-all cursor-pointer"
+                    title="ترحيل المبلغ المتبقي كمديونية على السائق وفتح الأسبوع الجديد"
+                  >
+                    🔄 ترحيل
+                  </button>
                   <a
                     href="driver-details.html?id=${d.driver_id}"
-                    class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-bold transition-all"
+                    class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold transition-all"
                   >
                     كشف تفصيلي
                   </a>
@@ -394,6 +401,30 @@
         modalSubmitBtn.textContent = "تأكيد السداد +";
       }
     });
+
+    // Manual Rollover for supervisor
+    window.manualRollover = async function(contractId, driverName) {
+      if (!contractId) {
+        alert('لا يوجد عقد نشط لهذا السائق');
+        return;
+      }
+
+      if (confirm(`هل تريد ترحيل المبلغ المتبقي على السائق "${driverName}" كمديونية وفتح الأسبوع الجديد؟\n\nسيتم:\n• ترحيل أي مبلغ متبقي غير مسدد كدين على السائق\n• فتح دورة أسبوعية جديدة`)) {
+        try {
+          const res = await fetch(`/api/contracts/${contractId}/rollover`, { method: 'POST' });
+          const data = await res.json();
+          if (res.ok) {
+            alert(data.message || 'تم الترحيل بنجاح!');
+            loadSummary();
+          } else {
+            alert('فشل الترحيل: ' + (data.error || 'خطأ غير معروف'));
+          }
+        } catch (err) {
+          console.error('Error doing rollover:', err);
+          alert('حدث خطأ أثناء الاتصال بالخادم');
+        }
+      }
+    };
 
     // Initial Load
     loadSummary();

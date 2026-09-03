@@ -162,12 +162,13 @@
               <th class="p-3 border text-green-500">شبكة</th>
               <th class="p-3 border text-orange-500">صيانة</th>
               <th class="p-3 border text-red-500">مخالفة</th>
+              <th class="p-3 border text-amber-600">وقوف</th>
               <th class="p-3 border">الرصيد المتبقي</th>
               <th class="p-3 border">الإجراءات</th>
             </tr>
           </thead>
           <tbody id="ledger-table-body">
-            <tr><td colSpan="10" class="text-center p-4 text-gray-500">جاري تحميل البيانات...</td></tr>
+            <tr><td colSpan="11" class="text-center p-4 text-gray-500">جاري تحميل البيانات...</td></tr>
           </tbody>
           <tfoot id="ledger-table-foot" class="bg-slate-100 font-black text-lg border-t-4 border-slate-300 hidden">
             <!-- Populated Dynamically -->
@@ -407,7 +408,7 @@
         }
 
         // Financial summary totals
-        let totalContract = 0, totalAdvance = 0, totalCash = 0, totalNetwork = 0, totalMaintenance = 0, totalViolation = 0;
+        let totalContract = 0, totalAdvance = 0, totalCash = 0, totalNetwork = 0, totalMaintenance = 0, totalViolation = 0, totalDowntime = 0;
         if (driver.statements) {
           driver.statements.forEach(s => {
             if (s.category === 'contract') totalContract += s.debit || 0;
@@ -416,6 +417,7 @@
             if (s.category === 'network') totalNetwork += (s.credit || s.debit) || 0;
             if (s.category === 'maintenance') totalMaintenance += (s.debit || s.credit) || 0;
             if (s.category === 'violation') totalViolation += s.debit || 0;
+            if (s.category === 'downtime') totalDowntime += s.credit || 0;
           });
         }
 
@@ -461,6 +463,13 @@
                   <span>${s.description}</span>
                 </div>
               `;
+            } else if (s.category === 'downtime') {
+              descContent = `
+                <div class="flex items-center gap-2">
+                  <span class="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded font-bold">⏸️ خصم وقوف</span>
+                  <span>${s.description}</span>
+                </div>
+              `;
             }
 
             return `
@@ -473,6 +482,7 @@
               <td class="p-3 border font-bold text-green-500">${s.category === 'network' ? `${s.credit || s.debit} ر.س` : ''}</td>
               <td class="p-3 border font-bold text-orange-500">${s.category === 'maintenance' ? `${s.debit || s.credit} ر.س` : ''}</td>
               <td class="p-3 border font-bold text-red-500">${s.category === 'violation' ? `${s.debit} ر.س` : ''}</td>
+              <td class="p-3 border font-bold text-amber-600">${s.category === 'downtime' ? `${s.credit} ر.س` : ''}</td>
               <td class="p-3 border font-bold ${s.balance > 0 ? 'text-red-500' : 'text-green-500'}">${s.balance} ر.س</td>
               <td class="p-3 border flex items-center justify-center gap-2">
                 ${s.id && (s.category === 'cash' || s.category === 'network') ? `
@@ -511,12 +521,13 @@
               <td class="p-4 border text-green-700">${totalNetwork > 0 ? `${totalNetwork} ر.س` : ''}</td>
               <td class="p-4 border text-orange-600">${totalMaintenance > 0 ? `${totalMaintenance} ر.س` : ''}</td>
               <td class="p-4 border text-red-600">${totalViolation > 0 ? `${totalViolation} ر.س` : ''}</td>
+              <td class="p-4 border text-amber-600">${totalDowntime > 0 ? `${totalDowntime} ر.س` : ''}</td>
               <td class="p-4 border text-gray-500 text-sm">--</td>
               <td class="p-4 border text-gray-500 text-sm">--</td>
             </tr>
           `;
         } else {
-          ledgerBody.innerHTML = `<tr><td colSpan="10" class="p-4 text-center text-gray-500 italic border">لا توجد حركات مالية مسجلة</td></tr>`;
+          ledgerBody.innerHTML = `<tr><td colSpan="11" class="p-4 text-center text-gray-500 italic border">لا توجد حركات مالية مسجلة</td></tr>`;
           document.getElementById("ledger-table-foot").classList.add("hidden");
         }
 
@@ -635,6 +646,7 @@
         else if (category === "violation") endpoint = "violations";
         else if (category === "maintenance") endpoint = "maintenance";
         else if (category === "cash" || category === "network" || category === "advance") endpoint = "vouchers";
+        else if (category === "downtime") endpoint = "downtimes";
         
         let actualId = statementId;
         if (typeof statementId === 'string' && statementId.startsWith('voucher-')) {

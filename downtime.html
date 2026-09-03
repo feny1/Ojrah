@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إدارة وقوف السيارات</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 mt-4">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-bold text-orange-500">إدارة وقوف السيارات</h1>
+        <p class="text-gray-500 mt-2">تسجيل فترات التوقف والأيام المعطلة وخصمها من حساب السائق</p>
+      </div>
+      <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
+        العودة للرئيسية
+      </a>
+    </div>
+
+    <!-- Info Banner -->
+    <div class="bg-gradient-to-l from-orange-500 to-amber-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+      <div class="absolute right-0 top-0 w-40 h-40 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="relative z-10">
+        <h2 class="text-xl font-black mb-2">⏸️ خصومات التوقف</h2>
+        <p class="text-orange-100 text-sm leading-relaxed max-w-3xl">
+          عند توقف السيارة عن العمل (عطل ميكانيكي، حادث، فحص دوري... إلخ)، يتم تسجيل أيام التوقف هنا وخصم قيمة اليومية من حساب السائق تلقائياً.
+          القيمة اليومية تُحسب من العقد الأسبوعي (المبلغ الأسبوعي ÷ 7) أو يمكن إدخالها يدوياً.
+        </p>
+      </div>
+    </div>
+
+    <!-- Add Downtime Form -->
+    <div id="add-form-section" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-slate-800">تسجيل وقوف جديد</h2>
+        <button id="toggle-form-btn" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 font-bold">إضافة سجل توقف +</button>
+      </div>
+      
+      <form id="downtime-form" class="hidden bg-slate-50 p-6 rounded-xl border border-slate-100 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-600 mb-2">السيارة *</label>
+            <select id="dt-car" required class="border border-slate-200 p-3 rounded-lg bg-white font-bold focus:outline-none focus:ring-2 focus:ring-orange-500">
+              <option value="">اختر السيارة...</option>
+            </select>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-600 mb-2">السائق *</label>
+            <select id="dt-driver" required class="border border-slate-200 p-3 rounded-lg bg-white font-bold focus:outline-none focus:ring-2 focus:ring-orange-500">
+              <option value="">اختر السائق...</option>
+            </select>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-600 mb-2">سبب التوقف</label>
+            <input type="text" id="dt-reason" placeholder="مثال: عطل ميكانيكي، فحص دوري..." class="border border-slate-200 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-600 mb-2">تاريخ البداية *</label>
+            <input type="date" id="dt-start" required class="border border-slate-200 p-3 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-600 mb-2">تاريخ النهاية *</label>
+            <input type="date" id="dt-end" required class="border border-slate-200 p-3 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-600 mb-2">عدد الأيام</label>
+            <input type="number" id="dt-days" readonly class="border border-slate-200 p-3 rounded-lg bg-slate-100 text-center font-black text-lg text-orange-600" value="0">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-600 mb-2">قيمة اليومية (ريال)</label>
+            <input type="number" step="0.01" id="dt-daily" placeholder="تلقائي من العقد أو يدوي" class="border border-slate-200 p-3 rounded-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <span class="text-xs text-gray-400 mt-1">اتركه فارغاً للحساب التلقائي من العقد</span>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-bold text-slate-600 mb-2">إجمالي الخصم</label>
+            <div id="dt-total-display" class="border border-orange-200 bg-orange-50 p-3 rounded-lg text-center font-black text-lg text-orange-600">0 ر.س</div>
+          </div>
+        </div>
+        <div class="flex gap-4 mt-6 pt-4 border-t border-slate-100">
+          <button type="submit" class="bg-orange-600 text-white px-8 py-3 rounded-lg hover:bg-orange-700 font-bold shadow-lg">تسجيل وقوف السيارة ✓</button>
+          <button type="button" id="cancel-form-btn" class="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 font-bold">إلغاء</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Downtimes Records Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6">سجلات التوقف المسجلة</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead class="bg-slate-50 text-slate-600 font-bold">
+            <tr>
+              <th class="p-4 rounded-tr-lg">السيارة</th>
+              <th class="p-4">السائق</th>
+              <th class="p-4 text-center">من</th>
+              <th class="p-4 text-center">إلى</th>
+              <th class="p-4 text-center">الأيام</th>
+              <th class="p-4 text-center">اليومية</th>
+              <th class="p-4 text-center">الخصم الكلي</th>
+              <th class="p-4">السبب</th>
+              <th class="p-4 rounded-tl-lg text-center">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="downtimes-table-body">
+            <tr><td colSpan="9" class="text-center p-4 text-gray-500">جاري تحميل البيانات...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const toggleFormBtn = document.getElementById('toggle-form-btn');
+    const cancelFormBtn = document.getElementById('cancel-form-btn');
+    const downtimeForm = document.getElementById('downtime-form');
+    const tableBody = document.getElementById('downtimes-table-body');
+
+    const dtStart = document.getElementById('dt-start');
+    const dtEnd = document.getElementById('dt-end');
+    const dtDays = document.getElementById('dt-days');
+    const dtDaily = document.getElementById('dt-daily');
+    const dtTotalDisplay = document.getElementById('dt-total-display');
+
+    // Toggle form visibility
+    toggleFormBtn.addEventListener('click', () => {
+      downtimeForm.classList.toggle('hidden');
+      toggleFormBtn.textContent = downtimeForm.classList.contains('hidden') ? 'إضافة سجل توقف +' : 'إخفاء النموذج';
+    });
+
+    cancelFormBtn.addEventListener('click', () => {
+      downtimeForm.classList.add('hidden');
+      toggleFormBtn.textContent = 'إضافة سجل توقف +';
+      downtimeForm.reset();
+      dtDays.value = 0;
+      dtTotalDisplay.textContent = '0 ر.س';
+    });
+
+    // Auto-calculate days and total
+    function recalculate() {
+      const startVal = dtStart.value;
+      const endVal = dtEnd.value;
+      if (startVal && endVal) {
+        const s = new Date(startVal + 'T00:00:00');
+        const e = new Date(endVal + 'T00:00:00');
+        if (e >= s) {
+          const diff = Math.ceil((e - s) / (1000 * 60 * 60 * 24)) + 1;
+          dtDays.value = diff;
+          const daily = parseFloat(dtDaily.value || 0);
+          if (daily > 0) {
+            dtTotalDisplay.textContent = `${(daily * diff).toFixed(2)} ر.س`;
+          } else {
+            dtTotalDisplay.textContent = `${diff} يوم × (تلقائي)`;
+          }
+        } else {
+          dtDays.value = 0;
+          dtTotalDisplay.textContent = '⚠️ تاريخ غير صحيح';
+        }
+      }
+    }
+
+    dtStart.addEventListener('change', recalculate);
+    dtEnd.addEventListener('change', recalculate);
+    dtDaily.addEventListener('input', recalculate);
+
+    // Load dropdowns
+    async function loadDropdowns() {
+      try {
+        const [carsRes, driversRes] = await Promise.all([
+          fetch('/api/cars'),
+          fetch('/api/drivers')
+        ]);
+        const cars = await carsRes.json();
+        const drivers = await driversRes.json();
+
+        const carSelect = document.getElementById('dt-car');
+        cars.forEach(c => {
+          carSelect.innerHTML += `<option value="${c.id}">${c.plate_number} - ${c.company} ${c.model}</option>`;
+        });
+
+        const driverSelect = document.getElementById('dt-driver');
+        drivers.forEach(d => {
+          driverSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+        });
+      } catch (err) {
+        console.error('Error loading dropdowns:', err);
+      }
+    }
+
+    // Load downtime records
+    async function loadDowntimes() {
+      try {
+        const res = await fetch('/api/downtimes');
+        const data = await res.json();
+
+        if (data.length === 0) {
+          tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-4 text-gray-500">لا توجد سجلات وقوف مسجلة بعد</td></tr>`;
+          return;
+        }
+
+        tableBody.innerHTML = data.map(dt => `
+          <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+            <td class="p-4 font-bold">${dt.car_label}</td>
+            <td class="p-4">${dt.driver_name}</td>
+            <td class="p-4 text-center text-sm">${dt.start_date}</td>
+            <td class="p-4 text-center text-sm">${dt.end_date}</td>
+            <td class="p-4 text-center">
+              <span class="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg font-black text-sm">${dt.days_count} يوم</span>
+            </td>
+            <td class="p-4 text-center font-bold text-slate-600">${dt.daily_deduction.toFixed(2)} ر.س</td>
+            <td class="p-4 text-center font-black text-orange-600 text-lg">${dt.total_deduction.toFixed(2)} ر.س</td>
+            <td class="p-4 text-sm text-gray-500">${dt.reason || '—'}</td>
+            <td class="p-4 text-center">
+              <button onclick="deleteDowntime(${dt.id})" class="text-red-500 hover:text-red-700 font-bold text-sm hover:underline">حذف</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Error loading downtimes:', err);
+        tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-4 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
+      }
+    }
+
+    // Delete downtime
+    async function deleteDowntime(id) {
+      if (confirm('هل أنت متأكد من حذف سجل الوقوف هذا؟ سيتم إلغاء الخصم المرتبط به من كشف حساب السائق.')) {
+        try {
+          const res = await fetch(`/api/downtimes/${id}`, { method: 'DELETE' });
+          if (res.ok) {
+            loadDowntimes();
+          } else {
+            const data = await res.json();
+            alert('فشل الحذف: ' + (data.error || 'خطأ غير معروف'));
+          }
+        } catch (err) {
+          console.error('Error deleting downtime:', err);
+          alert('حدث خطأ أثناء الحذف');
+        }
+      }
+    }
+
+    // Submit form
+    downtimeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = {
+        car_id: document.getElementById('dt-car').value,
+        driver_id: document.getElementById('dt-driver').value,
+        start_date: dtStart.value,
+        end_date: dtEnd.value,
+        daily_deduction: parseFloat(dtDaily.value || 0),
+        reason: document.getElementById('dt-reason').value
+      };
+
+      if (!formData.car_id || !formData.driver_id) {
+        alert('يرجى اختيار السيارة والسائق');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/downtimes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          alert(`تم تسجيل الوقوف بنجاح!\nإجمالي الخصم: ${data.total_deduction} ر.س`);
+          downtimeForm.reset();
+          downtimeForm.classList.add('hidden');
+          toggleFormBtn.textContent = 'إضافة سجل توقف +';
+          dtDays.value = 0;
+          dtTotalDisplay.textContent = '0 ر.س';
+          loadDowntimes();
+        } else {
+          alert('فشل التسجيل: ' + (data.error || 'خطأ غير معروف'));
+        }
+      } catch (err) {
+        console.error('Error submitting downtime:', err);
+        alert('حدث خطأ أثناء الاتصال بالخادم');
+      }
+    });
+
+    // Initial load
+    loadDropdowns();
+    loadDowntimes();
+  </script>
+</body>
+</html>

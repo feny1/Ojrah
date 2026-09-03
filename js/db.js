@@ -20,7 +20,7 @@
   }
 
   // 1. Initialize localStorage tables if not present
-  const TABLES = ['cars', 'drivers', 'contracts', 'violations', 'maintenance', 'vouchers', 'car_documents', 'settings', 'invoices', 'purchases'];
+  const TABLES = ['cars', 'drivers', 'contracts', 'violations', 'maintenance', 'vouchers', 'car_documents', 'settings', 'invoices', 'purchases', 'downtimes'];
   
   function getTable(name) {
     const data = localStorage.getItem('db_' + name);
@@ -34,7 +34,7 @@
   // Seed if settings table is empty
   const currentSettings = localStorage.getItem('db_settings');
   if (!currentSettings) {
-    localStorage.setItem('db_settings', JSON.stringify({ vat_number: '310123456700003', weekly_due_day: 0 }));
+    localStorage.setItem('db_settings', JSON.stringify({ vat_number: '310123456700003', weekly_due_day: 6 }));
     
     // Seed some mock cars
     setTable('cars', [
@@ -116,6 +116,13 @@
       total_debits += parseFloat(p.debt_charge_amount || 0);
     });
 
+    // Downtimes (Vehicle idle deductions from driver's required amount)
+    const downtimes = getTable('downtimes');
+    const driverDowntimes = downtimes.filter(dt => dt.driver_id == d.id);
+    driverDowntimes.forEach(dt => {
+      total_credits += parseFloat(dt.total_deduction || 0);
+    });
+
     // Vouchers (receipts, advances)
     const driverVouchers = vouchers.filter(v => v.related_driver_id == d.id);
     driverVouchers.forEach(v => {
@@ -136,6 +143,7 @@
     let cash_collected = 0;
     let network_collected = 0;
     let reimbursements = 0;
+    let downtime_deductions = 0;
     let last_rollover_date = '';
     let current_week_index = 1;
 
@@ -178,6 +186,15 @@
           reimbursements += parseFloat(p.reimbursement_amount || 0);
         }
       });
+
+      // Downtime deductions in current cycle
+      driverDowntimes.forEach(dt => {
+        const dtTime = new Date(dt.start_date + 'T00:00:00').getTime();
+        if (dtTime >= rolloverTime) {
+          downtime_deductions += parseFloat(dt.total_deduction || 0);
+        }
+      });
+      reimbursements += downtime_deductions;
     }
 
     const current_cycle_payments = cash_collected + network_collected + reimbursements;
@@ -189,6 +206,7 @@
       cash_collected,
       network_collected,
       reimbursements,
+      downtime_deductions,
       accumulated_debt,
       last_rollover_date,
       current_week_index,
@@ -357,7 +375,7 @@
           TABLES.forEach(table => {
             localStorage.setItem('db_' + table, '[]');
           });
-          localStorage.setItem('db_settings', JSON.stringify({ vat_number: '310123456700003', weekly_due_day: 0 }));
+          localStorage.setItem('db_settings', JSON.stringify({ vat_number: '310123456700003', weekly_due_day: 6 }));
           responseData = { message: 'All data cleared successfully' };
         }
         
@@ -521,6 +539,25 @@
                   }
                 });
               }
+
+              // Downtime records for this driver
+              const downtimes = getTable('downtimes').filter(dt => dt.driver_id === id);
+              downtimes.forEach(dt => {
+                const totalDed = parseFloat(dt.total_deduction || 0);
+                if (totalDed > 0) {
+                  const carInfo = getTable('cars').find(c => c.id == dt.car_id);
+                  const carLabel = carInfo ? `${carInfo.plate_number}` : `سيارة #${dt.car_id}`;
+                  statements.push({
+                    id: `downtime-${dt.id}`,
+                    date: dt.start_date,
+                    description: `خصم وقوف ${dt.days_count} أيام للسيارة ${carLabel} (${dt.reason || 'بدون سبب'})`,
+                    debit: 0,
+                    credit: totalDed,
+                    category: 'downtime'
+                  });
+                  current_week_required -= totalDed;
+                }
+              });
               
               const purchases = getTable('purchases').filter(p => p.driver_id === id);
               purchases.forEach(p => {
@@ -1170,6 +1207,215 @@
           }
         }
         
+        // GET /api/downtimes
+        else if (path === '/api/downtimes' && method === 'GET') {
+          const downtimes = getTable('downtimes');
+          const drivers = getTable('drivers');
+          const cars = getTable('cars');
+          responseData = downtimes.map(dt => {
+            const driver = drivers.find(d => d.id == dt.driver_id);
+            const car = cars.find(c => c.id == dt.car_id);
+            return {
+              ...dt,
+              driver_name: driver ? driver.name : 'غير معروف',
+              plate_number: car ? car.plate_number : 'غير معروف',
+              car_label: car ? `${car.plate_number} - ${car.company} ${car.model}` : 'غير معروف'
+            };
+          }).reverse();
+        }
+
+        // POST /api/downtimes
+        else if (path === '/api/downtimes' && method === 'POST') {
+          const downtimes = getTable('downtimes');
+          const nextId = downtimes.length > 0 ? Math.max(...downtimes.map(d => d.id)) + 1 : 1;
+
+          if (!body.car_id || !body.driver_id || !body.start_date || !body.end_date) {
+            status = 400;
+            responseData = { error: 'يرجى تعبئة جميع الحقول المطلوبة (السيارة، السائق، تاريخ البداية والنهاية)' };
+          } else {
+            const startD = new Date(body.start_date + 'T00:00:00');
+            const endD = new Date(body.end_date + 'T00:00:00');
+            if (endD < startD) {
+              status = 400;
+              responseData = { error: 'تاريخ النهاية يجب أن يكون بعد تاريخ البداية' };
+            } else {
+              const diffMs = endD.getTime() - startD.getTime();
+              const days_count = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1);
+              let daily_deduction = parseFloat(body.daily_deduction || 0);
+
+              // Auto-calculate from contract if not provided
+              if (daily_deduction <= 0) {
+                const contracts = getTable('contracts');
+                const driverContract = contracts.filter(c => c.driver_id == body.driver_id);
+                if (driverContract.length > 0) {
+                  const latestContract = driverContract[driverContract.length - 1];
+                  daily_deduction = parseFloat(latestContract.weekly_required || 0) / 7;
+                }
+              }
+
+              const total_deduction = Math.round(daily_deduction * days_count * 100) / 100;
+
+              const newDowntime = {
+                id: nextId,
+                car_id: parseInt(body.car_id),
+                driver_id: parseInt(body.driver_id),
+                start_date: body.start_date,
+                end_date: body.end_date,
+                days_count,
+                daily_deduction,
+                total_deduction,
+                reason: body.reason || '',
+                created_at: new Date().toISOString().split('T')[0]
+              };
+              downtimes.push(newDowntime);
+              setTable('downtimes', downtimes);
+              responseData = { message: 'تم تسجيل وقوف السيارة بنجاح', id: nextId, total_deduction };
+            }
+          }
+        }
+
+        // DELETE /api/downtimes/:id
+        else if (path.startsWith('/api/downtimes/') && method === 'DELETE') {
+          const id = parseInt(path.split('/')[3]);
+          const downtimes = getTable('downtimes');
+          const index = downtimes.findIndex(d => d.id === id);
+          if (index !== -1) {
+            downtimes.splice(index, 1);
+            setTable('downtimes', downtimes);
+            responseData = { message: 'تم حذف سجل الوقوف بنجاح' };
+          } else {
+            status = 404;
+            responseData = { error: 'سجل الوقوف غير موجود' };
+          }
+        }
+
+        // POST /api/data-reset
+        else if (path === '/api/data-reset' && method === 'POST') {
+          const cutoffDate = body.cutoff_date || '2026-09-01';
+          const cutoffTime = new Date(cutoffDate + 'T00:00:00').getTime();
+          const report = {};
+
+          const financialTables = [
+            { name: 'vouchers', dateField: 'voucher_date' },
+            { name: 'invoices', dateField: 'invoice_date' },
+            { name: 'purchases', dateField: 'invoice_date' },
+            { name: 'maintenance', dateField: 'maintenance_date' },
+            { name: 'violations', dateField: 'violation_date' },
+            { name: 'downtimes', dateField: 'start_date' }
+          ];
+
+          financialTables.forEach(({ name, dateField }) => {
+            const data = getTable(name);
+            const before = data.length;
+            const filtered = data.filter(item => {
+              const itemDate = item[dateField];
+              if (!itemDate) return true;
+              const itemTime = new Date(itemDate + 'T00:00:00').getTime();
+              return itemTime >= cutoffTime;
+            });
+            setTable(name, filtered);
+            report[name] = { before, after: filtered.length, deleted: before - filtered.length };
+          });
+
+          responseData = {
+            message: `تم تنظيف السجلات المالية السابقة لتاريخ ${cutoffDate} بنجاح`,
+            report,
+            preserved: ['cars', 'drivers', 'contracts', 'settings', 'car_documents']
+          };
+        }
+
+        // GET /api/treasury-report
+        else if (path === '/api/treasury-report' && method === 'GET') {
+          const fromDate = parsedUrl.searchParams.get('from') || '2000-01-01';
+          const toDate = parsedUrl.searchParams.get('to') || '2099-12-31';
+          const fromTime = new Date(fromDate + 'T00:00:00').getTime();
+          const toTime = new Date(toDate + 'T23:59:59').getTime();
+
+          const vouchers = getTable('vouchers');
+          const purchases = getTable('purchases');
+          const maintenance = getTable('maintenance');
+
+          // INFLOW: receipts from drivers
+          let inflow_vouchers = 0;
+          let inflow_violations = 0;
+          let inflow_insurance = 0;
+          const inflowDetails = [];
+
+          vouchers.forEach(v => {
+            const vTime = new Date((v.voucher_date || '2000-01-01') + 'T00:00:00').getTime();
+            if (vTime < fromTime || vTime > toTime) return;
+
+            if (v.voucher_type === 'سند قبض') {
+              inflow_vouchers += parseFloat(v.amount || 0);
+              inflowDetails.push({ date: v.voucher_date, description: v.description || 'سند قبض', amount: parseFloat(v.amount || 0), type: 'سند قبض' });
+            } else if (v.voucher_type === 'سند تسديد مخالفة') {
+              inflow_violations += parseFloat(v.amount || 0);
+              inflowDetails.push({ date: v.voucher_date, description: v.description || 'سند تسديد مخالفة', amount: parseFloat(v.amount || 0), type: 'سند تسديد مخالفة' });
+            } else if (v.voucher_type === 'سند تأمين (قبض)') {
+              inflow_insurance += parseFloat(v.amount || 0);
+              inflowDetails.push({ date: v.voucher_date, description: v.description || 'سند تأمين', amount: parseFloat(v.amount || 0), type: 'سند تأمين (قبض)' });
+            }
+          });
+
+          const totalInflow = inflow_vouchers + inflow_violations + inflow_insurance;
+
+          // OUTFLOW: purchases, maintenance, advances
+          let outflow_purchases = 0;
+          let outflow_maintenance = 0;
+          let outflow_advances = 0;
+          const outflowDetails = [];
+
+          purchases.forEach(p => {
+            const pTime = new Date((p.invoice_date || '2000-01-01') + 'T00:00:00').getTime();
+            if (pTime < fromTime || pTime > toTime) return;
+            const amt = parseFloat(p.total_amount || 0) - parseFloat(p.driver_paid_amount || 0);
+            if (amt > 0) {
+              outflow_purchases += amt;
+              outflowDetails.push({ date: p.invoice_date, description: `مشتريات: ${p.product_name || ''}`, amount: amt, type: 'مشتريات' });
+            }
+          });
+
+          maintenance.forEach(m => {
+            const mTime = new Date((m.maintenance_date || '2000-01-01') + 'T00:00:00').getTime();
+            if (mTime < fromTime || mTime > toTime) return;
+            const amt = parseFloat(m.cost || 0);
+            if (amt > 0) {
+              outflow_maintenance += amt;
+              outflowDetails.push({ date: m.maintenance_date, description: `صيانة: ${m.description || ''}`, amount: amt, type: 'صيانة' });
+            }
+          });
+
+          vouchers.forEach(v => {
+            const vTime = new Date((v.voucher_date || '2000-01-01') + 'T00:00:00').getTime();
+            if (vTime < fromTime || vTime > toTime) return;
+            if (v.voucher_type === 'سلفة') {
+              outflow_advances += parseFloat(v.amount || 0);
+              outflowDetails.push({ date: v.voucher_date, description: v.description || 'سلفة', amount: parseFloat(v.amount || 0), type: 'سلفة' });
+            }
+          });
+
+          const totalOutflow = outflow_purchases + outflow_maintenance + outflow_advances;
+
+          responseData = {
+            period: { from: fromDate, to: toDate },
+            inflow: {
+              total: Math.round(totalInflow * 100) / 100,
+              vouchers_receipts: Math.round(inflow_vouchers * 100) / 100,
+              violation_payments: Math.round(inflow_violations * 100) / 100,
+              insurance_receipts: Math.round(inflow_insurance * 100) / 100,
+              details: inflowDetails.sort((a, b) => new Date(a.date) - new Date(b.date))
+            },
+            outflow: {
+              total: Math.round(totalOutflow * 100) / 100,
+              purchases: Math.round(outflow_purchases * 100) / 100,
+              maintenance: Math.round(outflow_maintenance * 100) / 100,
+              advances: Math.round(outflow_advances * 100) / 100,
+              details: outflowDetails.sort((a, b) => new Date(a.date) - new Date(b.date))
+            },
+            net_balance: Math.round((totalInflow - totalOutflow) * 100) / 100
+          };
+        }
+
         // Unknown route
         else {
           status = 404;
