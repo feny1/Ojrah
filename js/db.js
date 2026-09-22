@@ -98,32 +98,225 @@
     return true;
   }
 
+  // Strict timezone-safe local date parser & formatter (immune to UTC midnight shifts)
+  function parseLocalDate(dateStr) {
+    if (!dateStr) return null;
+    const cleanStr = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
+    const parts = cleanStr.split('-');
+    if (parts.length < 3) return null;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+    return new Date(y, m, d, 12, 0, 0); // Midday prevents midnight timezone slips
+  }
+
+  function formatLocalDate(d) {
+    if (!d || isNaN(d.getTime())) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   // Strict Friday Schedule Helpers (dayOfWeek === 5)
   function isFriday(dateStr) {
-    if (!dateStr) return false;
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.getDay() === 5;
+    const d = parseLocalDate(dateStr);
+    return d ? d.getDay() === 5 : false;
   }
 
   function getFirstFridayOnOrAfter(dateStr) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr + 'T00:00:00');
+    const d = parseLocalDate(dateStr);
+    if (!d) return '';
     const day = d.getDay(); // 0: Sun, 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri, 6: Sat
     const daysUntilFriday = (5 - day + 7) % 7;
     d.setDate(d.getDate() + daysUntilFriday);
-    return d.toISOString().split('T')[0];
+    const result = formatLocalDate(d);
+    return result;
   }
 
   function getContractFridayDates(c, weeksCount) {
-    if (!c || !c.start_date) return [];
+    if (!c || !c.start_date || weeksCount <= 0) return [];
     const dates = [];
     const firstFridayStr = getFirstFridayOnOrAfter(c.start_date);
-    const firstFriday = new Date(firstFridayStr + 'T00:00:00');
+    const firstFriday = parseLocalDate(firstFridayStr);
+    if (!firstFriday) return [];
+
     for (let i = 0; i < weeksCount; i++) {
-      const d = new Date(firstFriday.getTime() + i * 7 * 24 * 60 * 60 * 1000);
-      dates.push(d.toISOString().split('T')[0]);
+      const d = new Date(firstFriday.getFullYear(), firstFriday.getMonth(), firstFriday.getDate() + (i * 7), 12, 0, 0);
+      const dateStr = formatLocalDate(d);
+      // Strictly enforce: never prior to contract start date, and strictly Friday
+      if (dateStr >= c.start_date && isFriday(dateStr)) {
+        dates.push(dateStr);
+      }
     }
     return dates;
+  }
+
+  // Transactional, Idempotent Weekly Delivery Sanitization, Purge & Strict Friday Alignment
+  function cleanAndAlignWeeklyDeliveries() {
+    let result = { purged_count: 0, realigned_count: 0, vouchers_purged: 0, total_aligned: 0 };
+    const tx = runInTransaction(() => {
+      const contracts = getTable('contracts');
+      let deliveries = getTable('weekly_deliveries');
+      let auditLogs = getTable('audit_logs');
+      let vouchers = getTable('vouchers');
+      let purgedCount = 0;
+      let realignedCount = 0;
+
+      // A. Purge Invalid Pre-Contract Records from weekly_deliveries
+      const validDeliveries = [];
+      deliveries.forEach(del => {
+        const contract = contracts.find(c => c.id == del.contract_id);
+        const delDate = del.delivery_date || del.due_date;
+        if (contract && delDate < contract.start_date) {
+          // Delete invalid pre-contract row (specifically 2023-01-31 and any pre-contract row)
+          auditLogs.push({
+            id: Date.now() + Math.random(),
+            action: 'PURGE_PRE_CONTRACT_WEEKLY_DUE',
+            target_table: 'weekly_deliveries',
+            record_id: del.id,
+            contract_id: contract.id,
+            contract_start_date: contract.start_date,
+            invalid_due_date: delDate,
+            reason: `حذف استحقاق أسبوعي يسبق تاريخ بدء العقد (${delDate} يسبق ${contract.start_date})`,
+            original_record: del,
+            purged_at: formatLocalDate(new Date())
+          });
+          purgedCount++;
+        } else {
+          validDeliveries.push(del);
+        }
+      });
+
+      // B. Purge any pre-contract auto-generated rent voucher in vouchers if any exists
+      const cleanVouchers = [];
+      let vouchersPurged = 0;
+      vouchers.forEach(v => {
+        const isRentVoucher = v.voucher_type === 'استحقاق أسبوعي تلقائي' || v.voucher_type === 'استحقاق أسبوعي';
+        if (isRentVoucher && v.related_driver_id) {
+          const c = contracts.find(con => con.driver_id == v.related_driver_id);
+          if (c && v.voucher_date < c.start_date) {
+            auditLogs.push({
+              id: Date.now() + Math.random(),
+              action: 'PURGE_PRE_CONTRACT_WEEKLY_VOUCHER',
+              target_table: 'vouchers',
+              record_id: v.id,
+              contract_id: c.id,
+              invalid_date: v.voucher_date,
+              reason: `حذف سند استحقاق يسبق تاريخ بدء العقد (${v.voucher_date} يسبق ${c.start_date})`,
+              original_record: v,
+              purged_at: formatLocalDate(new Date())
+            });
+            vouchersPurged++;
+            return;
+          }
+        }
+        cleanVouchers.push(v);
+      });
+      if (vouchersPurged > 0) {
+        setTable('vouchers', cleanVouchers);
+      }
+
+      // C. Align all weekly dues strictly to Fridays & renumber sequentially starting from Week 1 (الأسبوع 1)
+      const alignedDeliveries = [];
+      let nextDelId = 1;
+
+      contracts.forEach(c => {
+        const weeksCount = getContractWeeksCount(c);
+        const fridayDates = getContractFridayDates(c, weeksCount);
+        
+        // Existing valid deliveries for this contract, sorted chronologically
+        const existingForContract = validDeliveries
+          .filter(d => d.contract_id == c.id)
+          .sort((a, b) => (a.delivery_date || a.due_date || '').localeCompare(b.delivery_date || b.due_date || ''));
+
+        // Align existing records to Friday dates sequentially
+        fridayDates.forEach((fDate, idx) => {
+          const weekNumber = idx + 1;
+          const isPastOrToday = fDate <= formatLocalDate(new Date());
+          const existing = existingForContract[idx];
+
+          if (existing) {
+            if (existing.delivery_date !== fDate || existing.week_number !== weekNumber || !isFriday(existing.delivery_date)) {
+              realignedCount++;
+            }
+            alignedDeliveries.push({
+              ...existing,
+              id: existing.id || nextDelId++,
+              contract_id: c.id,
+              driver_id: c.driver_id,
+              car_id: c.car_id,
+              delivery_date: fDate, // Strictly Friday
+              due_date: fDate,
+              week_number: weekNumber, // Sequentially Week 1, Week 2, ...
+              amount_due: parseFloat(existing.amount_due || c.weekly_required || 0),
+              status: existing.status === 'مسدد' ? 'مسدد' : (isPastOrToday ? 'مستحق' : 'مجدول'),
+              notes: `استحقاق توريد أسبوعي إلزامي ليوم الجمعة (الأسبوع ${weekNumber})`,
+              created_at: existing.created_at || c.start_date
+            });
+          } else {
+            // Generate missing Friday slot
+            alignedDeliveries.push({
+              id: nextDelId++,
+              contract_id: c.id,
+              driver_id: c.driver_id,
+              car_id: c.car_id,
+              delivery_date: fDate,
+              due_date: fDate,
+              week_number: weekNumber,
+              amount_due: parseFloat(c.weekly_required || 0),
+              amount_paid: 0,
+              status: isPastOrToday ? 'مستحق' : 'مجدول',
+              notes: `استحقاق توريد أسبوعي إلزامي ليوم الجمعة (الأسبوع ${weekNumber})`,
+              created_at: c.start_date
+            });
+            realignedCount++;
+          }
+        });
+      });
+
+      // Preserve any deliveries for other contracts if not covered
+      validDeliveries.forEach(del => {
+        if (!contracts.some(c => c.id == del.contract_id)) {
+          alignedDeliveries.push(del);
+        }
+      });
+
+      // Normalize IDs
+      let maxDelId = 0;
+      alignedDeliveries.forEach(d => {
+        if (!d.id || d.id <= maxDelId) {
+          d.id = ++maxDelId;
+        } else {
+          maxDelId = d.id;
+        }
+      });
+
+      setTable('weekly_deliveries', alignedDeliveries);
+      setTable('audit_logs', auditLogs);
+
+      // Ensure settings default weekly due day strictly to Friday (5)
+      const settings = JSON.parse(localStorage.getItem('db_settings') || '{}');
+      if (settings.weekly_due_day !== 5) {
+        settings.weekly_due_day = 5;
+        localStorage.setItem('db_settings', JSON.stringify(settings));
+      }
+
+      return {
+        purged_count: purgedCount,
+        realigned_count: realignedCount,
+        vouchers_purged: vouchersPurged,
+        total_aligned: alignedDeliveries.length
+      };
+    });
+
+    if (tx.success) {
+      result = tx.data;
+    } else {
+      console.error('[cleanAndAlignWeeklyDeliveries] Transaction failed:', tx.error);
+    }
+    return result;
   }
 
   // Non-Destructive Migrations & Backfill (Zero Data Loss)
@@ -147,7 +340,7 @@
             quantity: 1,
             unit_price: totalVal,
             line_total: totalVal,
-            created_at: p.invoice_date || new Date().toISOString().split('T')[0]
+            created_at: p.invoice_date || formatLocalDate(new Date())
           });
           purchasesBackfilled++;
         }
@@ -174,7 +367,7 @@
             quantity: 1,
             unit_price: amtVal,
             line_total: amtVal,
-            created_at: inv.invoice_date || new Date().toISOString().split('T')[0]
+            created_at: inv.invoice_date || formatLocalDate(new Date())
           });
           invoicesBackfilled++;
         }
@@ -184,82 +377,13 @@
         console.log(`[Zero Data Loss] Backfilled ${invoicesBackfilled} tax invoices into invoice_items.`);
       }
 
-      // 3. Weekly Delivery Sanitization Scope: Prune ONLY records prior to contract date
-      const contracts = getTable('contracts');
-      let deliveries = getTable('weekly_deliveries');
-      let auditLogs = getTable('audit_logs');
-      let prunedCount = 0;
-
-      const validDeliveries = [];
-      deliveries.forEach(del => {
-        const contract = contracts.find(c => c.id == del.contract_id);
-        if (contract && del.delivery_date < contract.start_date) {
-          // Out of bounds delivery prior to contract start date: log for auditability and prune
-          auditLogs.push({
-            id: Date.now() + Math.random(),
-            action: 'PRUNE_OUT_OF_BOUNDS_DELIVERY',
-            target_table: 'weekly_deliveries',
-            record_id: del.id,
-            contract_id: contract.id,
-            contract_start_date: contract.start_date,
-            invalid_delivery_date: del.delivery_date,
-            details: `تم استبعاد سجل التوريد الأسبوعي المؤرخ بـ ${del.delivery_date} لأنه يسبق تاريخ بدء العقد ${contract.start_date}`,
-            original_record: del,
-            pruned_at: new Date().toISOString()
-          });
-          prunedCount++;
-        } else {
-          validDeliveries.push(del);
-        }
-      });
-
-      if (prunedCount > 0) {
-        setTable('weekly_deliveries', validDeliveries);
-        setTable('audit_logs', auditLogs);
-        console.log(`[Weekly Delivery Sanitization] Pruned ${prunedCount} out-of-bounds delivery records. Logged to audit_logs.`);
-      }
-
-      // 4. Ensure Friday schedule alignment for active contract deliveries
-      let currentDeliveries = [...getTable('weekly_deliveries')];
-      let generatedSlots = 0;
-      contracts.forEach(c => {
-        const weeksCount = getContractWeeksCount(c);
-        const fridayDates = getContractFridayDates(c, weeksCount);
-        fridayDates.forEach((fDate, idx) => {
-          const exists = currentDeliveries.some(d => d.contract_id == c.id && (d.delivery_date === fDate || d.week_number === idx + 1));
-          if (!exists) {
-            const nextDId = currentDeliveries.length > 0 ? Math.max(...currentDeliveries.map(d => d.id)) + 1 : 1;
-            currentDeliveries.push({
-              id: nextDId,
-              contract_id: c.id,
-              driver_id: c.driver_id,
-              car_id: c.car_id,
-              delivery_date: fDate,
-              week_number: idx + 1,
-              amount_due: parseFloat(c.weekly_required || 0),
-              amount_paid: 0,
-              status: fDate <= new Date().toISOString().split('T')[0] ? 'مستحق' : 'مجدول',
-              notes: `استحقاق توريد أسبوعي إلزامي ليوم الجمعة (الأسبوع ${idx + 1})`,
-              created_at: c.start_date
-            });
-            generatedSlots++;
-          }
-        });
-      });
-      if (generatedSlots > 0) {
-        setTable('weekly_deliveries', currentDeliveries);
-        console.log(`[Weekly Delivery Auto-Scheduler] Generated ${generatedSlots} Friday delivery slots.`);
-      }
-
-      // 5. Update settings default weekly due day strictly to Friday (5)
-      const settings = JSON.parse(localStorage.getItem('db_settings') || '{}');
-      if (settings.weekly_due_day !== 5) {
-        settings.weekly_due_day = 5;
-        localStorage.setItem('db_settings', JSON.stringify(settings));
-      }
+      // 3. Weekly Delivery Sanitization, Purge & Strict Friday Alignment (Idempotent Transactional Backfill)
+      const weeklyStats = cleanAndAlignWeeklyDeliveries();
+      console.log(`[Zero Data Loss] Cleaned and aligned weekly deliveries:`, weeklyStats);
     } catch (e) {
       console.error('[Migration Error]:', e);
     }
+  }
   }
 
   // Execute non-destructive migration on startup
@@ -268,19 +392,20 @@
   // Helper to compute weeks count for a contract based on auto recurring calculation & manual rollover
   function getContractWeeksCount(c) {
     if (!c || !c.start_date) return 1;
-    const startDate = new Date(c.start_date + 'T00:00:00');
-    const today = new Date();
-    startDate.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-    
-    let autoWeeks = 0;
-    if (today >= startDate) {
-      const diffTime = Math.abs(today - startDate);
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      autoWeeks = Math.floor(diffDays / 7);
+    const firstFridayStr = getFirstFridayOnOrAfter(c.start_date);
+    const firstFriday = parseLocalDate(firstFridayStr);
+    if (!firstFriday) return 1;
+
+    const todayStr = formatLocalDate(new Date());
+    const today = parseLocalDate(todayStr);
+
+    let fridayWeeks = 1;
+    if (today >= firstFriday) {
+      const diffDays = Math.floor((today.getTime() - firstFriday.getTime()) / (1000 * 60 * 60 * 24));
+      fridayWeeks = Math.floor(diffDays / 7) + 1;
     }
     const manualRollover = parseInt(c.rollover_count || 0);
-    return Math.max(1, autoWeeks + 1, manualRollover + 1);
+    return Math.max(1, fridayWeeks, manualRollover + 1);
   }
 
   // 2. Helper to compute driver financials with Netting & Recurring Billing
@@ -291,10 +416,12 @@
     let total_debits = 0;
     let total_credits = 0;
 
-    // Contracts rent (recurring weekly entitlement)
+    // Contracts rent (recurring weekly entitlement strictly on Fridays on or after start_date)
     driverContracts.forEach(c => {
       const weeksCount = getContractWeeksCount(c);
-      total_debits += weeksCount * parseFloat(c.weekly_required || 0);
+      const fridayDates = getContractFridayDates(c, weeksCount);
+      const validFridayWeeks = fridayDates.filter(dStr => dStr >= c.start_date && isFriday(dStr)).length;
+      total_debits += validFridayWeeks * parseFloat(c.weekly_required || 0);
     });
 
     // Violations
@@ -369,19 +496,18 @@
       current_week_index = weeksCount;
       weekly_target = parseFloat(activeContract.weekly_required || 0);
 
-      const currentCycleIndex = weeksCount - 1;
-      const startDateObj = new Date(activeContract.start_date + 'T00:00:00');
-      const currentCycleDate = new Date(startDateObj.getTime() + currentCycleIndex * 7 * 24 * 60 * 60 * 1000);
-      last_rollover_date = activeContract.last_rollover_date || currentCycleDate.toISOString().split('T')[0];
+      const fridayDates = getContractFridayDates(activeContract, weeksCount);
+      const currentCycleFriday = fridayDates[fridayDates.length - 1] || activeContract.start_date;
+      last_rollover_date = activeContract.last_rollover_date || currentCycleFriday;
 
-      const rolloverTime = new Date(last_rollover_date + 'T00:00:00').getTime();
+      const rolloverDateStr = last_rollover_date.includes('T') ? last_rollover_date.split('T')[0] : last_rollover_date;
 
       // Vouchers since current cycle rollover
       driverVouchers.forEach(v => {
         const isCredit = v.voucher_type === 'سند قبض' || v.voucher_type === 'سند تسديد مخالفة' || v.voucher_type === 'سند تأمين (قبض)';
         if (isCredit) {
-          const vTime = new Date(v.voucher_date + 'T00:00:00').getTime();
-          if (vTime >= rolloverTime) {
+          const vDate = v.voucher_date ? (v.voucher_date.includes('T') ? v.voucher_date.split('T')[0] : v.voucher_date) : '';
+          if (vDate >= rolloverDateStr) {
             cash_collected += parseFloat(v.cash_amount || 0);
             network_collected += parseFloat(v.network_amount || 0);
           }
@@ -390,24 +516,27 @@
 
       // Maintenance deductions in current cycle
       maints.forEach(m => {
-        const mTime = new Date((m.maintenance_date || activeContract.start_date) + 'T00:00:00').getTime();
-        if (mTime >= rolloverTime) {
+        const mDate = m.maintenance_date || m.invoice_date || activeContract.start_date;
+        const cleanMDate = mDate.includes('T') ? mDate.split('T')[0] : mDate;
+        if (cleanMDate >= rolloverDateStr) {
           reimbursements += parseFloat(m.deducted_from_weekly || 0);
         }
       });
 
       // Purchases reimbursements since current cycle rollover
       driverPurchases.forEach(p => {
-        const pTime = new Date(p.invoice_date + 'T00:00:00').getTime();
-        if (pTime >= rolloverTime) {
+        const pDate = p.invoice_date || '';
+        const cleanPDate = pDate.includes('T') ? pDate.split('T')[0] : pDate;
+        if (cleanPDate >= rolloverDateStr) {
           reimbursements += parseFloat(p.reimbursement_amount || 0);
         }
       });
 
       // General settlements reimbursements since current cycle rollover
       driverSettlements.forEach(s => {
-        const sTime = new Date(s.settlement_date + 'T00:00:00').getTime();
-        if (sTime >= rolloverTime) {
+        const sDate = s.settlement_date || '';
+        const cleanSDate = sDate.includes('T') ? sDate.split('T')[0] : sDate;
+        if (cleanSDate >= rolloverDateStr) {
           const amt = parseFloat(s.amount || 0);
           if (s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص' || s.settlement_type === 'مكافأة') {
             reimbursements += amt;
@@ -417,8 +546,9 @@
 
       // Downtime deductions in current cycle
       driverDowntimes.forEach(dt => {
-        const dtTime = new Date(dt.start_date + 'T00:00:00').getTime();
-        if (dtTime >= rolloverTime) {
+        const dtDate = dt.start_date || '';
+        const cleanDtDate = dtDate.includes('T') ? dtDate.split('T')[0] : dtDate;
+        if (cleanDtDate >= rolloverDateStr) {
           downtime_deductions += parseFloat(dt.total_deduction || 0);
         }
       });
@@ -796,25 +926,27 @@
               let statements = [];
               
               if (contracts.length > 0) {
-                // Rent debits (Recurring Weekly Entitlements)
+                // Rent debits (Recurring Weekly Entitlements strictly on Fridays on or after contract start date)
                 contracts.forEach(c => {
                   const weeksCount = getContractWeeksCount(c);
                   const fridayDates = getContractFridayDates(c, weeksCount);
-                  for (let i = 0; i < weeksCount; i++) {
-                    const cycleDate = fridayDates[i] || new Date(new Date(c.start_date).getTime() + i * 7 * 86400000).toISOString().split('T')[0];
-                    const isCurrent = (i === weeksCount - 1);
+                  fridayDates.forEach((cycleDate, idx) => {
+                    // Strictly enforce: never prior to contract start date, and strictly Friday
+                    if (cycleDate < c.start_date || !isFriday(cycleDate)) return;
+                    const weekNum = idx + 1;
+                    const isCurrent = (idx === fridayDates.length - 1);
                     statements.push({
-                      id: `${c.id}-rent-${i}`,
+                      id: `${c.id}-rent-${idx}`,
                       date: cycleDate,
-                      description: `استحقاق توريد أسبوعي إلزامي (يوم الجمعة) - الأسبوع ${i + 1}${isCurrent ? ' (الدورة الحالية)' : ' (دورة سابقة مغلقة)'}`,
+                      description: `استحقاق توريد أسبوعي إلزامي (يوم الجمعة) - الأسبوع ${weekNum}${isCurrent ? ' (الدورة الحالية)' : ' (دورة سابقة مغلقة)'}`,
                       debit: parseFloat(c.weekly_required || 0),
                       credit: 0,
                       category: 'contract',
-                      week_index: i + 1,
+                      week_index: weekNum,
                       is_current_cycle: isCurrent,
                       is_auto_recurring: true
                     });
-                  }
+                  });
                 });
                 
                 const violations = getTable('violations').filter(v => {
@@ -989,16 +1121,16 @@
               
               if (statements.length > 0) {
                 statements.sort((a, b) => {
-                  const dateA = new Date(a.date).getTime();
-                  const dateB = new Date(b.date).getTime();
-                  if (dateA !== dateB) return dateA - dateB;
+                  const dateA = a.date || '';
+                  const dateB = b.date || '';
+                  if (dateA !== dateB) return dateA.localeCompare(dateB);
                   return String(a.id).localeCompare(String(b.id));
                 });
                 
                 let runningBalance = 0;
                 statements = statements.map(s => {
                   runningBalance += (s.debit - s.credit);
-                  return { ...s, balance: runningBalance };
+                  return { ...s, balance: Math.round(runningBalance * 100) / 100 };
                 });
                 
                 statements.reverse();
@@ -1285,7 +1417,8 @@
             const contract = contracts[contractIndex];
             const currentWeeks = getContractWeeksCount(contract);
             contract.rollover_count = Math.max(parseInt(contract.rollover_count || 0), currentWeeks);
-            contract.last_rollover_date = new Date().toISOString().split('T')[0];
+            const fridayDates = getContractFridayDates(contract, contract.rollover_count + 1);
+            contract.last_rollover_date = fridayDates[fridayDates.length - 1] || formatLocalDate(new Date());
             contracts[contractIndex] = contract;
             setTable('contracts', contracts);
             responseData = { message: 'تم ترحيل وفتح الدورة الأسبوعية الجديدة بنجاح', week_number: contract.rollover_count + 1 };
@@ -1304,7 +1437,9 @@
             }
           });
           setTable('contracts', contracts);
-          responseData = { message: 'تم تحديث وأتمتة الاستحقاق الأسبوعي بنجاح', updated_contracts: updatedCount };
+          // Also run cleanup and alignment to keep weekly dues strictly synchronized to Fridays
+          const stats = cleanAndAlignWeeklyDeliveries();
+          responseData = { message: 'تم تحديث وأتمتة الاستحقاق الأسبوعي بنجاح', updated_contracts: updatedCount, ...stats };
         }
         
         // GET /api/purchases
@@ -1764,7 +1899,7 @@
             const contracts = getTable('contracts');
             const nextId = deliveries.length > 0 ? Math.max(...deliveries.map(d => d.id)) + 1 : 1;
 
-            const deliveryDate = body.delivery_date;
+            const deliveryDate = body.delivery_date || body.due_date;
             if (!deliveryDate) {
               throw new Error('يرجى تحديد تاريخ التوريد الأسبوعي.');
             }
@@ -1786,12 +1921,13 @@
               driver_id: parseInt(body.driver_id),
               car_id: body.car_id ? parseInt(body.car_id) : null,
               delivery_date: deliveryDate,
+              due_date: deliveryDate,
               week_number: parseInt(body.week_number || 1),
               amount_due: parseFloat(body.amount_due || 0),
               amount_paid: parseFloat(body.amount_paid || 0),
               status: body.status || 'مستحق',
               notes: body.notes || 'توريد أسبوعي ليوم الجمعة',
-              created_at: new Date().toISOString()
+              created_at: formatLocalDate(new Date())
             };
 
             deliveries.push(newDelivery);
@@ -1807,36 +1943,13 @@
           }
         }
 
-        // POST /api/weekly-deliveries/sanitize
-        else if (path === '/api/weekly-deliveries/sanitize' && method === 'POST') {
-          const contracts = getTable('contracts');
-          const deliveries = getTable('weekly_deliveries');
-          const auditLogs = getTable('audit_logs');
-          let pruned = 0;
-          const valid = [];
-
-          deliveries.forEach(del => {
-            const contract = contracts.find(c => c.id == del.contract_id);
-            if (contract && del.delivery_date < contract.start_date) {
-              auditLogs.push({
-                id: Date.now() + Math.random(),
-                action: 'PRUNE_OUT_OF_BOUNDS_DELIVERY',
-                target_table: 'weekly_deliveries',
-                record_id: del.id,
-                contract_id: contract.id,
-                reason: `تاريخ التوريد ${del.delivery_date} يسبق تاريخ العقد ${contract.start_date}`,
-                pruned_record: del,
-                pruned_at: new Date().toISOString()
-              });
-              pruned++;
-            } else {
-              valid.push(del);
-            }
-          });
-
-          setTable('weekly_deliveries', valid);
-          setTable('audit_logs', auditLogs);
-          responseData = { message: `تم فحص وتطهير التوريدات الأسبوعية بنجاح. تم استبعاد ${pruned} سجل غير صالح وأرشفتها في سجل التدقيق.`, pruned_count: pruned };
+        // POST /api/weekly-deliveries/sanitize & POST /api/weekly-deliveries/cleanup-and-backfill
+        else if ((path === '/api/weekly-deliveries/sanitize' || path === '/api/weekly-deliveries/cleanup-and-backfill') && method === 'POST') {
+          const stats = cleanAndAlignWeeklyDeliveries();
+          responseData = {
+            message: `تم فحص وتطهير ومواءمة التوريدات الأسبوعية بنجاح ليوم الجمعة حصراً. تم حذف ${stats.purged_count} سجل غير صالح ومواءمة ${stats.realigned_count} استحقاق.`,
+            ...stats
+          };
         }
         
         // POST /api/vouchers/:id/convert-to-invoice
