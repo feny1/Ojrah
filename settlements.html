@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>التسوية العامة - نظام أجرة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
+  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 mt-4">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      <div>
+        <h1 class="text-4xl font-extrabold text-indigo-600 flex items-center gap-3">
+          <span>⚖️</span>
+          <span>برنامج التسوية العامة</span>
+        </h1>
+        <p class="text-gray-500 mt-2">تسجيل التسويات الاستثنائية، المكافآت، الخصومات الخاصة، وتعديل أرصدة السائقين</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="summary.html" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-1.5">
+          <span>📊</span>
+          <span>لوحة المراقبة</span>
+        </a>
+        <a href="index.html" class="bg-slate-800 text-white px-5 py-2.5 rounded-xl hover:bg-slate-700 shadow-lg font-bold text-sm transition-all">
+          العودة للرئيسية
+        </a>
+      </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-slate-400">إجمالي التسويات</span>
+          <p id="stat-total-count" class="text-2xl font-black text-slate-800 mt-1">0</p>
+        </div>
+        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl font-black">
+          📋
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-emerald-600">إجمالي الدائن (لصالح السائقين)</span>
+          <p id="stat-total-credit" class="text-2xl font-black text-emerald-600 mt-1">0 ر.س</p>
+        </div>
+        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-black">
+          🟢
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-rose-600">إجمالي المدين (التزام على السائقين)</span>
+          <p id="stat-total-debit" class="text-2xl font-black text-rose-600 mt-1">0 ر.س</p>
+        </div>
+        <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-xl font-black">
+          🔴
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-slate-500">صافي الأثر المالي</span>
+          <p id="stat-net-impact" class="text-2xl font-black text-slate-800 mt-1">0 ر.س</p>
+        </div>
+        <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-xl flex items-center justify-center text-xl font-black">
+          ⚖️
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions & Filter Bar -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div class="flex flex-wrap items-center gap-2">
+        <input type="text" id="search-input" placeholder="🔍 بحث باسم السائق أو رقم التسوية أو البيان..."
+          class="border border-slate-200 bg-white rounded-xl px-4 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none w-72">
+        <select id="filter-impact"
+          class="border border-slate-200 bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          <option value="all">جميع الآثار (دائن ومدين)</option>
+          <option value="credit">دائن للسائق (تعويض / تخفيض)</option>
+          <option value="debit">مدين على السائق (قيد التزام)</option>
+        </select>
+      </div>
+      <button id="show-form-btn"
+        class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 font-bold shadow-md hover:shadow-indigo-500/10 transition-all flex items-center gap-2 cursor-pointer text-sm">
+        <span>+</span>
+        <span>تسجيل تسوية عامة جديدة</span>
+      </button>
+    </div>
+
+    <!-- Add / Edit Settlement Form Card (Collapsible) -->
+    <div id="settlement-form-card" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 hidden">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 id="form-title" class="text-2xl font-bold text-slate-800">تسجيل تسوية عامة جديدة</h2>
+          <p class="text-xs text-slate-400 mt-0.5">حدد السائق ونوع الأثر (دائن/مدين) وقيمة التسوية للترحيل المباشر</p>
+        </div>
+        <button type="button" id="close-form-btn" class="text-slate-400 hover:text-slate-600 text-lg font-bold cursor-pointer">✕</button>
+      </div>
+
+      <form id="settlement-form" class="space-y-6">
+        <input type="hidden" id="editing-id" value="">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div>
+            <label class="block text-slate-700 mb-2 font-bold text-sm">السائق المعني <span class="text-rose-500">*</span></label>
+            <select id="driver_id" required
+              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-semibold">
+              <option value="">-- اختر السائق --</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-slate-700 mb-2 font-bold text-sm">المركبة (اختياري)</label>
+            <select id="car_id"
+              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-semibold">
+              <option value="">-- اختر السيارة أو غير مرتبطة --</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-slate-700 mb-2 font-bold text-sm">تاريخ التسوية <span class="text-rose-500">*</span></label>
+            <input type="date" required id="settlement_date"
+              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-semibold text-slate-700">
+          </div>
+
+          <div>
+            <label class="block text-slate-700 mb-2 font-bold text-sm">تصنيف / نوع التسوية</label>
+            <select id="category"
+              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-semibold">
+              <option value="تسوية رصيد عامة">تسوية رصيد عامة</option>
+              <option value="مكافأة والتزام">مكافأة والتزام</option>
+              <option value="خصم خاص من الإدارة">خصم خاص من الإدارة</option>
+              <option value="تحميل تلفيات أو صيانة">تحميل تلفيات أو صيانة</option>
+              <option value="تسوية استثنائية">تسوية استثنائية</option>
+              <option value="أخرى">أخرى</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-slate-700 mb-2 font-bold text-sm">الأثر المالي على ذمة السائق <span class="text-rose-500">*</span></label>
+            <select id="driver_impact" required
+              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-black">
+              <option value="credit">🟢 دائن للسائق (له - تخفيض المديونية / تعويض)</option>
+              <option value="debit">🔴 مدين على السائق (عليه - إضافة التزام / زيادة المديونية)</option>
+            </select>
+            <span class="text-[11px] text-slate-400 mt-1 block">«دائن» يقلل المطلوب من السائق، «مدين» يزيد المطالبة عليه.</span>
+          </div>
+
+          <div>
+            <label class="block text-slate-700 mb-2 font-bold text-sm">مبلغ التسوية (ر.س) <span class="text-rose-500">*</span></label>
+            <input type="number" step="0.01" min="0.01" required id="amount" placeholder="0.00"
+              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-lg font-black text-indigo-700 text-center">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-700 mb-2 font-bold text-sm">بيان وسبب التسوية <span class="text-rose-500">*</span></label>
+          <input type="text" required id="description" placeholder="مثال: خصم إضافي لمخالفة مرورية سددتها الشركة، أو مكافأة التزام أسبوعي"
+            class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm">
+        </div>
+
+        <div>
+          <label class="block text-slate-700 mb-2 font-bold text-sm">ملاحظات إضافية (اختياري)</label>
+          <textarea id="notes" rows="2" placeholder="أي تفاصيل أو وثائق مرتبطة..."
+            class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"></textarea>
+        </div>
+
+        <div class="flex gap-4 pt-4 border-t border-slate-100">
+          <button type="submit" id="submit-btn"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl shadow-md transition-all text-sm cursor-pointer">
+            حفظ التسوية
+          </button>
+          <button type="button" id="cancel-btn"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-xl transition-all text-sm cursor-pointer">
+            إلغاء
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Settlements Data Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="text-xl font-black text-slate-800">سجل حركات التسوية العامة</h2>
+          <p class="text-xs text-slate-400 mt-0.5">قائمة بجميع قيود التسويات المحفوظة وأثرها على حسابات السائقين</p>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-100 text-xs">
+            <tr>
+              <th class="p-4 rounded-tr-xl">رقم التسوية</th>
+              <th class="p-4">السائق</th>
+              <th class="p-4">المركبة</th>
+              <th class="p-4 text-center">التاريخ</th>
+              <th class="p-4 text-center">التصنيف</th>
+              <th class="p-4 text-center">الأثر المالي</th>
+              <th class="p-4 text-center">المبلغ (ر.س)</th>
+              <th class="p-4">البيان</th>
+              <th class="p-4 rounded-tl-xl text-center">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="settlements-table-body">
+            <tr>
+              <td colspan="9" class="text-center p-8 text-slate-400 font-bold">جاري تحميل البيانات...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let settlements = [];
+    let drivers = [];
+    let cars = [];
+
+    // DOM Elements
+    const formCard = document.getElementById('settlement-form-card');
+    const showFormBtn = document.getElementById('show-form-btn');
+    const closeFormBtn = document.getElementById('close-form-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const form = document.getElementById('settlement-form');
+    const formTitle = document.getElementById('form-title');
+    const editingIdInput = document.getElementById('editing-id');
+    const driverSelect = document.getElementById('driver_id');
+    const carSelect = document.getElementById('car_id');
+    const settlementDateInput = document.getElementById('settlement_date');
+    const categorySelect = document.getElementById('category');
+    const driverImpactSelect = document.getElementById('driver_impact');
+    const amountInput = document.getElementById('amount');
+    const descriptionInput = document.getElementById('description');
+    const notesInput = document.getElementById('notes');
+    const submitBtn = document.getElementById('submit-btn');
+    const searchInput = document.getElementById('search-input');
+    const filterImpactSelect = document.getElementById('filter-impact');
+    const tableBody = document.getElementById('settlements-table-body');
+
+    // Stats elements
+    const statTotalCount = document.getElementById('stat-total-count');
+    const statTotalCredit = document.getElementById('stat-total-credit');
+    const statTotalDebit = document.getElementById('stat-total-debit');
+    const statNetImpact = document.getElementById('stat-net-impact');
+
+    // Toggle Form visibility
+    function openForm(isEdit = false) {
+      formCard.classList.remove('hidden');
+      if (!isEdit) {
+        form.reset();
+        editingIdInput.value = '';
+        formTitle.textContent = 'تسجيل تسوية عامة جديدة';
+        submitBtn.textContent = 'حفظ التسوية';
+        settlementDateInput.value = new Date().toISOString().split('T')[0];
+      }
+      formCard.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function closeForm() {
+      formCard.classList.add('hidden');
+      form.reset();
+      editingIdInput.value = '';
+    }
+
+    showFormBtn.addEventListener('click', () => openForm(false));
+    closeFormBtn.addEventListener('click', closeForm);
+    cancelBtn.addEventListener('click', closeForm);
+
+    // Initial Data Fetching
+    async function loadData() {
+      try {
+        const [settlementsRes, driversRes, carsRes] = await Promise.all([
+          fetch('/api/general-settlements'),
+          fetch('/api/drivers'),
+          fetch('/api/cars')
+        ]);
+
+        settlements = await settlementsRes.json();
+        drivers = await driversRes.json();
+        cars = await carsRes.json();
+
+        // Populate Driver Select
+        driverSelect.innerHTML = '<option value="">-- اختر السائق --</option>' +
+          drivers.map(d => `<option value="${d.id}">${d.name} (${d.phone || d.national_id || ''})</option>`).join('');
+
+        // Populate Car Select
+        carSelect.innerHTML = '<option value="">-- اختر السيارة أو غير مرتبطة --</option>' +
+          cars.map(c => `<option value="${c.id}">${c.plate_number} - ${c.company} ${c.model}</option>`).join('');
+
+        // Update stats & table
+        updateStats();
+        renderTable();
+      } catch (err) {
+        console.error('Error loading settlements data:', err);
+        tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-8 text-rose-500">فشل تحميل البيانات من الخادم</td></tr>`;
+      }
+    }
+
+    function updateStats() {
+      const activeSettlements = settlements.filter(s => s.status !== 'ملغاة');
+      statTotalCount.textContent = activeSettlements.length;
+
+      let totalCredit = 0;
+      let totalDebit = 0;
+
+      activeSettlements.forEach(s => {
+        const amt = parseFloat(s.amount || 0);
+        if (s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص') {
+          totalCredit += amt;
+        } else {
+          totalDebit += amt;
+        }
+      });
+
+      statTotalCredit.textContent = `${totalCredit.toLocaleString()} ر.س`;
+      statTotalDebit.textContent = `${totalDebit.toLocaleString()} ر.س`;
+      const net = totalCredit - totalDebit;
+      statNetImpact.textContent = `${net >= 0 ? '+' : ''}${net.toLocaleString()} ر.س`;
+      statNetImpact.className = `text-2xl font-black mt-1 ${net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+    }
+
+    function renderTable() {
+      const searchTerm = searchInput.value.trim().toLowerCase();
+      const impactFilter = filterImpactSelect.value;
+
+      const filtered = settlements.filter(s => {
+        // Impact filter
+        if (impactFilter !== 'all') {
+          const isCredit = s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص';
+          if (impactFilter === 'credit' && !isCredit) return false;
+          if (impactFilter === 'debit' && isCredit) return false;
+        }
+
+        // Search text
+        if (searchTerm) {
+          const matchDriver = (s.driver_name || '').toLowerCase().includes(searchTerm);
+          const matchPlate = (s.plate_number || '').toLowerCase().includes(searchTerm);
+          const matchNumber = (s.settlement_number || '').toLowerCase().includes(searchTerm);
+          const matchDesc = (s.description || '').toLowerCase().includes(searchTerm);
+          const matchCategory = (s.category || '').toLowerCase().includes(searchTerm);
+          return matchDriver || matchPlate || matchNumber || matchDesc || matchCategory;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-8 text-slate-400 italic">لا توجد تسويات مسجلة مطابقة للبحث</td></tr>`;
+        return;
+      }
+
+      tableBody.innerHTML = filtered.map(s => {
+        const isCredit = s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص';
+        const impactBadge = isCredit
+          ? `<span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200">🟢 دائن (له)</span>`
+          : `<span class="inline-flex items-center gap-1 bg-rose-50 text-rose-700 text-xs font-bold px-2.5 py-1 rounded-full border border-rose-200">🔴 مدين (عليه)</span>`;
+
+        const amtFormatted = parseFloat(s.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        return `
+          <tr class="border-b border-slate-50 hover:bg-slate-50/80 transition-colors text-sm">
+            <td class="p-4 font-mono font-bold text-slate-500 text-xs">${s.settlement_number || ('SET-' + s.id)}</td>
+            <td class="p-4 font-bold text-slate-800">
+              <a href="driver-details.html?id=${s.driver_id}" class="hover:text-indigo-600 transition-colors">
+                ${s.driver_name || 'سائق غير محدد'}
+              </a>
+            </td>
+            <td class="p-4 text-slate-600 text-xs">${s.plate_number || 'غير مرتبطة'}</td>
+            <td class="p-4 text-center font-semibold text-slate-600 text-xs">${s.settlement_date || '--'}</td>
+            <td class="p-4 text-center text-xs">
+              <span class="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-lg border border-indigo-100">
+                ${s.category || 'تسوية رصيد'}
+              </span>
+            </td>
+            <td class="p-4 text-center">${impactBadge}</td>
+            <td class="p-4 text-center font-black ${isCredit ? 'text-emerald-600' : 'text-rose-600'} text-base">
+              ${amtFormatted} <span class="text-xs font-normal text-slate-400">ر.س</span>
+            </td>
+            <td class="p-4 text-slate-700 text-xs max-w-xs truncate" title="${s.description || ''}">
+              ${s.description || '--'}
+            </td>
+            <td class="p-4 text-center">
+              <div class="flex justify-center items-center gap-2">
+                <button onclick="editSettlement(${s.id})"
+                  class="bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 p-2 rounded-lg transition-colors cursor-pointer" title="تعديل">
+                  ✏️
+                </button>
+                <button onclick="deleteSettlement(${s.id})"
+                  class="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 p-2 rounded-lg transition-colors cursor-pointer" title="حذف">
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    searchInput.addEventListener('input', renderTable);
+    filterImpactSelect.addEventListener('change', renderTable);
+
+    // Edit Settlement
+    window.editSettlement = async function(id) {
+      const s = settlements.find(item => item.id === id);
+      if (!s) return;
+
+      openForm(true);
+      formTitle.textContent = `تعديل التسوية (${s.settlement_number || ('SET-' + s.id)})`;
+      submitBtn.textContent = 'حفظ التعديلات';
+      editingIdInput.value = s.id;
+
+      driverSelect.value = s.driver_id;
+      carSelect.value = s.car_id || '';
+      settlementDateInput.value = s.settlement_date || '';
+      categorySelect.value = s.category || 'تسوية رصيد عامة';
+      driverImpactSelect.value = s.driver_impact || (s.settlement_type === 'تعويض' ? 'credit' : 'debit');
+      amountInput.value = s.amount || '';
+      descriptionInput.value = s.description || '';
+      notesInput.value = s.notes || '';
+    };
+
+    // Delete Settlement
+    window.deleteSettlement = async function(id) {
+      const s = settlements.find(item => item.id === id);
+      if (!s) return;
+
+      if (!confirm(`هل أنت متأكد من حذف التسوية "${s.settlement_number || ('SET-' + s.id)}" للسائق "${s.driver_name}" بمبلغ ${s.amount} ريال؟`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/general-settlements/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          alert('تم حذف التسوية بنجاح');
+          loadData();
+        } else {
+          const err = await res.json();
+          alert('فشل الحذف: ' + (err.error || 'خطأ غير معروف'));
+        }
+      } catch (err) {
+        console.error('Error deleting settlement:', err);
+        alert('حدث خطأ أثناء الاتصال بالخادم');
+      }
+    };
+
+    // Form Submit (POST / PUT)
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const editingId = editingIdInput.value;
+      const isEdit = Boolean(editingId);
+
+      const payload = {
+        driver_id: parseInt(driverSelect.value),
+        car_id: carSelect.value ? parseInt(carSelect.value) : null,
+        settlement_date: settlementDateInput.value,
+        category: categorySelect.value,
+        driver_impact: driverImpactSelect.value,
+        settlement_type: driverImpactSelect.value === 'credit' ? 'تعويض' : 'خصم خاص',
+        amount: parseFloat(amountInput.value),
+        description: descriptionInput.value.trim(),
+        notes: notesInput.value.trim(),
+        status: 'معتمدة'
+      };
+
+      if (!payload.driver_id) {
+        alert('يرجى اختيار السائق');
+        return;
+      }
+      if (isNaN(payload.amount) || payload.amount <= 0) {
+        alert('يرجى إدخال مبلغ صحيح أكبر من الصفر');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'جاري الحفظ...';
+
+      try {
+        const url = isEdit ? `/api/general-settlements/${editingId}` : '/api/general-settlements';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          alert(isEdit ? 'تم تحديث التسوية العامة بنجاح!' : 'تم حفظ التسوية العامة وترحيل أثرها المالي بنجاح!');
+          closeForm();
+          loadData();
+        } else {
+          const err = await res.json();
+          alert('حدث خطأ أثناء الحفظ: ' + (err.error || 'خطأ غير معروف'));
+        }
+      } catch (err) {
+        console.error('Error saving settlement:', err);
+        alert('حدث خطأ أثناء الاتصال بالخادم');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = isEdit ? 'حفظ التعديلات' : 'حفظ التسوية';
+      }
+    });
+
+    // Auto-prefill car when driver changes
+    driverSelect.addEventListener('change', async () => {
+      const dId = driverSelect.value;
+      if (!dId) return;
+
+      try {
+        const res = await fetch(`/api/drivers/${dId}`);
+        if (res.ok) {
+          const driverData = await res.json();
+          if (driverData.contract && driverData.contract.car_id) {
+            carSelect.value = driverData.contract.car_id;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to prefill car for driver:', e);
+      }
+    });
+
+    // Initial Load
+    settlementDateInput.value = new Date().toISOString().split('T')[0];
+    loadData();
+  </script>
+</body>
+
+</html>

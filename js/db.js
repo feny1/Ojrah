@@ -20,7 +20,12 @@
   }
 
   // 1. Initialize localStorage tables if not present
-  const TABLES = ['cars', 'drivers', 'contracts', 'violations', 'maintenance', 'vouchers', 'car_documents', 'settings', 'invoices', 'purchases', 'downtimes'];
+  const TABLES = [
+    'cars', 'drivers', 'contracts', 'violations', 'maintenance',
+    'vouchers', 'car_documents', 'settings', 'invoices', 'purchases',
+    'downtimes', 'purchase_items', 'invoice_items', 'general_settlements',
+    'weekly_deliveries', 'audit_logs'
+  ];
   
   function getTable(name) {
     const data = localStorage.getItem('db_' + name);
@@ -34,7 +39,7 @@
   // Seed if settings table is empty
   const currentSettings = localStorage.getItem('db_settings');
   if (!currentSettings) {
-    localStorage.setItem('db_settings', JSON.stringify({ vat_number: '310123456700003', weekly_due_day: 6 }));
+    localStorage.setItem('db_settings', JSON.stringify({ vat_number: '310123456700003', weekly_due_day: 5 }));
     
     // Seed some mock cars
     setTable('cars', [
@@ -59,6 +64,206 @@
       { id: 2, voucher_number: 'V-1688234567890', voucher_type: 'سند قبض', auto_generated: 0, voucher_date: '2023-02-08', amount: 700, related_driver_id: 1, related_car_id: 1, description: 'سداد أجرة الأسبوع الأول', cash_amount: 700, network_amount: 0 }
     ]);
   }
+
+  // Transaction simulation runner (ACID guarantee for localStorage operations)
+  function runInTransaction(operationFn) {
+    const snapshot = {};
+    TABLES.forEach(t => {
+      snapshot[t] = localStorage.getItem('db_' + t);
+    });
+    try {
+      const result = operationFn();
+      return { success: true, data: result };
+    } catch (error) {
+      // Rollback on any failure
+      Object.keys(snapshot).forEach(t => {
+        if (snapshot[t] !== null) {
+          localStorage.setItem('db_' + t, snapshot[t]);
+        } else {
+          localStorage.removeItem('db_' + t);
+        }
+      });
+      console.error('[Transaction Rollback]:', error);
+      return { success: false, error: error.message || error };
+    }
+  }
+
+  // Date indexing & fast lookup helpers
+  function inDateRange(dateStr, from, to) {
+    if (!dateStr) return false;
+    // Normalize date format if timestamp
+    const d = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  }
+
+  // Strict Friday Schedule Helpers (dayOfWeek === 5)
+  function isFriday(dateStr) {
+    if (!dateStr) return false;
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.getDay() === 5;
+  }
+
+  function getFirstFridayOnOrAfter(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    const day = d.getDay(); // 0: Sun, 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri, 6: Sat
+    const daysUntilFriday = (5 - day + 7) % 7;
+    d.setDate(d.getDate() + daysUntilFriday);
+    return d.toISOString().split('T')[0];
+  }
+
+  function getContractFridayDates(c, weeksCount) {
+    if (!c || !c.start_date) return [];
+    const dates = [];
+    const firstFridayStr = getFirstFridayOnOrAfter(c.start_date);
+    const firstFriday = new Date(firstFridayStr + 'T00:00:00');
+    for (let i = 0; i < weeksCount; i++) {
+      const d = new Date(firstFriday.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+      dates.push(d.toISOString().split('T')[0]);
+    }
+    return dates;
+  }
+
+  // Non-Destructive Migrations & Backfill (Zero Data Loss)
+  function runZeroDataLossMigrations() {
+    try {
+      // 1. Multi-Item Purchase Invoices Backfill (100% historical data preservation)
+      const purchases = getTable('purchases');
+      let purchaseItems = getTable('purchase_items');
+      let purchasesBackfilled = 0;
+
+      purchases.forEach(p => {
+        const existing = purchaseItems.filter(it => it.purchase_id === p.id || it.invoice_id === p.id);
+        if (existing.length === 0) {
+          const nextItemId = purchaseItems.length > 0 ? Math.max(...purchaseItems.map(it => it.id)) + 1 : 1;
+          const totalVal = parseFloat(p.total_amount || p.grand_total || 0);
+          purchaseItems.push({
+            id: nextItemId,
+            purchase_id: p.id,
+            invoice_id: p.id,
+            description: p.product_name || 'بند مشتريات أساسي',
+            quantity: 1,
+            unit_price: totalVal,
+            line_total: totalVal,
+            created_at: p.invoice_date || new Date().toISOString().split('T')[0]
+          });
+          purchasesBackfilled++;
+        }
+      });
+      if (purchasesBackfilled > 0) {
+        setTable('purchase_items', purchaseItems);
+        console.log(`[Zero Data Loss] Backfilled ${purchasesBackfilled} historical purchase invoices into purchase_items.`);
+      }
+
+      // 2. Sales/Tax Invoices Backfill into invoice_items
+      const invoices = getTable('invoices');
+      let invoiceItems = getTable('invoice_items');
+      let invoicesBackfilled = 0;
+
+      invoices.forEach(inv => {
+        const existing = invoiceItems.filter(it => it.invoice_id === inv.id);
+        if (existing.length === 0) {
+          const nextItemId = invoiceItems.length > 0 ? Math.max(...invoiceItems.map(it => it.id)) + 1 : 1;
+          const amtVal = parseFloat(inv.amount || 0);
+          invoiceItems.push({
+            id: nextItemId,
+            invoice_id: inv.id,
+            description: inv.service_type || 'خدمة نقل ركاب بالسيارات الأجرة العامة',
+            quantity: 1,
+            unit_price: amtVal,
+            line_total: amtVal,
+            created_at: inv.invoice_date || new Date().toISOString().split('T')[0]
+          });
+          invoicesBackfilled++;
+        }
+      });
+      if (invoicesBackfilled > 0) {
+        setTable('invoice_items', invoiceItems);
+        console.log(`[Zero Data Loss] Backfilled ${invoicesBackfilled} tax invoices into invoice_items.`);
+      }
+
+      // 3. Weekly Delivery Sanitization Scope: Prune ONLY records prior to contract date
+      const contracts = getTable('contracts');
+      let deliveries = getTable('weekly_deliveries');
+      let auditLogs = getTable('audit_logs');
+      let prunedCount = 0;
+
+      const validDeliveries = [];
+      deliveries.forEach(del => {
+        const contract = contracts.find(c => c.id == del.contract_id);
+        if (contract && del.delivery_date < contract.start_date) {
+          // Out of bounds delivery prior to contract start date: log for auditability and prune
+          auditLogs.push({
+            id: Date.now() + Math.random(),
+            action: 'PRUNE_OUT_OF_BOUNDS_DELIVERY',
+            target_table: 'weekly_deliveries',
+            record_id: del.id,
+            contract_id: contract.id,
+            contract_start_date: contract.start_date,
+            invalid_delivery_date: del.delivery_date,
+            details: `تم استبعاد سجل التوريد الأسبوعي المؤرخ بـ ${del.delivery_date} لأنه يسبق تاريخ بدء العقد ${contract.start_date}`,
+            original_record: del,
+            pruned_at: new Date().toISOString()
+          });
+          prunedCount++;
+        } else {
+          validDeliveries.push(del);
+        }
+      });
+
+      if (prunedCount > 0) {
+        setTable('weekly_deliveries', validDeliveries);
+        setTable('audit_logs', auditLogs);
+        console.log(`[Weekly Delivery Sanitization] Pruned ${prunedCount} out-of-bounds delivery records. Logged to audit_logs.`);
+      }
+
+      // 4. Ensure Friday schedule alignment for active contract deliveries
+      let currentDeliveries = [...getTable('weekly_deliveries')];
+      let generatedSlots = 0;
+      contracts.forEach(c => {
+        const weeksCount = getContractWeeksCount(c);
+        const fridayDates = getContractFridayDates(c, weeksCount);
+        fridayDates.forEach((fDate, idx) => {
+          const exists = currentDeliveries.some(d => d.contract_id == c.id && (d.delivery_date === fDate || d.week_number === idx + 1));
+          if (!exists) {
+            const nextDId = currentDeliveries.length > 0 ? Math.max(...currentDeliveries.map(d => d.id)) + 1 : 1;
+            currentDeliveries.push({
+              id: nextDId,
+              contract_id: c.id,
+              driver_id: c.driver_id,
+              car_id: c.car_id,
+              delivery_date: fDate,
+              week_number: idx + 1,
+              amount_due: parseFloat(c.weekly_required || 0),
+              amount_paid: 0,
+              status: fDate <= new Date().toISOString().split('T')[0] ? 'مستحق' : 'مجدول',
+              notes: `استحقاق توريد أسبوعي إلزامي ليوم الجمعة (الأسبوع ${idx + 1})`,
+              created_at: c.start_date
+            });
+            generatedSlots++;
+          }
+        });
+      });
+      if (generatedSlots > 0) {
+        setTable('weekly_deliveries', currentDeliveries);
+        console.log(`[Weekly Delivery Auto-Scheduler] Generated ${generatedSlots} Friday delivery slots.`);
+      }
+
+      // 5. Update settings default weekly due day strictly to Friday (5)
+      const settings = JSON.parse(localStorage.getItem('db_settings') || '{}');
+      if (settings.weekly_due_day !== 5) {
+        settings.weekly_due_day = 5;
+        localStorage.setItem('db_settings', JSON.stringify(settings));
+      }
+    } catch (e) {
+      console.error('[Migration Error]:', e);
+    }
+  }
+
+  // Execute non-destructive migration on startup
+  runZeroDataLossMigrations();
 
   // Helper to compute weeks count for a contract based on auto recurring calculation & manual rollover
   function getContractWeeksCount(c) {
@@ -123,6 +328,18 @@
       total_credits += parseFloat(dt.total_deduction || 0);
     });
 
+    // General Settlements (Netting reimbursements & debt charges)
+    const settlements = getTable('general_settlements');
+    const driverSettlements = settlements.filter(s => s.driver_id == d.id && s.status !== 'ملغاة');
+    driverSettlements.forEach(s => {
+      const amt = parseFloat(s.amount || 0);
+      if (s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص' || s.settlement_type === 'مكافأة') {
+        total_credits += amt;
+      } else if (s.driver_impact === 'debit' || s.settlement_type === 'مديونية' || s.settlement_type === 'غرامة') {
+        total_debits += amt;
+      }
+    });
+
     // Vouchers (receipts, advances)
     const driverVouchers = vouchers.filter(v => v.related_driver_id == d.id);
     driverVouchers.forEach(v => {
@@ -184,6 +401,17 @@
         const pTime = new Date(p.invoice_date + 'T00:00:00').getTime();
         if (pTime >= rolloverTime) {
           reimbursements += parseFloat(p.reimbursement_amount || 0);
+        }
+      });
+
+      // General settlements reimbursements since current cycle rollover
+      driverSettlements.forEach(s => {
+        const sTime = new Date(s.settlement_date + 'T00:00:00').getTime();
+        if (sTime >= rolloverTime) {
+          const amt = parseFloat(s.amount || 0);
+          if (s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص' || s.settlement_type === 'مكافأة') {
+            reimbursements += amt;
+          }
         }
       });
 
@@ -263,25 +491,103 @@
           const violations = getTable('violations');
           const maintenance = getTable('maintenance');
           const purchases = getTable('purchases');
-          
-          const actualResult = vouchers.filter(v => v.voucher_type === 'سند قبض')
-                                       .reduce((sum, v) => sum + parseFloat(v.amount || 0), 0);
-          
-          let expected_revenue = 0;
-          const drivers_due = [];
+          const settlements = getTable('general_settlements');
+          const deliveries = getTable('weekly_deliveries');
           const cars = getTable('cars');
-          const settings = JSON.parse(localStorage.getItem('db_settings') || '{"vat_number":"310123456700003","weekly_due_day":0}');
-          
+          const settings = JSON.parse(localStorage.getItem('db_settings') || '{"vat_number":"310123456700003","weekly_due_day":5}');
+
+          // Parse query date range parameters
+          let fromDate = parsedUrl.searchParams.get('from');
+          let toDate = parsedUrl.searchParams.get('to');
+          const isAllTime = parsedUrl.searchParams.get('all') === '1' || parsedUrl.searchParams.get('all') === 'true';
+
+          // Sensible default fallback: Current month if no explicit range set
+          if (!fromDate && !toDate && !isAllTime) {
+            const now = new Date();
+            fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            toDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+          }
+
+          // 1. Filtered Actual Revenue (Receipts in date range)
+          const filteredVouchers = (fromDate || toDate)
+            ? vouchers.filter(v => inDateRange(v.voucher_date, fromDate, toDate))
+            : vouchers;
+          const actualResult = filteredVouchers
+            .filter(v => v.voucher_type === 'سند قبض' || v.voucher_type === 'سند تسديد مخالفة' || v.voucher_type === 'سند تأمين (قبض)')
+            .reduce((sum, v) => sum + parseFloat(v.amount || 0), 0);
+
+          // 2. Filtered Weekly Deliveries (Strict Friday scheduled deliveries in date range)
+          const filteredDeliveries = (fromDate || toDate)
+            ? deliveries.filter(d => inDateRange(d.delivery_date, fromDate, toDate))
+            : deliveries;
+          const weeklyDeliveryScheduled = filteredDeliveries.length;
+          const weeklyDeliveryExpectedAmt = filteredDeliveries.reduce((sum, d) => sum + parseFloat(d.amount_due || 0), 0);
+          const weeklyDeliveryFulfilled = filteredDeliveries.filter(d => d.status === 'مسدد' || parseFloat(d.amount_paid || 0) >= parseFloat(d.amount_due || 0)).length;
+          const weeklyDeliveryPending = Math.max(0, weeklyDeliveryScheduled - weeklyDeliveryFulfilled);
+
+          // 3. Filtered Violations & Expected Revenue in Range
+          const filteredViolations = (fromDate || toDate)
+            ? violations.filter(v => inDateRange(v.violation_date, fromDate, toDate))
+            : violations;
+          const violationsAmt = filteredViolations.reduce((sum, v) => sum + parseFloat(v.amount || 0), 0);
+
+          let expected_revenue = 0;
+          if (fromDate || toDate) {
+            expected_revenue = weeklyDeliveryExpectedAmt + violationsAmt;
+          } else {
+            drivers.forEach(d => {
+              const financials = getDriverFinancials(d, contracts, vouchers, violations, maintenance, purchases);
+              expected_revenue += (financials.weekly_target + financials.accumulated_debt);
+            });
+          }
+
+          // 4. Purchases & Settlements in Range
+          const filteredPurchases = (fromDate || toDate)
+            ? purchases.filter(p => inDateRange(p.invoice_date, fromDate, toDate))
+            : purchases;
+          const purchasesTotal = filteredPurchases.reduce((sum, p) => sum + parseFloat(p.total_amount || p.grand_total || 0), 0);
+
+          const filteredSettlements = (fromDate || toDate)
+            ? settlements.filter(s => inDateRange(s.settlement_date, fromDate, toDate) && s.status !== 'ملغاة')
+            : settlements.filter(s => s.status !== 'ملغاة');
+          const settlementsTotal = filteredSettlements.reduce((sum, s) => sum + parseFloat(s.amount || 0), 0);
+
+          const collectionRate = expected_revenue > 0 ? Math.min(100, Math.round((actualResult / expected_revenue) * 100)) : 100;
+
+          // 5. Build Trend Chart Data
+          const chartMap = {};
+          filteredVouchers.forEach(v => {
+            if (v.voucher_type === 'سند قبض' || v.voucher_type === 'سند تسديد مخالفة' || v.voucher_type === 'سند تأمين (قبض)') {
+              const dStr = v.voucher_date;
+              if (dStr) {
+                if (!chartMap[dStr]) chartMap[dStr] = { date: dStr, actual: 0, expected: 0, deliveries: 0 };
+                chartMap[dStr].actual += parseFloat(v.amount || 0);
+              }
+            }
+          });
+          filteredDeliveries.forEach(del => {
+            const dStr = del.delivery_date;
+            if (dStr) {
+              if (!chartMap[dStr]) chartMap[dStr] = { date: dStr, actual: 0, expected: 0, deliveries: 0 };
+              chartMap[dStr].expected += parseFloat(del.amount_due || 0);
+              chartMap[dStr].deliveries += 1;
+            }
+          });
+          const chartData = Object.keys(chartMap).sort().map(k => ({
+            ...chartMap[k],
+            actual: parseFloat(chartMap[k].actual.toFixed(2)),
+            expected: parseFloat(chartMap[k].expected.toFixed(2))
+          }));
+
+          // 6. Drivers Due List
+          const drivers_due = [];
           const todayDay = new Date().getDay();
-          const dueDay = parseInt(settings.weekly_due_day || 0);
+          const dueDay = parseInt(settings.weekly_due_day || 5);
           const isDueOrPast = todayDay >= dueDay;
 
           drivers.forEach(d => {
             const financials = getDriverFinancials(d, contracts, vouchers, violations, maintenance, purchases);
             const payments = financials.cash_collected + financials.network_collected + financials.reimbursements;
-            
-            // Expected revenue contribution
-            expected_revenue += (financials.weekly_target + financials.accumulated_debt);
 
             if (financials.active_contract_id) {
               const car = cars.find(c => c.id == financials.active_car_id);
@@ -310,7 +616,22 @@
           responseData = {
             actual_revenue: actualResult,
             expected_revenue,
-            drivers_due
+            weekly_deliveries: {
+              scheduled: weeklyDeliveryScheduled,
+              fulfilled: weeklyDeliveryFulfilled,
+              pending: weeklyDeliveryPending,
+              expected_amount: weeklyDeliveryExpectedAmt
+            },
+            purchases_total: purchasesTotal,
+            settlements_total: settlementsTotal,
+            collection_rate: collectionRate,
+            chart_data: chartData,
+            drivers_due,
+            date_range: {
+              from: fromDate || null,
+              to: toDate || null,
+              is_all_time: isAllTime
+            }
           };
         }
         
@@ -478,14 +799,14 @@
                 // Rent debits (Recurring Weekly Entitlements)
                 contracts.forEach(c => {
                   const weeksCount = getContractWeeksCount(c);
-                  const startDate = new Date(c.start_date + 'T00:00:00');
+                  const fridayDates = getContractFridayDates(c, weeksCount);
                   for (let i = 0; i < weeksCount; i++) {
-                    const cycleDate = new Date(startDate.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+                    const cycleDate = fridayDates[i] || new Date(new Date(c.start_date).getTime() + i * 7 * 86400000).toISOString().split('T')[0];
                     const isCurrent = (i === weeksCount - 1);
                     statements.push({
                       id: `${c.id}-rent-${i}`,
-                      date: cycleDate.toISOString().split('T')[0],
-                      description: `استحقاق أجرة أسبوعية تلقائي - الأسبوع ${i + 1}${isCurrent ? ' (الدورة الحالية)' : ' (دورة سابقة مغلقة)'}`,
+                      date: cycleDate,
+                      description: `استحقاق توريد أسبوعي إلزامي (يوم الجمعة) - الأسبوع ${i + 1}${isCurrent ? ' (الدورة الحالية)' : ' (دورة سابقة مغلقة)'}`,
                       debit: parseFloat(c.weekly_required || 0),
                       credit: 0,
                       category: 'contract',
@@ -582,6 +903,26 @@
                     category: 'purchase'
                   });
                   current_week_required += parseFloat(p.debt_charge_amount || 0);
+                }
+              });
+
+              // General settlements records for this driver
+              const driverSettlements = getTable('general_settlements').filter(s => s.driver_id === id && s.status !== 'ملغاة');
+              driverSettlements.forEach(s => {
+                const amt = parseFloat(s.amount || 0);
+                const isCredit = (s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص' || s.settlement_type === 'مكافأة');
+                statements.push({
+                  id: `settlement-${s.id}`,
+                  date: s.settlement_date,
+                  description: `تسوية عامة (${s.category || s.settlement_type}): ${s.description || ''}`,
+                  debit: isCredit ? 0 : amt,
+                  credit: isCredit ? amt : 0,
+                  category: 'settlement'
+                });
+                if (isCredit) {
+                  current_week_required -= amt;
+                } else {
+                  current_week_required += amt;
                 }
               });
               
@@ -969,96 +1310,533 @@
         // GET /api/purchases
         else if (path === '/api/purchases' && method === 'GET') {
           const purchases = getTable('purchases');
+          const purchaseItems = getTable('purchase_items');
           const drivers = getTable('drivers');
           const cars = getTable('cars');
+          
           responseData = purchases.map(p => {
             const driver = drivers.find(d => d.id == p.driver_id);
             const car = cars.find(c => c.id == p.car_id);
+            const items = purchaseItems.filter(it => it.purchase_id === p.id || it.invoice_id === p.id);
+            const grandTotal = parseFloat(p.grand_total || p.total_amount || 0);
+
             return {
               ...p,
+              grand_total: grandTotal,
+              total_amount: grandTotal,
+              items: items,
+              items_count: items.length,
               driver_name: driver ? driver.name : 'غير معروف',
               plate_number: car ? car.plate_number : 'غير معروف'
             };
           }).reverse();
         }
-        
-        // POST /api/purchases
-        else if (path === '/api/purchases' && method === 'POST') {
+
+        // GET /api/purchases/:id
+        else if (path.startsWith('/api/purchases/') && method === 'GET' && !path.includes('/items')) {
+          const id = parseInt(path.split('/')[3]);
           const purchases = getTable('purchases');
-          const nextId = purchases.length > 0 ? Math.max(...purchases.map(p => p.id)) + 1 : 1;
-          const newPurchase = {
-            id: nextId,
-            driver_id: parseInt(body.driver_id),
-            car_id: parseInt(body.car_id),
-            invoice_date: body.invoice_date,
-            product_name: body.product_name,
-            total_amount: parseFloat(body.total_amount || 0),
-            driver_paid_amount: parseFloat(body.driver_paid_amount || 0),
-            reimbursement_amount: parseFloat(body.reimbursement_amount || 0),
-            debt_charge_amount: parseFloat(body.debt_charge_amount || 0)
-          };
-          
-          if ((newPurchase.driver_paid_amount + newPurchase.debt_charge_amount) > newPurchase.total_amount) {
-            status = 400;
-            responseData = { error: 'مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.' };
-          } else if (newPurchase.reimbursement_amount > newPurchase.driver_paid_amount) {
-            status = 400;
-            responseData = { error: 'لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.' };
+          const p = purchases.find(item => item.id === id);
+          if (!p) {
+            status = 404;
+            responseData = { error: 'فاتورة المشتريات غير موجودة' };
           } else {
-            purchases.push(newPurchase);
-            setTable('purchases', purchases);
-            responseData = { message: 'تم تسجيل المشتريات بنجاح', id: nextId };
+            const purchaseItems = getTable('purchase_items');
+            const driver = getTable('drivers').find(d => d.id == p.driver_id);
+            const car = getTable('cars').find(c => c.id == p.car_id);
+            const items = purchaseItems.filter(it => it.purchase_id === id || it.invoice_id === id);
+            responseData = {
+              ...p,
+              grand_total: parseFloat(p.grand_total || p.total_amount || 0),
+              total_amount: parseFloat(p.grand_total || p.total_amount || 0),
+              items,
+              driver_name: driver ? driver.name : 'غير معروف',
+              plate_number: car ? car.plate_number : 'غير معروف'
+            };
           }
         }
         
-        // PUT /api/purchases/:id
+        // POST /api/purchases (Multi-item transactional architecture)
+        else if (path === '/api/purchases' && method === 'POST') {
+          const txResult = runInTransaction(() => {
+            const purchases = getTable('purchases');
+            const purchaseItems = getTable('purchase_items');
+            const nextId = purchases.length > 0 ? Math.max(...purchases.map(p => p.id)) + 1 : 1;
+
+            let itemsList = Array.isArray(body.items) && body.items.length > 0 ? body.items : null;
+            let grandTotal = 0;
+
+            if (itemsList) {
+              itemsList = itemsList.map(it => {
+                const qty = parseFloat(it.quantity || 1);
+                const price = parseFloat(it.unit_price || 0);
+                const lineTotal = parseFloat((qty * price).toFixed(2));
+                grandTotal += lineTotal;
+                return {
+                  description: (it.description || it.product_name || 'بند مشتريات').trim(),
+                  quantity: qty,
+                  unit_price: price,
+                  line_total: lineTotal
+                };
+              });
+              grandTotal = parseFloat(grandTotal.toFixed(2));
+            } else {
+              grandTotal = parseFloat(body.total_amount || body.grand_total || 0);
+              itemsList = [{
+                description: (body.product_name || 'بند مشتريات رئيسي').trim(),
+                quantity: 1,
+                unit_price: grandTotal,
+                line_total: grandTotal
+              }];
+            }
+
+            if (grandTotal <= 0) {
+              throw new Error('يجب أن يكون إجمالي فاتورة المشتريات أكبر من الصفر.');
+            }
+
+            const driverPaid = parseFloat(body.driver_paid_amount || 0);
+            const debtCharge = parseFloat(body.debt_charge_amount || 0);
+            const reimbursement = parseFloat(body.reimbursement_amount || 0);
+
+            if ((driverPaid + debtCharge) > grandTotal + 0.01) {
+              throw new Error('مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.');
+            }
+            if (reimbursement > driverPaid + 0.01) {
+              throw new Error('لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.');
+            }
+
+            const productSummary = itemsList.map(it => it.description).join('، ');
+
+            const newPurchase = {
+              id: nextId,
+              invoice_number: body.invoice_number || ('PINV-' + Date.now()),
+              vendor_name: body.vendor_name || 'مورد عام / محلي',
+              vendor_id: body.vendor_id || null,
+              driver_id: parseInt(body.driver_id),
+              car_id: parseInt(body.car_id),
+              invoice_date: body.invoice_date || new Date().toISOString().split('T')[0],
+              product_name: productSummary || body.product_name,
+              total_amount: grandTotal,
+              grand_total: grandTotal,
+              driver_paid_amount: driverPaid,
+              reimbursement_amount: reimbursement,
+              debt_charge_amount: debtCharge,
+              settlement_type: body.settlement_type || (debtCharge > 0 ? 'debt' : 'reimbursement'),
+              status: 'مكتملة',
+              created_at: new Date().toISOString()
+            };
+
+            purchases.push(newPurchase);
+            setTable('purchases', purchases);
+
+            // Backfill and create child line-items in purchase_items
+            let nextItemId = purchaseItems.length > 0 ? Math.max(...purchaseItems.map(it => it.id)) + 1 : 1;
+            itemsList.forEach(it => {
+              purchaseItems.push({
+                id: nextItemId++,
+                purchase_id: nextId,
+                invoice_id: nextId,
+                description: it.description,
+                quantity: it.quantity,
+                unit_price: it.unit_price,
+                line_total: it.line_total,
+                created_at: newPurchase.invoice_date
+              });
+            });
+            setTable('purchase_items', purchaseItems);
+
+            return { id: nextId, invoice_number: newPurchase.invoice_number, items_count: itemsList.length };
+          });
+
+          if (txResult.success) {
+            responseData = { message: 'تم تسجيل فاتورة المشتريات متعددة البنود بنجاح', ...txResult.data };
+          } else {
+            status = 400;
+            responseData = { error: txResult.error };
+          }
+        }
+        
+        // PUT /api/purchases/:id (Multi-item transactional update)
         else if (path.startsWith('/api/purchases/') && method === 'PUT') {
           const id = parseInt(path.split('/')[3]);
-          const purchases = getTable('purchases');
-          const index = purchases.findIndex(p => p.id === id);
-          if (index === -1) {
-            status = 404;
-            responseData = { error: 'السجل غير موجود' };
-          } else {
+          const txResult = runInTransaction(() => {
+            const purchases = getTable('purchases');
+            const purchaseItems = getTable('purchase_items');
+            const index = purchases.findIndex(p => p.id === id);
+            if (index === -1) {
+              throw new Error('فاتورة المشتريات غير موجودة');
+            }
+
+            let itemsList = Array.isArray(body.items) && body.items.length > 0 ? body.items : null;
+            let grandTotal = 0;
+
+            if (itemsList) {
+              itemsList = itemsList.map(it => {
+                const qty = parseFloat(it.quantity || 1);
+                const price = parseFloat(it.unit_price || 0);
+                const lineTotal = parseFloat((qty * price).toFixed(2));
+                grandTotal += lineTotal;
+                return {
+                  description: (it.description || it.product_name || 'بند مشتريات').trim(),
+                  quantity: qty,
+                  unit_price: price,
+                  line_total: lineTotal
+                };
+              });
+              grandTotal = parseFloat(grandTotal.toFixed(2));
+            } else {
+              grandTotal = parseFloat(body.total_amount || body.grand_total || 0);
+              itemsList = [{
+                description: (body.product_name || 'بند مشتريات رئيسي').trim(),
+                quantity: 1,
+                unit_price: grandTotal,
+                line_total: grandTotal
+              }];
+            }
+
+            if (grandTotal <= 0) {
+              throw new Error('يجب أن يكون إجمالي فاتورة المشتريات أكبر من الصفر.');
+            }
+
+            const driverPaid = parseFloat(body.driver_paid_amount || 0);
+            const debtCharge = parseFloat(body.debt_charge_amount || 0);
+            const reimbursement = parseFloat(body.reimbursement_amount || 0);
+
+            if ((driverPaid + debtCharge) > grandTotal + 0.01) {
+              throw new Error('مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.');
+            }
+            if (reimbursement > driverPaid + 0.01) {
+              throw new Error('لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.');
+            }
+
+            const productSummary = itemsList.map(it => it.description).join('، ');
+
             const updatedPurchase = {
-              id: id,
+              ...purchases[index],
+              invoice_number: body.invoice_number || purchases[index].invoice_number || ('PINV-' + id),
+              vendor_name: body.vendor_name || purchases[index].vendor_name || 'مورد عام / محلي',
+              vendor_id: body.vendor_id || purchases[index].vendor_id || null,
               driver_id: parseInt(body.driver_id),
               car_id: parseInt(body.car_id),
               invoice_date: body.invoice_date,
-              product_name: body.product_name,
-              total_amount: parseFloat(body.total_amount || 0),
-              driver_paid_amount: parseFloat(body.driver_paid_amount || 0),
-              reimbursement_amount: parseFloat(body.reimbursement_amount || 0),
-              debt_charge_amount: parseFloat(body.debt_charge_amount || 0)
+              product_name: productSummary || body.product_name,
+              total_amount: grandTotal,
+              grand_total: grandTotal,
+              driver_paid_amount: driverPaid,
+              reimbursement_amount: reimbursement,
+              debt_charge_amount: debtCharge,
+              settlement_type: body.settlement_type || (debtCharge > 0 ? 'debt' : 'reimbursement')
             };
-            
-            if ((updatedPurchase.driver_paid_amount + updatedPurchase.debt_charge_amount) > updatedPurchase.total_amount) {
-              status = 400;
-              responseData = { error: 'مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.' };
-            } else if (updatedPurchase.reimbursement_amount > updatedPurchase.driver_paid_amount) {
-              status = 400;
-              responseData = { error: 'لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.' };
-            } else {
-              purchases[index] = updatedPurchase;
-              setTable('purchases', purchases);
-              responseData = { message: 'تم تحديث المشتريات بنجاح' };
-            }
+
+            purchases[index] = updatedPurchase;
+            setTable('purchases', purchases);
+
+            // Re-sync items in purchase_items
+            const remainingItems = purchaseItems.filter(it => it.purchase_id !== id && it.invoice_id !== id);
+            let nextItemId = remainingItems.length > 0 ? Math.max(...remainingItems.map(it => it.id)) + 1 : 1;
+            itemsList.forEach(it => {
+              remainingItems.push({
+                id: nextItemId++,
+                purchase_id: id,
+                invoice_id: id,
+                description: it.description,
+                quantity: it.quantity,
+                unit_price: it.unit_price,
+                line_total: it.line_total,
+                created_at: updatedPurchase.invoice_date
+              });
+            });
+            setTable('purchase_items', remainingItems);
+
+            return { id, items_count: itemsList.length };
+          });
+
+          if (txResult.success) {
+            responseData = { message: 'تم تحديث فاتورة المشتريات والبنود بنجاح' };
+          } else {
+            status = 400;
+            responseData = { error: txResult.error };
           }
         }
         
-        // DELETE /api/purchases/:id
+        // DELETE /api/purchases/:id (Multi-item transactional delete)
         else if (path.startsWith('/api/purchases/') && method === 'DELETE') {
           const id = parseInt(path.split('/')[3]);
-          const purchases = getTable('purchases');
-          const index = purchases.findIndex(p => p.id === id);
-          if (index !== -1) {
+          const txResult = runInTransaction(() => {
+            const purchases = getTable('purchases');
+            const purchaseItems = getTable('purchase_items');
+            const index = purchases.findIndex(p => p.id === id);
+            if (index === -1) {
+              throw new Error('السجل غير موجود');
+            }
             purchases.splice(index, 1);
             setTable('purchases', purchases);
-            responseData = { message: 'تم الحذف بنجاح' };
+
+            const filteredItems = purchaseItems.filter(it => it.purchase_id !== id && it.invoice_id !== id);
+            setTable('purchase_items', filteredItems);
+            return { id };
+          });
+
+          if (txResult.success) {
+            responseData = { message: 'تم حذف فاتورة المشتريات وكافة بنودها بنجاح' };
           } else {
             status = 404;
-            responseData = { error: 'السجل غير موجود' };
+            responseData = { error: txResult.error };
           }
+        }
+
+        // ==========================================
+        // GENERAL SETTLEMENTS (التسوية العامة) CRUD
+        // ==========================================
+        // GET /api/general-settlements
+        else if (path === '/api/general-settlements' && method === 'GET') {
+          const settlements = getTable('general_settlements');
+          const drivers = getTable('drivers');
+          const cars = getTable('cars');
+
+          responseData = settlements.map(s => {
+            const driver = drivers.find(d => d.id == s.driver_id);
+            const car = cars.find(c => c.id == s.car_id);
+            return {
+              ...s,
+              driver_name: driver ? driver.name : 'غير محدد',
+              plate_number: car ? `${car.plate_number} - ${car.company} ${car.model}` : 'غير محددة'
+            };
+          }).reverse();
+        }
+
+        // GET /api/general-settlements/:id
+        else if (path.startsWith('/api/general-settlements/') && method === 'GET') {
+          const id = parseInt(path.split('/')[3]);
+          const settlements = getTable('general_settlements');
+          const s = settlements.find(item => item.id === id);
+          if (!s) {
+            status = 404;
+            responseData = { error: 'سجل التسوية العامة غير موجود' };
+          } else {
+            const driver = getTable('drivers').find(d => d.id == s.driver_id);
+            const car = getTable('cars').find(c => c.id == s.car_id);
+            responseData = {
+              ...s,
+              driver_name: driver ? driver.name : 'غير محدد',
+              plate_number: car ? car.plate_number : 'غير محددة'
+            };
+          }
+        }
+
+        // POST /api/general-settlements
+        else if (path === '/api/general-settlements' && method === 'POST') {
+          const txResult = runInTransaction(() => {
+            const settlements = getTable('general_settlements');
+            const nextId = settlements.length > 0 ? Math.max(...settlements.map(s => s.id)) + 1 : 1;
+
+            const amount = parseFloat(body.amount || 0);
+            if (isNaN(amount) || amount <= 0) {
+              throw new Error('يرجى تحديد مبلغ تسوية صحيح أكبر من الصفر.');
+            }
+            if (!body.driver_id) {
+              throw new Error('يرجى اختيار السائق المعني بالتسوية.');
+            }
+            if (!body.settlement_date) {
+              throw new Error('يرجى تحديد تاريخ التسوية.');
+            }
+
+            const newSettlement = {
+              id: nextId,
+              settlement_number: 'SET-' + Date.now(),
+              driver_id: parseInt(body.driver_id),
+              car_id: body.car_id ? parseInt(body.car_id) : null,
+              settlement_date: body.settlement_date,
+              category: body.category || 'تسوية رصيد عامة',
+              settlement_type: body.settlement_type || 'تعويض',
+              driver_impact: body.driver_impact || 'credit', // 'credit' (دائن للسائق) or 'debit' (مدين على السائق)
+              amount: amount,
+              description: body.description || '',
+              notes: body.notes || '',
+              status: body.status || 'معتمدة',
+              created_at: new Date().toISOString()
+            };
+
+            settlements.push(newSettlement);
+            setTable('general_settlements', settlements);
+            return newSettlement;
+          });
+
+          if (txResult.success) {
+            responseData = { message: 'تم تسجيل التسوية العامة بنجاح', ...txResult.data };
+          } else {
+            status = 400;
+            responseData = { error: txResult.error };
+          }
+        }
+
+        // PUT /api/general-settlements/:id
+        else if (path.startsWith('/api/general-settlements/') && method === 'PUT') {
+          const id = parseInt(path.split('/')[3]);
+          const txResult = runInTransaction(() => {
+            const settlements = getTable('general_settlements');
+            const index = settlements.findIndex(s => s.id === id);
+            if (index === -1) {
+              throw new Error('سجل التسوية العامة غير موجود');
+            }
+
+            const amount = parseFloat(body.amount || 0);
+            if (isNaN(amount) || amount <= 0) {
+              throw new Error('يرجى تحديد مبلغ تسوية صحيح أكبر من الصفر.');
+            }
+
+            settlements[index] = {
+              ...settlements[index],
+              driver_id: parseInt(body.driver_id),
+              car_id: body.car_id ? parseInt(body.car_id) : null,
+              settlement_date: body.settlement_date,
+              category: body.category || settlements[index].category,
+              settlement_type: body.settlement_type || settlements[index].settlement_type,
+              driver_impact: body.driver_impact || settlements[index].driver_impact,
+              amount: amount,
+              description: body.description || settlements[index].description,
+              notes: body.notes !== undefined ? body.notes : settlements[index].notes,
+              status: body.status || settlements[index].status
+            };
+
+            setTable('general_settlements', settlements);
+            return settlements[index];
+          });
+
+          if (txResult.success) {
+            responseData = { message: 'تم تحديث التسوية العامة بنجاح', data: txResult.data };
+          } else {
+            status = 400;
+            responseData = { error: txResult.error };
+          }
+        }
+
+        // DELETE /api/general-settlements/:id
+        else if (path.startsWith('/api/general-settlements/') && method === 'DELETE') {
+          const id = parseInt(path.split('/')[3]);
+          const settlements = getTable('general_settlements');
+          const index = settlements.findIndex(s => s.id === id);
+          if (index !== -1) {
+            settlements.splice(index, 1);
+            setTable('general_settlements', settlements);
+            responseData = { message: 'تم حذف التسوية العامة بنجاح' };
+          } else {
+            status = 404;
+            responseData = { error: 'سجل التسوية غير موجود' };
+          }
+        }
+
+        // ==========================================
+        // WEEKLY DELIVERIES (التوريد الأسبوعي)
+        // ==========================================
+        // GET /api/weekly-deliveries
+        else if (path === '/api/weekly-deliveries' && method === 'GET') {
+          const deliveries = getTable('weekly_deliveries');
+          const drivers = getTable('drivers');
+          const cars = getTable('cars');
+          const contracts = getTable('contracts');
+
+          let filtered = [...deliveries];
+          const driverId = parsedUrl.searchParams.get('driver_id');
+          const fromDate = parsedUrl.searchParams.get('from');
+          const toDate = parsedUrl.searchParams.get('to');
+
+          if (driverId) filtered = filtered.filter(d => d.driver_id == driverId);
+          if (fromDate || toDate) filtered = filtered.filter(d => inDateRange(d.delivery_date, fromDate, toDate));
+
+          responseData = filtered.map(del => {
+            const driver = drivers.find(d => d.id == del.driver_id);
+            const car = cars.find(c => c.id == del.car_id);
+            const contract = contracts.find(c => c.id == del.contract_id);
+            return {
+              ...del,
+              driver_name: driver ? driver.name : 'غير محدد',
+              plate_number: car ? `${car.plate_number} - ${car.company} ${car.model}` : 'غير محددة',
+              contract_start_date: contract ? contract.start_date : null
+            };
+          }).sort((a, b) => new Date(b.delivery_date) - new Date(a.delivery_date));
+        }
+
+        // POST /api/weekly-deliveries
+        else if (path === '/api/weekly-deliveries' && method === 'POST') {
+          const txResult = runInTransaction(() => {
+            const deliveries = getTable('weekly_deliveries');
+            const contracts = getTable('contracts');
+            const nextId = deliveries.length > 0 ? Math.max(...deliveries.map(d => d.id)) + 1 : 1;
+
+            const deliveryDate = body.delivery_date;
+            if (!deliveryDate) {
+              throw new Error('يرجى تحديد تاريخ التوريد الأسبوعي.');
+            }
+
+            // 1. Enforce strict Friday schedule (dayOfWeek === 5)
+            if (!isFriday(deliveryDate)) {
+              throw new Error('قاعدة التوريد الأسبوعي الصارمة: يجب أن يكون تاريخ التوريد يوم الجمعة حصراً.');
+            }
+
+            // 2. Enforce contract boundary: delivery_date >= contract_date
+            const contract = contracts.find(c => c.id == body.contract_id);
+            if (contract && deliveryDate < contract.start_date) {
+              throw new Error(`خطأ: تاريخ التوريد (${deliveryDate}) لا يمكن أن يسبق تاريخ بدء العقد (${contract.start_date}).`);
+            }
+
+            const newDelivery = {
+              id: nextId,
+              contract_id: body.contract_id ? parseInt(body.contract_id) : null,
+              driver_id: parseInt(body.driver_id),
+              car_id: body.car_id ? parseInt(body.car_id) : null,
+              delivery_date: deliveryDate,
+              week_number: parseInt(body.week_number || 1),
+              amount_due: parseFloat(body.amount_due || 0),
+              amount_paid: parseFloat(body.amount_paid || 0),
+              status: body.status || 'مستحق',
+              notes: body.notes || 'توريد أسبوعي ليوم الجمعة',
+              created_at: new Date().toISOString()
+            };
+
+            deliveries.push(newDelivery);
+            setTable('weekly_deliveries', deliveries);
+            return newDelivery;
+          });
+
+          if (txResult.success) {
+            responseData = { message: 'تم تسجيل التوريد الأسبوعي بنجاح', ...txResult.data };
+          } else {
+            status = 400;
+            responseData = { error: txResult.error };
+          }
+        }
+
+        // POST /api/weekly-deliveries/sanitize
+        else if (path === '/api/weekly-deliveries/sanitize' && method === 'POST') {
+          const contracts = getTable('contracts');
+          const deliveries = getTable('weekly_deliveries');
+          const auditLogs = getTable('audit_logs');
+          let pruned = 0;
+          const valid = [];
+
+          deliveries.forEach(del => {
+            const contract = contracts.find(c => c.id == del.contract_id);
+            if (contract && del.delivery_date < contract.start_date) {
+              auditLogs.push({
+                id: Date.now() + Math.random(),
+                action: 'PRUNE_OUT_OF_BOUNDS_DELIVERY',
+                target_table: 'weekly_deliveries',
+                record_id: del.id,
+                contract_id: contract.id,
+                reason: `تاريخ التوريد ${del.delivery_date} يسبق تاريخ العقد ${contract.start_date}`,
+                pruned_record: del,
+                pruned_at: new Date().toISOString()
+              });
+              pruned++;
+            } else {
+              valid.push(del);
+            }
+          });
+
+          setTable('weekly_deliveries', valid);
+          setTable('audit_logs', auditLogs);
+          responseData = { message: `تم فحص وتطهير التوريدات الأسبوعية بنجاح. تم استبعاد ${pruned} سجل غير صالح وأرشفتها في سجل التدقيق.`, pruned_count: pruned };
         }
         
         // POST /api/vouchers/:id/convert-to-invoice

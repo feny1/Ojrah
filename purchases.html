@@ -68,15 +68,65 @@
             <input type="date" required id="invoice_date"
               class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-gray-600">
           </div>
-          <div class="lg:col-span-2">
-            <label class="block text-gray-700 mb-2 font-bold">اسم المنتج / الخدمة</label>
-            <input type="text" required id="product_name" placeholder="مثال: إطار هانكوك، تغيير فحمات"
+          <div>
+            <label class="block text-gray-700 mb-2 font-bold">المورد / المتجر (اختياري)</label>
+            <input type="text" id="vendor_name" placeholder="مثال: ورشة المحترف، بنشر السلام"
               class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all">
           </div>
           <div>
+            <label class="block text-gray-700 mb-2 font-bold">رقم الفاتورة المرجعي (اختياري)</label>
+            <input type="text" id="invoice_number" placeholder="مثال: PINV-10293"
+              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-mono">
+          </div>
+
+          <!-- Multi-Items Table Section -->
+          <div class="col-span-1 md:col-span-2 lg:col-span-3 bg-slate-50/90 p-5 rounded-2xl border border-slate-200 space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
+                  <span>📦</span> بنود وأصناف الفاتورة (Multi-Item Lines)
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">أضف الأصناف والقطع وأجور التركيب، وسيتم احتساب إجمالي الفاتورة آلياً</p>
+              </div>
+              <button type="button" id="add-item-row-btn"
+                class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer">
+                <span>+</span> إضافة بند / صنف آخر
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-right border-collapse text-sm bg-white rounded-xl overflow-hidden border border-slate-200">
+                <thead>
+                  <tr class="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200 text-xs">
+                    <th class="p-3 w-10 text-center">#</th>
+                    <th class="p-3 min-w-[200px]">البيان / اسم الصنف أو القطعة *</th>
+                    <th class="p-3 w-28 text-center">الكمية *</th>
+                    <th class="p-3 w-36 text-center">سعر الوحدة (ر.س) *</th>
+                    <th class="p-3 w-36 text-center">الإجمالي (ر.س)</th>
+                    <th class="p-3 w-16 text-center">حذف</th>
+                  </tr>
+                </thead>
+                <tbody id="invoice-items-tbody" class="divide-y divide-slate-100 font-medium">
+                  <!-- Injected via JavaScript -->
+                </tbody>
+                <tfoot>
+                  <tr class="bg-teal-50/90 border-t-2 border-teal-200 font-black text-slate-800">
+                    <td colspan="4" class="p-3.5 text-left pl-6 font-bold text-teal-900 text-sm">الإجمالي الكلي المحتسب لكافة البنود:</td>
+                    <td class="p-3.5 text-center font-mono text-base text-teal-700 font-black" id="items-computed-total">0.00 ر.س</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <!-- Hidden product_name and auto-synced total_amount for backward compatibility -->
+          <input type="hidden" id="product_name" value="">
+          <div>
             <label class="block text-gray-700 mb-2 font-bold">المبلغ الكلي للفاتورة (ر.س)</label>
-            <input type="number" step="0.01" required id="total_amount" placeholder="0.00"
-              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-mono font-bold">
+            <input type="number" step="0.01" required id="total_amount" placeholder="0.00" readonly
+              class="w-full border border-slate-200 p-3 rounded-xl bg-slate-100 text-teal-800 focus:outline-none font-mono font-black text-lg cursor-not-allowed">
+            <span class="text-[11px] text-gray-400 mt-1 block">* يتم احتسابه تلقائياً من مجموع بنود الأصناف أعلاه</span>
           </div>
           <div>
             <label class="block text-gray-700 mb-2 font-bold">المبلغ المدفوع من السائق (ر.س)</label>
@@ -201,6 +251,12 @@
     const totalAmountInput = document.getElementById("total_amount");
     const driverPaidInput = document.getElementById("driver_paid_amount");
 
+    const itemsTbody = document.getElementById("invoice-items-tbody");
+    const addItemRowBtn = document.getElementById("add-item-row-btn");
+    const itemsComputedTotal = document.getElementById("items-computed-total");
+    const vendorNameInput = document.getElementById("vendor_name");
+    const invoiceNumberInput = document.getElementById("invoice_number");
+
     // تم تصحيح المعرفات هنا لتطابق الـ HTML تماماً بالشرطة العادية (-)
     const reimbursementSection = document.getElementById("reimbursement-section");
     const debtSection = document.getElementById("debt-section");
@@ -238,6 +294,128 @@
 
     document.querySelectorAll('input[name="settlement_type"]').forEach(radio => {
       radio.addEventListener("change", toggleSections);
+    });
+
+    // -------------------------------------------------------------
+    // Multi-Item Rows Management & Client-Side Real-Time Calculation
+    // -------------------------------------------------------------
+    function createItemRow(desc = '', qty = 1, price = 0) {
+      const tr = document.createElement('tr');
+      tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-100";
+      const lineTotal = (qty * price).toFixed(2);
+
+      tr.innerHTML = `
+        <td class="p-3 text-center text-xs text-slate-400 row-idx font-mono font-bold">1</td>
+        <td class="p-2">
+          <input type="text" required placeholder="مثال: إطار هانكوك، زيت محرك" value="${desc.replace(/"/g, '&quot;')}"
+            class="item-desc w-full border border-slate-200 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium bg-white">
+        </td>
+        <td class="p-2">
+          <input type="number" step="1" min="1" required placeholder="1" value="${qty}"
+            class="item-qty w-full border border-slate-200 p-2.5 rounded-lg text-sm text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+        </td>
+        <td class="p-2">
+          <input type="number" step="0.01" min="0" required placeholder="0.00" value="${price > 0 ? price : ''}"
+            class="item-price w-full border border-slate-200 p-2.5 rounded-lg text-sm text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+        </td>
+        <td class="p-2 text-center">
+          <span class="item-line-total font-mono font-black text-slate-700 text-sm">${lineTotal}</span>
+          <span class="text-xs text-slate-400"> ر.س</span>
+        </td>
+        <td class="p-2 text-center">
+          <button type="button" class="delete-row-btn text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer" title="حذف البند">
+            ✕
+          </button>
+        </td>
+      `;
+
+      // Row events
+      const qtyInput = tr.querySelector('.item-qty');
+      const priceInput = tr.querySelector('.item-price');
+      const descInput = tr.querySelector('.item-desc');
+      const deleteBtn = tr.querySelector('.delete-row-btn');
+
+      const onRowChange = () => {
+        const q = parseFloat(qtyInput.value || 0);
+        const p = parseFloat(priceInput.value || 0);
+        const lt = (q * p).toFixed(2);
+        tr.querySelector('.item-line-total').textContent = lt;
+        recalculateItemsTotal();
+      };
+
+      qtyInput.addEventListener('input', onRowChange);
+      priceInput.addEventListener('input', onRowChange);
+      descInput.addEventListener('input', () => {
+        // Update product_name hidden field
+        updateProductSummary();
+      });
+
+      deleteBtn.addEventListener('click', () => {
+        if (itemsTbody.children.length > 1) {
+          tr.remove();
+          updateRowIndices();
+          recalculateItemsTotal();
+        } else {
+          alert('يجب الإبقاء على بند واحد على الأقل في الفاتورة.');
+        }
+      });
+
+      return tr;
+    }
+
+    function updateRowIndices() {
+      const rows = itemsTbody.querySelectorAll('tr');
+      rows.forEach((r, idx) => {
+        const idxSpan = r.querySelector('.row-idx');
+        if (idxSpan) idxSpan.textContent = idx + 1;
+      });
+    }
+
+    function updateProductSummary() {
+      const descriptions = [];
+      itemsTbody.querySelectorAll('.item-desc').forEach(input => {
+        if (input.value.trim()) descriptions.push(input.value.trim());
+      });
+      document.getElementById('product_name').value = descriptions.join('، ');
+    }
+
+    function recalculateItemsTotal() {
+      let sum = 0;
+      itemsTbody.querySelectorAll('tr').forEach(r => {
+        const q = parseFloat(r.querySelector('.item-qty').value || 0);
+        const p = parseFloat(r.querySelector('.item-price').value || 0);
+        sum += (q * p);
+      });
+
+      sum = parseFloat(sum.toFixed(2));
+      totalAmountInput.value = sum > 0 ? sum : '';
+      if (itemsComputedTotal) {
+        itemsComputedTotal.textContent = sum.toFixed(2) + ' ر.س';
+      }
+      updateProductSummary();
+      handleInputsChange();
+    }
+
+    function resetItemsTable(items = null) {
+      itemsTbody.innerHTML = '';
+      if (Array.isArray(items) && items.length > 0) {
+        items.forEach(it => {
+          itemsTbody.appendChild(createItemRow(it.description || '', it.quantity || 1, it.unit_price || 0));
+        });
+      } else {
+        // Baseline 1 empty row
+        itemsTbody.appendChild(createItemRow('', 1, ''));
+      }
+      updateRowIndices();
+      recalculateItemsTotal();
+    }
+
+    addItemRowBtn.addEventListener('click', () => {
+      const newRow = createItemRow('', 1, '');
+      itemsTbody.appendChild(newRow);
+      updateRowIndices();
+      const firstInput = newRow.querySelector('.item-desc');
+      if (firstInput) firstInput.focus();
     });
 
     function handleInputsChange(e) {
@@ -282,7 +460,6 @@
       }
     }
 
-    totalAmountInput.addEventListener("input", handleInputsChange);
     driverPaidInput.addEventListener("input", handleInputsChange);
     reimbursementPercentInput.addEventListener("input", handleInputsChange);
     reimbursementInput.addEventListener("input", handleInputsChange);
@@ -298,10 +475,13 @@
 
     function resetFormState() {
       editingPurchaseId = null;
-      if (formTitle) formTitle.textContent = "تسجيل مشتريات جديدة";
+      if (formTitle) formTitle.textContent = "تسجيل فاتورة مشتريات جديدة";
       if (submitFormBtn) submitFormBtn.textContent = "حفظ الفاتورة";
       purchaseForm.reset();
       document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
+      if (vendorNameInput) vendorNameInput.value = "";
+      if (invoiceNumberInput) invoiceNumberInput.value = "";
+      resetItemsTable();
       toggleSections();
     }
 
@@ -338,24 +518,38 @@
           return;
         }
 
-        tableBody.innerHTML = purchases.map(p => `
-          <tr class="hover:bg-slate-50 transition-colors">
-            <td class="p-4 font-bold text-slate-900">${p.driver_name || 'غير معروف'}</td>
-            <td class="p-4">${p.plate_number || 'غير معروف'}</td>
-            <td class="p-4">${p.invoice_date}</td>
-            <td class="p-4 font-medium text-slate-700">${p.product_name}</td>
-            <td class="p-4 text-center font-mono font-bold text-slate-700">${parseFloat(p.total_amount || 0).toFixed(2)} ر.س</td>
-            <td class="p-4 text-center font-mono font-bold text-slate-600">${parseFloat(p.driver_paid_amount || 0).toFixed(2)} ر.س</td>
-            <td class="p-4 text-center font-mono font-bold text-emerald-600">${parseFloat(p.reimbursement_amount || 0).toFixed(2)} ر.س</td>
-            <td class="p-4 text-center font-mono font-bold text-red-500">${parseFloat(p.debt_charge_amount || 0).toFixed(2)} ر.س</td>
-            <td class="p-4 text-center">
-              <div class="flex justify-center items-center gap-3">
-                <button onclick="editPurchase(${p.id})" class="text-amber-600 hover:text-amber-800 font-bold hover:underline">تعديل</button>
-                <button onclick="deletePurchase(${p.id})" class="text-red-500 hover:text-red-700 font-bold hover:underline">حذف</button>
-              </div>
-            </td>
-          </tr>
-        `).join('');
+        tableBody.innerHTML = purchases.map(p => {
+          const itemsBadge = p.items && p.items.length > 1
+            ? `<span class="inline-flex items-center gap-1 bg-teal-50 text-teal-700 text-[10px] font-black px-2 py-0.5 rounded-md border border-teal-200 mr-1.5" title="${p.items.map(it => `${it.description} (${it.quantity}×${it.unit_price})`).join(' | ')}">
+                📦 ${p.items.length} بنود
+               </span>`
+            : '';
+
+          return `
+            <tr class="hover:bg-slate-50 transition-colors text-sm">
+              <td class="p-4 font-bold text-slate-900">${p.driver_name || 'غير معروف'}</td>
+              <td class="p-4 text-slate-600">${p.plate_number || 'غير معروف'}</td>
+              <td class="p-4 text-slate-600 font-mono text-xs">${p.invoice_date}</td>
+              <td class="p-4 font-medium text-slate-800">
+                <div class="flex items-center">
+                  <span>${p.product_name || 'بدون بيان'}</span>
+                  ${itemsBadge}
+                </div>
+                ${p.vendor_name ? `<div class="text-[11px] text-slate-400 mt-0.5">المورد: ${p.vendor_name}</div>` : ''}
+              </td>
+              <td class="p-4 text-center font-mono font-black text-slate-800">${parseFloat(p.grand_total || p.total_amount || 0).toFixed(2)} ر.س</td>
+              <td class="p-4 text-center font-mono font-bold text-slate-600">${parseFloat(p.driver_paid_amount || 0).toFixed(2)} ر.س</td>
+              <td class="p-4 text-center font-mono font-bold text-emerald-600">${parseFloat(p.reimbursement_amount || 0).toFixed(2)} ر.س</td>
+              <td class="p-4 text-center font-mono font-bold text-red-500">${parseFloat(p.debt_charge_amount || 0).toFixed(2)} ر.س</td>
+              <td class="p-4 text-center">
+                <div class="flex justify-center items-center gap-3">
+                  <button onclick="editPurchase(${p.id})" class="text-amber-600 hover:text-amber-800 font-bold hover:underline cursor-pointer">تعديل</button>
+                  <button onclick="deletePurchase(${p.id})" class="text-red-500 hover:text-red-700 font-bold hover:underline cursor-pointer">حذف</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
       } catch (error) {
         console.error("Error loading data:", error);
         tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
@@ -367,15 +561,26 @@
       if (!p) return;
 
       editingPurchaseId = id;
-      if (formTitle) formTitle.textContent = "تعديل فاتورة مشتريات";
+      if (formTitle) formTitle.textContent = "تعديل فاتورة مشتريات متعددة البنود";
       if (submitFormBtn) submitFormBtn.textContent = "حفظ التعديلات";
 
       driverSelect.value = p.driver_id || "";
       carSelect.value = p.car_id || "";
       document.getElementById("invoice_date").value = p.invoice_date || new Date().toISOString().split("T")[0];
-      document.getElementById("product_name").value = p.product_name || "";
-      totalAmountInput.value = p.total_amount || 0;
+      if (vendorNameInput) vendorNameInput.value = p.vendor_name || "";
+      if (invoiceNumberInput) invoiceNumberInput.value = p.invoice_number || "";
       driverPaidInput.value = p.driver_paid_amount || 0;
+
+      // Populate items table
+      if (p.items && p.items.length > 0) {
+        resetItemsTable(p.items);
+      } else {
+        resetItemsTable([{
+          description: p.product_name || 'بند مشتريات',
+          quantity: 1,
+          unit_price: parseFloat(p.total_amount || 0)
+        }]);
+      }
 
       const debtAmount = parseFloat(p.debt_charge_amount || 0);
       if (debtAmount > 0) {
@@ -397,13 +602,14 @@
     };
 
     async function deletePurchase(id) {
-      if (confirm("هل أنت متأكد من حذف فاتورة المشتريات هذه؟")) {
+      if (confirm("هل أنت متأكد من حذف فاتورة المشتريات هذه وكافة بنودها؟")) {
         try {
           const res = await fetch(`${API_PURCHASES}/${id}`, { method: "DELETE" });
           if (res.ok) {
             loadData();
           } else {
-            alert("فشل الحذف");
+            const err = await res.json();
+            alert("فشل الحذف: " + (err.error || "خطأ"));
           }
         } catch (error) {
           console.error("Error deleting purchase:", error);
@@ -415,17 +621,49 @@
     purchaseForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
+      // Collect line items
+      const itemRows = itemsTbody.querySelectorAll('tr');
+      const items = [];
+      itemRows.forEach(r => {
+        const descInput = r.querySelector('.item-desc');
+        const qtyInput = r.querySelector('.item-qty');
+        const priceInput = r.querySelector('.item-price');
+        if (descInput && priceInput) {
+          const desc = descInput.value.trim();
+          const qty = parseFloat(qtyInput.value || 1);
+          const price = parseFloat(priceInput.value || 0);
+          if (desc || price > 0) {
+            items.push({
+              description: desc || 'بند مشتريات',
+              quantity: qty,
+              unit_price: price,
+              line_total: parseFloat((qty * price).toFixed(2))
+            });
+          }
+        }
+      });
+
+      if (items.length === 0) {
+        alert("يرجى إضافة بند واحد على الأقل للفاتورة مع تحديد السعر والبيان.");
+        return;
+      }
+
       const totalAmount = parseFloat(totalAmountInput.value || 0);
       const driverPaid = parseFloat(driverPaidInput.value || 0);
       const reimbursement = parseFloat(reimbursementInput.value || 0);
       const debtCharge = parseFloat(debtChargeInput.value || 0);
 
-      if ((driverPaid + debtCharge) > totalAmount) {
+      if (totalAmount <= 0) {
+        alert("خطأ: إجمالي الفاتورة يجب أن يكون أكبر من الصفر.");
+        return;
+      }
+
+      if ((driverPaid + debtCharge) > totalAmount + 0.01) {
         alert("خطأ: مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.");
         return;
       }
 
-      if (reimbursement > driverPaid) {
+      if (reimbursement > driverPaid + 0.01) {
         alert("خطأ: لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.");
         return;
       }
@@ -434,11 +672,15 @@
         driver_id: parseInt(driverSelect.value),
         car_id: parseInt(carSelect.value),
         invoice_date: document.getElementById("invoice_date").value,
-        product_name: document.getElementById("product_name").value,
+        vendor_name: vendorNameInput ? vendorNameInput.value.trim() : '',
+        invoice_number: invoiceNumberInput ? invoiceNumberInput.value.trim() : '',
+        items: items,
         total_amount: totalAmount,
+        grand_total: totalAmount,
         driver_paid_amount: driverPaid,
         reimbursement_amount: reimbursement,
-        debt_charge_amount: debtCharge
+        debt_charge_amount: debtCharge,
+        settlement_type: getSelectedSettlementType()
       };
 
       const isEdit = editingPurchaseId !== null;
@@ -453,7 +695,7 @@
         });
 
         if (response.ok) {
-          alert(isEdit ? "تم تحديث المشتريات بنجاح" : "تم تسجيل المشتريات بنجاح");
+          alert(isEdit ? "تم تحديث فاتورة المشتريات والبنود بنجاح" : "تم تسجيل فاتورة المشتريات وبنودها بنجاح");
           addPurchaseForm.classList.add("hidden");
           showFormBtn.classList.remove("hidden");
           resetFormState();
@@ -467,6 +709,9 @@
         alert("حدث خطأ أثناء الاتصال بالخادم");
       }
     });
+
+    // Initialize items table with baseline row
+    resetItemsTable();
 
     loadData();
   </script>

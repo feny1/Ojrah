@@ -59,7 +59,7 @@
             <option value="2">الثلاثاء (Tuesday)</option>
             <option value="3">الأربعاء (Wednesday)</option>
             <option value="4">الخميس (Thursday)</option>
-            <option value="5">الجمعة (Friday)</option>
+            <option value="5" selected>الجمعة (Friday) - إلزامي للنظام</option>
             <option value="6">السبت (Saturday)</option>
           </select>
         </div>
@@ -372,7 +372,11 @@
     const exportBtn = document.getElementById("export-db-btn");
     exportBtn.addEventListener("click", () => {
       const backupData = {};
-      const TABLES = ['cars', 'drivers', 'contracts', 'violations', 'maintenance', 'vouchers', 'car_documents', 'settings', 'invoices', 'purchases'];
+      const TABLES = [
+        'cars', 'drivers', 'contracts', 'violations', 'maintenance', 'vouchers',
+        'car_documents', 'settings', 'invoices', 'purchases', 'downtimes',
+        'purchase_items', 'invoice_items', 'general_settlements', 'weekly_deliveries', 'audit_logs'
+      ];
       TABLES.forEach(table => {
         const data = localStorage.getItem('db_' + table);
         if (data) {

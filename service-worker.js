@@ -1,9 +1,10 @@
-const CACHE_NAME = 'ojrah-win-v7';
+const CACHE_NAME = 'ojrah-win-v8';
 const ASSETS = [
   './',
   './index.html',
   './summary.html',
   './purchases.html',
+  './settlements.html',
   './vouchers.html',
   './drivers.html',
   './driver-details.html',

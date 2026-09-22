@@ -470,6 +470,16 @@
                   <span>${s.description}</span>
                 </div>
               `;
+            } else if (s.category === 'settlement') {
+              const isCred = s.credit > 0;
+              descContent = `
+                <div class="flex items-center gap-2">
+                  <span class="${isCred ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-rose-100 text-rose-800 border-rose-200'} border text-xs px-2 py-0.5 rounded font-bold">
+                    ⚖️ ${isCred ? 'تسوية دائنة (له)' : 'تسوية مدينة (عليه)'}
+                  </span>
+                  <span>${s.description}</span>
+                </div>
+              `;
             }
 
             return `
@@ -647,10 +657,15 @@
         else if (category === "maintenance") endpoint = "maintenance";
         else if (category === "cash" || category === "network" || category === "advance") endpoint = "vouchers";
         else if (category === "downtime") endpoint = "downtimes";
+        else if (category === "settlement") endpoint = "general-settlements";
+        else if (category === "purchase") endpoint = "purchases";
         
         let actualId = statementId;
-        if (typeof statementId === 'string' && statementId.startsWith('voucher-')) {
-          actualId = statementId.split('-').pop();
+        if (typeof statementId === 'string') {
+          if (statementId.startsWith('voucher-')) actualId = statementId.split('-').pop();
+          else if (statementId.startsWith('settlement-')) actualId = statementId.replace('settlement-', '');
+          else if (statementId.startsWith('purchase-reimb-')) actualId = statementId.replace('purchase-reimb-', '');
+          else if (statementId.startsWith('purchase-debt-')) actualId = statementId.replace('purchase-debt-', '');
         }
         
         if (endpoint) {

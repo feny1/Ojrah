@@ -40,41 +40,179 @@
     </div>
 
     <!-- Navigation & Actions -->
-    <div class="flex justify-between items-center">
-      <h2 class="text-2xl font-bold text-slate-800">الملخص المالي</h2>
-      <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg font-bold">
-        العودة للرئيسية
-      </a>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div>
+        <h2 class="text-2xl font-black text-slate-800">الملخص المالي والتحليلات</h2>
+        <p class="text-xs text-slate-500 mt-1">تتبع مؤشرات التوريد الأسبوعي، الإيرادات الفعلية، والتسويات حسب الفترة</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="settlements.html" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2">
+          <span>⚖️</span>
+          <span>التسوية العامة</span>
+        </a>
+        <a href="purchases.html" class="bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2">
+          <span>🛒</span>
+          <span>فواتير المشتريات</span>
+        </a>
+        <a href="index.html" class="bg-slate-800 text-white px-5 py-2.5 rounded-xl hover:bg-slate-700 shadow-md font-bold text-sm transition-all">
+          العودة للرئيسية
+        </a>
+      </div>
     </div>
 
-    <!-- Financial Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <!-- Card 1: Expected Revenue -->
-      <div
-        class="bg-gradient-to-br from-indigo-500 to-purple-600 p-8 rounded-3xl text-white shadow-xl shadow-indigo-500/10 relative overflow-hidden">
-        <div class="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-        <h3 class="text-indigo-100 text-lg font-bold">الإيراد المتوقع (إجمالي المطالبات والالتزمات)</h3>
-        <p class="text-5xl font-black mt-4 flex items-baseline gap-2">
-          <span id="expected-revenue-val">0</span>
-          <span class="text-sm text-indigo-200">ريال سعودي</span>
-        </p>
-        <div class="mt-4 text-xs text-indigo-200 font-medium">
-          * يشمل إيجار العقود الأسبوعي النشط، جميع المخالفات، تكاليف الصيانة على السائق، والسلف
+    <!-- Date Range Filter & Quick Presets Bar -->
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-black text-slate-700 ml-1">الفترة الزمنية:</span>
+        <button type="button" class="preset-chip px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-purple-600 text-white shadow-sm cursor-pointer" data-preset="month">هذا الشهر</button>
+        <button type="button" class="preset-chip px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer" data-preset="30days">آخر 30 يوم</button>
+        <button type="button" class="preset-chip px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer" data-preset="week">هذا الأسبوع</button>
+        <button type="button" class="preset-chip px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer" data-preset="all">كل الفترات (شامل)</button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2.5">
+        <div class="flex items-center gap-1.5">
+          <label class="text-xs font-bold text-slate-500 whitespace-nowrap">من:</label>
+          <input type="date" id="filter-from-date" class="border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-purple-500 focus:outline-none bg-slate-50">
+        </div>
+        <div class="flex items-center gap-1.5">
+          <label class="text-xs font-bold text-slate-500 whitespace-nowrap">إلى:</label>
+          <input type="date" id="filter-to-date" class="border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-purple-500 focus:outline-none bg-slate-50">
+        </div>
+        <button type="button" id="apply-filter-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer">
+          <span>🔍</span>
+          <span>تطبيق</span>
+        </button>
+        <span id="current-filter-badge" class="text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200/60 px-2.5 py-1.5 rounded-xl">--</span>
+      </div>
+    </div>
+
+    <!-- 5 Rich KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <!-- Card 1: Actual Revenue -->
+      <div class="bg-gradient-to-br from-emerald-500 to-teal-600 p-5 rounded-2xl text-white shadow-lg shadow-emerald-500/10 relative overflow-hidden flex flex-col justify-between">
+        <div class="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+        <div>
+          <div class="flex justify-between items-center text-emerald-100 text-xs font-bold">
+            <span>الإيراد الفعلي (المحصل)</span>
+            <span class="text-base">💵</span>
+          </div>
+          <p class="text-3xl font-black mt-2 flex items-baseline gap-1.5">
+            <span id="actual-revenue-val">0</span>
+            <span class="text-xs text-emerald-200 font-bold">ر.س</span>
+          </p>
+        </div>
+        <p class="mt-3 text-[11px] text-emerald-100/90 font-medium">سندات القبض والمقبوضات الفعلية بالفترة</p>
+      </div>
+
+      <!-- Card 2: Expected Revenue -->
+      <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-5 rounded-2xl text-white shadow-lg shadow-indigo-500/10 relative overflow-hidden flex flex-col justify-between">
+        <div class="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+        <div>
+          <div class="flex justify-between items-center text-indigo-100 text-xs font-bold">
+            <span>الإيراد المتوقع (المطالبات)</span>
+            <span class="text-base">📊</span>
+          </div>
+          <p class="text-3xl font-black mt-2 flex items-baseline gap-1.5">
+            <span id="expected-revenue-val">0</span>
+            <span class="text-xs text-indigo-200 font-bold">ر.س</span>
+          </p>
+        </div>
+        <p class="mt-3 text-[11px] text-indigo-100/90 font-medium">مستحقات التوريد والمخالفات بالفترة</p>
+      </div>
+
+      <!-- Card 3: Weekly Deliveries (Strict Friday Schedule) -->
+      <div class="bg-gradient-to-br from-amber-500 to-orange-600 p-5 rounded-2xl text-white shadow-lg shadow-amber-500/10 relative overflow-hidden flex flex-col justify-between">
+        <div class="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+        <div>
+          <div class="flex justify-between items-center text-amber-100 text-xs font-bold">
+            <span>التوريد الأسبوعي (الجمعة)</span>
+            <span class="text-base">📅</span>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <div>
+              <span id="deliveries-fulfilled" class="text-2xl font-black">0</span>
+              <span class="text-xs text-amber-200">/ <span id="deliveries-scheduled">0</span> أسبوع</span>
+            </div>
+            <span id="deliveries-pending-badge" class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full text-white">
+              <span id="deliveries-pending">0</span> متبقي
+            </span>
+          </div>
+        </div>
+        <div class="mt-3">
+          <div class="w-full bg-black/20 rounded-full h-1.5 overflow-hidden">
+            <div id="deliveries-progress-bar" class="bg-white h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+          <p class="mt-1.5 text-[10px] text-amber-100/90 font-medium">جدول التوريد الإلزامي لليوم المحدد (الجمعة)</p>
         </div>
       </div>
 
-      <!-- Card 2: Actual Revenue -->
-      <div
-        class="bg-gradient-to-br from-emerald-500 to-teal-600 p-8 rounded-3xl text-white shadow-xl shadow-emerald-500/10 relative overflow-hidden">
-        <div class="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-        <h3 class="text-emerald-100 text-lg font-bold">الإيراد الفعلي (المبالغ المحصلة)</h3>
-        <p class="text-5xl font-black mt-4 flex items-baseline gap-2">
-          <span id="actual-revenue-val">0</span>
-          <span class="text-sm text-emerald-200">ريال سعودي</span>
-        </p>
-        <div class="mt-4 text-xs text-emerald-200 font-medium">
-          * يشمل جميع المبالغ المقبوضة التي تم تسجيلها كسندات قبض في النظام بنجاح
+      <!-- Card 4: Purchases & Settlements -->
+      <div class="bg-gradient-to-br from-slate-700 to-slate-800 p-5 rounded-2xl text-white shadow-lg shadow-slate-700/10 relative overflow-hidden flex flex-col justify-between">
+        <div class="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+        <div>
+          <div class="flex justify-between items-center text-slate-300 text-xs font-bold">
+            <span>المشتريات والتسويات</span>
+            <span class="text-base">⚖️</span>
+          </div>
+          <div class="mt-2 space-y-1">
+            <div class="flex justify-between items-center text-xs">
+              <span class="text-slate-300">مشتريات:</span>
+              <span class="font-black text-rose-300"><span id="purchases-total-val">0</span> ر.س</span>
+            </div>
+            <div class="flex justify-between items-center text-xs">
+              <span class="text-slate-300">تسويات عامة:</span>
+              <span class="font-black text-sky-300"><span id="settlements-total-val">0</span> ر.س</span>
+            </div>
+          </div>
         </div>
+        <p class="mt-3 text-[10px] text-slate-400 font-medium">إجمالي التكاليف والمقاصات بالفترة</p>
+      </div>
+
+      <!-- Card 5: Collection Efficiency -->
+      <div class="bg-gradient-to-br from-cyan-600 to-blue-700 p-5 rounded-2xl text-white shadow-lg shadow-cyan-600/10 relative overflow-hidden flex flex-col justify-between">
+        <div class="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+        <div>
+          <div class="flex justify-between items-center text-cyan-100 text-xs font-bold">
+            <span>كفاءة التحصيل والالتزام</span>
+            <span class="text-base">🎯</span>
+          </div>
+          <p class="text-3xl font-black mt-2 flex items-baseline gap-1">
+            <span id="collection-rate-val">0</span>
+            <span class="text-base text-cyan-200 font-bold">%</span>
+          </p>
+        </div>
+        <div class="mt-3">
+          <div class="w-full bg-black/20 rounded-full h-1.5 overflow-hidden">
+            <div id="collection-progress-bar" class="bg-emerald-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+          <p class="mt-1.5 text-[10px] text-cyan-100/90 font-medium">النسبة المحققة من المستهدف</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trend Analytics Chart Section -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+        <div>
+          <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
+            <span>📈</span>
+            <span>مؤشر الإيرادات وحركات التوريد (Trend Analytics)</span>
+          </h2>
+          <p class="text-xs text-gray-400 mt-0.5">مقارنة زمنية بين المبالغ المحصلة فعلياً والمستحقات المجدولة في الفترة</p>
+        </div>
+        <div class="flex items-center gap-4 text-xs font-bold">
+          <div class="flex items-center gap-1.5">
+            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+            <span class="text-slate-600">المحصل الفعلي (ر.س)</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block"></span>
+            <span class="text-slate-600">المستحق المتوقع (ر.س)</span>
+          </div>
+        </div>
+      </div>
+      <div id="trend-chart-container" class="w-full overflow-x-auto min-h-[220px] flex items-center justify-center p-2">
+        <!-- SVG will be generated here -->
       </div>
     </div>
 
@@ -213,13 +351,33 @@
     let dashboardData = {
       actual_revenue: 0,
       expected_revenue: 0,
-      drivers_due: []
+      weekly_deliveries: { scheduled: 0, fulfilled: 0, pending: 0, expected_amount: 0 },
+      purchases_total: 0,
+      settlements_total: 0,
+      collection_rate: 0,
+      chart_data: [],
+      drivers_due: [],
+      date_range: {}
     };
     let selectedDriver = null;
 
     const tableBody = document.getElementById("summary-table-body");
     const expectedRevenueVal = document.getElementById("expected-revenue-val");
     const actualRevenueVal = document.getElementById("actual-revenue-val");
+    const deliveriesScheduled = document.getElementById("deliveries-scheduled");
+    const deliveriesFulfilled = document.getElementById("deliveries-fulfilled");
+    const deliveriesPending = document.getElementById("deliveries-pending");
+    const deliveriesProgressBar = document.getElementById("deliveries-progress-bar");
+    const purchasesTotalVal = document.getElementById("purchases-total-val");
+    const settlementsTotalVal = document.getElementById("settlements-total-val");
+    const collectionRateVal = document.getElementById("collection-rate-val");
+    const collectionProgressBar = document.getElementById("collection-progress-bar");
+    const trendChartContainer = document.getElementById("trend-chart-container");
+    const filterFromDate = document.getElementById("filter-from-date");
+    const filterToDate = document.getElementById("filter-to-date");
+    const applyFilterBtn = document.getElementById("apply-filter-btn");
+    const currentFilterBadge = document.getElementById("current-filter-badge");
+    const presetChips = document.querySelectorAll(".preset-chip");
 
     // Modal elements
     const paymentModal = document.getElementById("quick-payment-modal");
@@ -234,15 +392,133 @@
     const modalDescInput = document.getElementById("modal-desc");
     const modalSubmitBtn = document.getElementById("modal-submit-btn");
 
-    async function loadSummary() {
+    function renderTrendChart(chartData) {
+      if (!chartData || chartData.length === 0) {
+        trendChartContainer.innerHTML = `
+          <div class="text-center py-10 text-slate-400">
+            <span class="text-4xl block mb-2">📊</span>
+            <p class="font-bold text-sm">لا توجد حركات مالية مسجلة خلال الفترة الزمنية المحددة</p>
+            <p class="text-xs text-slate-400 mt-1">جرب توسيع نطاق البحث أو اختيار "كل الفترات"</p>
+          </div>
+        `;
+        return;
+      }
+
+      const svgHeight = 220;
+      const barGroupWidth = 64;
+      const chartWidth = Math.max(680, chartData.length * barGroupWidth + 100);
+      const topPad = 25;
+      const bottomPad = 40;
+      const leftPad = 60;
+      const rightPad = 30;
+      const plotHeight = svgHeight - topPad - bottomPad;
+      const plotWidth = chartWidth - leftPad - rightPad;
+
+      const maxVal = Math.max(...chartData.map(d => Math.max(d.actual || 0, d.expected || 0)), 100);
+      const yTicks = 4;
+      let gridLines = '';
+      for (let i = 0; i <= yTicks; i++) {
+        const val = Math.round((maxVal / yTicks) * i);
+        const yPos = topPad + plotHeight - (i / yTicks) * plotHeight;
+        gridLines += `
+          <line x1="${leftPad}" y1="${yPos}" x2="${chartWidth - rightPad}" y2="${yPos}" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="3 3" />
+          <text x="${leftPad - 8}" y="${yPos + 4}" font-size="10" fill="#94a3b8" text-anchor="end" font-family="Cairo">${val.toLocaleString()}</text>
+        `;
+      }
+
+      const colStep = plotWidth / chartData.length;
+      let bars = '';
+      chartData.forEach((d, idx) => {
+        const cx = leftPad + idx * colStep + colStep / 2;
+        const bWidth = Math.min(18, (colStep - 10) / 2);
+
+        const expHeight = ((d.expected || 0) / maxVal) * plotHeight;
+        const expY = topPad + plotHeight - expHeight;
+
+        const actHeight = ((d.actual || 0) / maxVal) * plotHeight;
+        const actY = topPad + plotHeight - actHeight;
+
+        const labelDate = d.date.substring(5); // MM-DD
+
+        bars += `
+          <g class="cursor-pointer group">
+            <title>${d.date}\nالمحصل الفعلي: ${(d.actual || 0).toLocaleString()} ر.س\nالمستحق المتوقع: ${(d.expected || 0).toLocaleString()} ر.س${d.deliveries ? `\nعدد التوريدات: ${d.deliveries}` : ''}</title>
+            
+            <!-- Expected Bar -->
+            <rect x="${cx - bWidth - 2}" y="${expY}" width="${bWidth}" height="${Math.max(2, expHeight)}" rx="4" fill="#6366f1" opacity="0.85" class="transition-all hover:opacity-100" />
+            
+            <!-- Actual Bar -->
+            <rect x="${cx + 2}" y="${actY}" width="${bWidth}" height="${Math.max(2, actHeight)}" rx="4" fill="#10b981" opacity="0.9" class="transition-all hover:opacity-100" />
+            
+            <!-- Date Label -->
+            <text x="${cx}" y="${svgHeight - 14}" font-size="10" fill="#64748b" text-anchor="middle" font-family="Cairo" font-weight="600">${labelDate}</text>
+          </g>
+        `;
+      });
+
+      trendChartContainer.innerHTML = `
+        <svg viewBox="0 0 ${chartWidth} ${svgHeight}" class="w-full h-auto max-h-[240px]" preserveAspectRatio="xMinYMid meet">
+          ${gridLines}
+          ${bars}
+        </svg>
+      `;
+    }
+
+    async function loadSummary(fromDate, toDate, isAllTime = false) {
       try {
-        const response = await fetch("/api/dashboard/summary");
+        let url = '/api/dashboard/summary';
+        const params = [];
+        if (isAllTime) {
+          params.push('all=1');
+        } else {
+          if (fromDate) params.push(`from=${fromDate}`);
+          if (toDate) params.push(`to=${toDate}`);
+        }
+        if (params.length > 0) {
+          url += '?' + params.join('&');
+        }
+
+        const response = await fetch(url);
         dashboardData = await response.json();
 
-        expectedRevenueVal.textContent = dashboardData.expected_revenue.toLocaleString();
-        actualRevenueVal.textContent = dashboardData.actual_revenue.toLocaleString();
+        // 1. KPI Cards binding
+        expectedRevenueVal.textContent = Math.round(dashboardData.expected_revenue || 0).toLocaleString();
+        actualRevenueVal.textContent = Math.round(dashboardData.actual_revenue || 0).toLocaleString();
 
-        if (dashboardData.drivers_due.length === 0) {
+        const deliv = dashboardData.weekly_deliveries || { scheduled: 0, fulfilled: 0, pending: 0 };
+        deliveriesScheduled.textContent = deliv.scheduled || 0;
+        deliveriesFulfilled.textContent = deliv.fulfilled || 0;
+        deliveriesPending.textContent = deliv.pending || 0;
+        const delivPct = deliv.scheduled > 0 ? Math.round((deliv.fulfilled / deliv.scheduled) * 100) : 0;
+        deliveriesProgressBar.style.width = `${Math.min(100, delivPct)}%`;
+
+        purchasesTotalVal.textContent = Math.round(dashboardData.purchases_total || 0).toLocaleString();
+        settlementsTotalVal.textContent = Math.round(dashboardData.settlements_total || 0).toLocaleString();
+
+        const rate = Math.round(dashboardData.collection_rate || 0);
+        collectionRateVal.textContent = rate;
+        collectionProgressBar.style.width = `${Math.min(100, rate)}%`;
+
+        // Update active period badge & inputs
+        if (dashboardData.date_range) {
+          if (dashboardData.date_range.is_all_time) {
+            currentFilterBadge.textContent = 'كل الفترات';
+            filterFromDate.value = '';
+            filterToDate.value = '';
+          } else {
+            const f = dashboardData.date_range.from || '--';
+            const t = dashboardData.date_range.to || '--';
+            currentFilterBadge.textContent = `من ${f} إلى ${t}`;
+            if (dashboardData.date_range.from) filterFromDate.value = dashboardData.date_range.from;
+            if (dashboardData.date_range.to) filterToDate.value = dashboardData.date_range.to;
+          }
+        }
+
+        // 2. Trend Analytics Chart
+        renderTrendChart(dashboardData.chart_data);
+
+        // 3. Drivers Table
+        if (!dashboardData.drivers_due || dashboardData.drivers_due.length === 0) {
           tableBody.innerHTML = `<tr><td colSpan="7" class="text-center p-8 text-slate-400 italic">لا يوجد سائقون بعقود نشطة حالياً</td></tr>`;
           const tableFoot = document.getElementById("summary-table-foot");
           if (tableFoot) tableFoot.classList.add("hidden");
@@ -335,6 +611,48 @@
         tableBody.innerHTML = `<tr><td colSpan="7" class="text-center p-8 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
       }
     }
+
+    // Filter event listeners
+    applyFilterBtn.addEventListener("click", () => {
+      setActivePreset(null);
+      loadSummary(filterFromDate.value, filterToDate.value, false);
+    });
+
+    function setActivePreset(presetName) {
+      presetChips.forEach(chip => {
+        if (chip.getAttribute('data-preset') === presetName) {
+          chip.className = 'preset-chip px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-purple-600 text-white shadow-sm cursor-pointer';
+        } else {
+          chip.className = 'preset-chip px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer';
+        }
+      });
+    }
+
+    presetChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const preset = chip.getAttribute('data-preset');
+        setActivePreset(preset);
+        const now = new Date();
+
+        if (preset === 'month') {
+          const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+          const to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+          loadSummary(from, to, false);
+        } else if (preset === '30days') {
+          const to = now.toISOString().split('T')[0];
+          const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          const from = past.toISOString().split('T')[0];
+          loadSummary(from, to, false);
+        } else if (preset === 'week') {
+          const to = now.toISOString().split('T')[0];
+          const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          const from = past.toISOString().split('T')[0];
+          loadSummary(from, to, false);
+        } else if (preset === 'all') {
+          loadSummary('', '', true);
+        }
+      });
+    });
     window.openPaymentModal = function (driverId) {
       selectedDriver = dashboardData.drivers_due.find(d => d.driver_id === driverId);
       if (!selectedDriver) return;
