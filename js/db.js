@@ -384,7 +384,6 @@
       console.error('[Migration Error]:', e);
     }
   }
-  }
 
   // Execute non-destructive migration on startup
   runZeroDataLossMigrations();
