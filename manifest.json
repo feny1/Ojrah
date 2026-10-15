@@ -1,13 +1,20 @@
 {
-  "name": "أجرة ويندوز",
-  "short_name": "أجرة ويندوز",
-  "description": "نظام إدارة أسطول مركبات الأجرة",
+  "name": "مسارات - نظام إدارة الأسطول",
+  "short_name": "مسارات",
+  "version": "2.1.0",
+  "description": "النظام المتكامل لإدارة أسطول مركبات الأجرة والنقل وتوريد الاستحقاقات",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#0d9488",
+  "background_color": "#000000",
+  "theme_color": "#F5B800",
   "orientation": "portrait-primary",
   "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "tauri.svg",
       "sizes": "any",

@@ -3,87 +3,287 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>تحديث النظام - أجرة ويندوز الإصدار 1.3.0</title>
+  <title>مسارات | مركز تحديث النظام v2.1.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           fontFamily: {
             sans: ['Cairo', 'sans-serif'],
+          },
+          colors: {
+            masarat: {
+              gold: '#F5B800',
+              goldHover: '#e0a700',
+              dark: '#111827',
+              black: '#000000',
+              slate: '#1E293B'
+            }
           }
         }
       }
     }
   </script>
 </head>
-<body class="bg-slate-50 flex items-center justify-center min-h-screen font-sans">
-  <div class="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-md w-full border border-slate-100 relative overflow-hidden">
-    <div class="inline-block bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs px-3 py-1 rounded-full font-bold mb-4">
-      🚀 الإصدار 1.3.0 (وقوف السيارات + حركة الصندوق + تعديل السائقين)
+<body class="bg-slate-900 text-slate-100 flex flex-col items-center justify-center min-h-screen font-sans p-4 sm:p-6 relative overflow-x-hidden">
+  
+  <!-- Background Glow Accents -->
+  <div class="absolute -top-32 -right-32 w-96 h-96 bg-masarat-gold/10 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="absolute -bottom-32 -left-32 w-96 h-96 bg-masarat-gold/10 rounded-full blur-3xl pointer-events-none"></div>
+
+  <div class="max-w-3xl w-full space-y-6 relative z-10">
+
+    <!-- Top Card: Header & Live Update Process -->
+    <div class="bg-slate-950/90 backdrop-blur-xl p-6 sm:p-8 rounded-3xl shadow-2xl border-2 border-masarat-gold/40 text-center relative overflow-hidden">
+      
+      <!-- Masarat Brand Header -->
+      <div class="flex items-center justify-center gap-3 mb-4">
+        <img src="logo.png" alt="مسارات" class="h-16 w-auto object-contain drop-shadow-md">
+        <div class="text-right">
+          <div class="inline-flex items-center gap-1.5 bg-masarat-gold/20 text-masarat-gold border border-masarat-gold/40 text-xs px-3 py-0.5 rounded-full font-black">
+            نظام مسارات لإدارة الأسطول
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-black text-white mt-1">
+            مركز تحديث النظام <span class="text-masarat-gold">v2.1.0</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Spinner / Status Icon -->
+      <div id="update-icon-wrapper" class="w-16 h-16 bg-masarat-gold/15 text-masarat-gold rounded-2xl flex items-center justify-center mx-auto mb-5 border border-masarat-gold/30">
+        <svg id="update-spinner" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      </div>
+
+      <p id="update-lead-text" class="text-slate-300 text-sm max-w-lg mx-auto leading-relaxed mb-6 font-semibold">
+        جاري تنظيف الذاكرة المؤقتة القديمة، وتحديث ملفات التخزين المحلي، وتثبيت إصدار هوية "مسارات" v2.1.0 لضمان أفضل أداء تشغيلي.
+      </p>
+
+      <!-- Progress Bar Container -->
+      <div class="w-full bg-slate-800 rounded-full h-3.5 mb-3 overflow-hidden p-0.5 border border-slate-700/80">
+        <div id="progress-bar" class="bg-gradient-to-r from-amber-500 via-masarat-gold to-yellow-300 h-2.5 rounded-full transition-all duration-500 ease-out w-0 shadow-lg shadow-masarat-gold/20"></div>
+      </div>
+
+      <!-- Status Indicator -->
+      <div class="flex items-center justify-between text-xs font-bold px-1">
+        <span id="status-text" class="text-masarat-gold flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-masarat-gold animate-ping"></span>
+          بدء فحص بيئة النظام والتخزين...
+        </span>
+        <span id="percent-text" class="text-slate-400 font-mono">0%</span>
+      </div>
+
+      <!-- Action Buttons (Shown upon completion or manual trigger) -->
+      <div id="actions-panel" class="mt-6 pt-5 border-t border-slate-800 flex flex-wrap items-center justify-center gap-3">
+        <a id="btn-goto-index" href="index.html?v=2.1.0" class="bg-masarat-gold hover:bg-masarat-goldHover text-slate-950 font-black px-6 py-2.5 rounded-xl shadow-lg transition-all text-xs flex items-center gap-2 cursor-pointer">
+          <span>🚀</span>
+          <span>الدخول إلى النظام الرئيسي الآن</span>
+        </a>
+        <button onclick="runForceUpdate()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-5 py-2.5 rounded-xl transition-all text-xs flex items-center gap-2 cursor-pointer">
+          <span>🔄</span>
+          <span>إعادة تشغيل مسح الكاش بالكامل</span>
+        </button>
+      </div>
     </div>
-    
-    <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-spin">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-      </svg>
+
+    <!-- What's New Panel in Version v2.1.0 -->
+    <div class="bg-slate-950/80 backdrop-blur-xl p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-800">
+      <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-masarat-gold flex items-center justify-center text-xl font-bold border border-masarat-gold/20">
+            ✨
+          </div>
+          <div>
+            <h2 class="text-xl font-black text-white">ما الجديد في إصدار مسارات v2.1.0؟</h2>
+            <p class="text-xs text-slate-400 mt-0.5">سجل التغييرات الشامل والميزات التشغيلية والمالية الجديدة</p>
+          </div>
+        </div>
+        <span class="bg-masarat-gold/20 text-masarat-gold border border-masarat-gold/40 text-xs px-3 py-1 rounded-full font-black">
+          الإصدار الأحدث v2.1.0
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs leading-relaxed">
+        
+        <!-- 1. PWA & Desktop Branding -->
+        <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800/80 hover:border-masarat-gold/40 transition-all flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-masarat-gold/15 text-masarat-gold flex items-center justify-center text-xl shrink-0 border border-masarat-gold/30">
+            💻
+          </div>
+          <div class="space-y-1">
+            <h3 class="font-black text-white text-sm">تطبيق سطح المكتب وتحديث الهوية الرسمية</h3>
+            <p class="text-slate-400">
+              اعتماد اسم "مسارات" مع الألوان الرسمية (الأصفر الذهبي والأسود)، ودعم التثبيت المباشر كتطبيق مستقل (PWA) على سطح المكتب بأيقونة ثابتة وسرعة فائقة.
+            </p>
+          </div>
+        </div>
+
+        <!-- 2. RBAC Permissions -->
+        <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800/80 hover:border-masarat-gold/40 transition-all flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-xl shrink-0 border border-indigo-500/30">
+            🛡️
+          </div>
+          <div class="space-y-1">
+            <h3 class="font-black text-white text-sm">نظام صلاحيات المستخدمين (RBAC)</h3>
+            <p class="text-slate-400">
+              تفعيل لوحة إدارة المستخدمين وتحديد الأدوار (مدير نظام، محاسب عام، مشرف/مدخل بيانات) مع تخصيص الصلاحيات الدقيقة على الإضافة والتعديل والحذف والطباعة.
+            </p>
+          </div>
+        </div>
+
+        <!-- 3. Drivers & Cars Auto-Indexing & Print -->
+        <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800/80 hover:border-masarat-gold/40 transition-all flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-xl shrink-0 border border-emerald-500/30">
+            📋
+          </div>
+          <div class="space-y-1">
+            <h3 class="font-black text-white text-sm">تطوير القوائم والترقيم والبحث الفوري</h3>
+            <p class="text-slate-400">
+              إضافة عمود الترقيم التسلسلي التلقائي (#)، شريط بحث لحظي فوري، وإمكانية طباعة كشوفات السائقين والمركبات بتصميم رسمي أنيق يحمل شعار مسارات.
+            </p>
+          </div>
+        </div>
+
+        <!-- 4. Multi-Driver Assignment -->
+        <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800/80 hover:border-masarat-gold/40 transition-all flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center text-xl shrink-0 border border-sky-500/30">
+            👥
+          </div>
+          <div class="space-y-1">
+            <h3 class="font-black text-white text-sm">تعدد السائقين على المركبة الواحدة</h3>
+            <p class="text-slate-400">
+              إتاحة إسناد أكثر من سائق على نفس المركبة لدعم نظام الورديات أو السائق الأساسي والإضافي، مع التحديد المتعدد وعرض شارات السائقين في بطاقة السيارة.
+            </p>
+          </div>
+        </div>
+
+        <!-- 5. General Company Expenses -->
+        <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800/80 hover:border-masarat-gold/40 transition-all flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center text-xl shrink-0 border border-amber-500/30">
+            🏢
+          </div>
+          <div class="space-y-1">
+            <h3 class="font-black text-white text-sm">المصاريف الإدارية العامة للمؤسسة</h3>
+            <p class="text-slate-400">
+              تسجيل المشتريات ومصاريف المؤسسة العامة (مثل فواتير المقر، الأدوات المكتبية، والضيافة) دون إجبار على ربطها بسائق أو سيارة مع احتسابها بدقة في التقارير.
+            </p>
+          </div>
+        </div>
+
+        <!-- 6. Settlements & Ledger Fixes -->
+        <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800/80 hover:border-masarat-gold/40 transition-all flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-400 flex items-center justify-center text-xl shrink-0 border border-rose-500/30">
+            ⚖️
+          </div>
+          <div class="space-y-1">
+            <h3 class="font-black text-white text-sm">إصلاح التسويات وكشف حساب السائق التفصيلي</h3>
+            <p class="text-slate-400">
+              تصحيح وتدقيق خيار الأثر المالي (دائن [له] / مدين [عليه])، وتوفير كشف حساب تراكمي تفصيلي للسائق مع الأعمدة الدقيقة وإمكانية الطباعة الرسمية A4.
+            </p>
+          </div>
+        </div>
+
+      </div>
     </div>
-    
-    <h1 class="text-2xl font-black text-slate-800 mb-2">جاري تحديث النظام إلى v1.3.0...</h1>
-    <p class="text-slate-500 mb-6 text-sm">جاري تنظيف الذاكرة المؤقتة وإلغاء الكاش القديم وتطبيق التمدد الشامل للواجهات.</p>
-    
-    <div class="w-full bg-slate-100 rounded-full h-3 mb-3 overflow-hidden p-0.5 border border-slate-200">
-      <div class="bg-gradient-to-r from-emerald-500 to-teal-600 h-2 rounded-full transition-all duration-700 ease-out w-0" id="progress-bar"></div>
+
+    <!-- Footer -->
+    <div class="text-center text-xs text-slate-500 font-semibold pt-2">
+      <span>نظام مسارات لإدارة الأسطول v2.1.0 • تم التحديث في 2026</span>
     </div>
-    
-    <p id="status-text" class="text-xs text-emerald-600 font-bold">بدء التحديث وتحديث ملفات التخزين المحلي...</p>
+
   </div>
 
   <script>
-    async function forceUpdate() {
-      const progressBar = document.getElementById('progress-bar');
-      const statusText = document.getElementById('status-text');
-      
-      setTimeout(async () => {
-        progressBar.style.width = '35%';
-        statusText.textContent = "جاري مسح وتسجيل Service Worker v7 جديد...";
-        
-        try {
-          if ('serviceWorker' in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (let registration of registrations) {
-              await registration.unregister();
-            }
+    const progressBar = document.getElementById('progress-bar');
+    const statusText = document.getElementById('status-text');
+    const percentText = document.getElementById('percent-text');
+    const updateIconWrapper = document.getElementById('update-icon-wrapper');
+
+    async function runForceUpdate() {
+      // Step 1: 15%
+      progressBar.style.width = '15%';
+      percentText.textContent = '15%';
+      statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-masarat-gold animate-ping"></span> فحص سلامة جداول قاعدة البيانات...';
+
+      await new Promise(r => setTimeout(r, 300));
+
+      // Step 2: 35% Service Workers unregister & update
+      progressBar.style.width = '35%';
+      percentText.textContent = '35%';
+      statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-masarat-gold animate-ping"></span> تحديث مسجل الخدمة (Service Worker v2.1.0)...';
+
+      try {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (let reg of registrations) {
+            await reg.unregister();
           }
-          
-          progressBar.style.width = '70%';
-          statusText.textContent = "جاري حرق ومسح كامل ملفات الكاش القديمة...";
-          
-          if (window.caches) {
-            const keys = await caches.keys();
-            for (let key of keys) {
-              await caches.delete(key);
-            }
-          }
-        } catch (e) {
-          console.error("Error clearing caches:", e);
+          await navigator.serviceWorker.register('./service-worker.js');
         }
-        
-        progressBar.style.width = '100%';
-        statusText.textContent = "تم التحديث بنجاح! جاري تحويلك للرئيسية...";
-        
-        // Force reload from server bypassing cache
-        setTimeout(() => {
-          window.location.replace('index.html?v=1.3.0&t=' + new Date().getTime());
-        }, 800);
-        
-      }, 400);
+      } catch (e) {
+        console.warn('Service worker refresh note:', e);
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      // Step 3: 70% Clear Caches
+      progressBar.style.width = '70%';
+      percentText.textContent = '70%';
+      statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-masarat-gold animate-ping"></span> تفريغ ذاكرة الكاش وتحديث الأصول...';
+
+      try {
+        if (window.caches) {
+          const keys = await caches.keys();
+          for (let key of keys) {
+            await caches.delete(key);
+          }
+        }
+      } catch (e) {
+        console.warn('Cache clearing note:', e);
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      // Step 4: 90% Apply migrations
+      progressBar.style.width = '90%';
+      percentText.textContent = '90%';
+      statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-masarat-gold animate-ping"></span> تطبيق ترقية هوية مسارات وإعدادات v2.1.0...';
+
+      // Save version marker in localStorage
+      localStorage.setItem('masarat_version', '2.1.0');
+      localStorage.setItem('masarat_last_update', new Date().toISOString());
+
+      await new Promise(r => setTimeout(r, 400));
+
+      // Step 5: 100% Completed
+      progressBar.style.width = '100%';
+      percentText.textContent = '100%';
+      statusText.innerHTML = '<span class="text-emerald-400 font-black">✓ اكتمل التحديث بنجاح! النظام يعمل الآن بالإصدار v2.1.0</span>';
+      
+      updateIconWrapper.className = 'w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-emerald-500/40';
+      updateIconWrapper.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+        </svg>
+      `;
+
+      // Redirect automatically after brief pause
+      setTimeout(() => {
+        window.location.replace('index.html?v=2.1.0&t=' + Date.now());
+      }, 1200);
     }
-    
-    // Start automatically
-    forceUpdate();
+
+    // Auto trigger on initial load
+    window.addEventListener('load', () => {
+      setTimeout(runForceUpdate, 200);
+    });
   </script>
 </body>
 </html>

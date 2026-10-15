@@ -4,7 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>برنامج المشتريات والتعويضات</title>
+  <title>مسارات - المصاريف والمشتريات</title>
+  <link rel="icon" type="image/png" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
@@ -15,6 +16,13 @@
     tailwind.config = {
       theme: {
         extend: {
+          colors: {
+            masarat: {
+              gold: '#F5B800',
+              hover: '#dfa700',
+              black: '#000000'
+            }
+          },
           fontFamily: {
             sans: ['Cairo', 'sans-serif'],
           }
@@ -25,81 +33,145 @@
 </head>
 
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
-  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 mt-4">
-    <div class="flex justify-between items-center mb-8">
-      <div>
-        <h1 class="text-4xl font-bold text-teal-600">برنامج المشتريات والتعويضات</h1>
-        <p class="text-gray-500 mt-2">تسجيل ومتابعة مشتريات السائقين، مبالغ التعويض، والمديونيات المقيدة</p>
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+    <div class="flex items-center gap-3">
+      <img src="logo.png" alt="مسارات" class="h-10 w-auto object-contain">
+      <div class="flex flex-col">
+        <span class="text-xl font-black text-black tracking-wide flex items-center gap-1.5">
+          <span>مسارات</span>
+          <span class="w-2 h-2 rounded-full bg-[#F5B800] inline-block"></span>
+        </span>
+        <span class="text-[10px] text-slate-500 font-bold -mt-1">إدارة المصاريف والمشتريات</span>
       </div>
-      <a href="index.html"
-        class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg transition-colors">
-        العودة للرئيسية
+    </div>
+
+    <div class="flex items-center gap-3">
+      <div id="masarat-user-badge"></div>
+      <a href="index.html" class="bg-black text-white hover:bg-slate-800 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
+        الرئيسية
       </a>
     </div>
+  </header>
 
-    <div class="flex justify-between items-center mb-6">
-      <div></div>
-      <button id="show-form-btn"
-        class="bg-teal-600 text-white px-5 py-2.5 rounded-xl hover:bg-teal-700 font-bold shadow transition-colors">
-        تسجيل فاتورة مشتريات جديدة +
-      </button>
+  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-6 mt-2">
+    <!-- Screen Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+      <div>
+        <h1 class="text-3xl font-black text-black flex items-center gap-2">
+          <span>🧾</span>
+          <span>المصاريف والمشتريات</span>
+        </h1>
+        <p class="text-slate-500 text-xs sm:text-sm mt-1">تسجيل المصاريف العامة للمؤسسة، فواتير المشتريات الإدارية، وتعويضات ومديونيات السائقين</p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="show-form-btn" data-permission="add"
+          class="bg-[#F5B800] hover:bg-amber-400 active:scale-95 text-black px-5 py-2.5 rounded-xl font-black text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer border border-amber-400">
+          <span>+</span>
+          <span>تسجيل فاتورة / مصروف جديد</span>
+        </button>
+      </div>
     </div>
 
-    <div id="add-purchase-form" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8 hidden">
-      <h2 id="form-title" class="text-2xl font-bold text-slate-800 mb-6">تسجيل مشتريات جديدة</h2>
+    <!-- Add / Edit Purchase Form -->
+    <div id="add-purchase-form" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 hidden">
+      <div class="flex justify-between items-center mb-6 pb-2 border-b border-slate-100">
+        <div>
+          <h2 id="form-title" class="text-xl font-black text-slate-800">تسجيل فاتورة مشتريات / مصروف</h2>
+          <p class="text-xs text-slate-400 mt-0.5">اختر ما إذا كان المصروف عاماً للمؤسسة (بدون سائق/مركبة) أو مشتريات تشغيلية خاصة</p>
+        </div>
+        <button type="button" id="cancel-form-btn-top" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+      </div>
+
       <form id="purchase-form" class="space-y-6">
+        <!-- Expense Category Selection -->
+        <div class="bg-amber-50/80 p-4 rounded-xl border border-amber-300">
+          <label class="block text-xs font-black text-amber-950 mb-2">نوع وتصنيف المصروف <span class="text-rose-500">*</span></label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="flex items-center gap-3 bg-white p-3 rounded-xl border-2 border-amber-400 cursor-pointer shadow-xs hover:border-amber-500">
+              <input type="radio" name="expense_category" value="company" id="cat-company" class="text-amber-500 focus:ring-amber-400 w-4 h-4 cursor-pointer" checked>
+              <div>
+                <span class="block text-xs font-black text-slate-900">🏢 مصاريف المؤسسة العامة / مشتريات إدارية</span>
+                <span class="text-[11px] text-slate-500">أدوات مكتبية، فواتير مقر، ضيافة، استشارات، رخص، صيانة عامة (لا تشترط سائق أو مركبة)</span>
+              </div>
+            </label>
+
+            <label class="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 cursor-pointer shadow-xs hover:border-amber-500">
+              <input type="radio" name="expense_category" value="driver" id="cat-driver" class="text-amber-500 focus:ring-amber-400 w-4 h-4 cursor-pointer">
+              <div>
+                <span class="block text-xs font-black text-slate-900">🚕 مشتريات تشغيلية لسائق أو مركبة</span>
+                <span class="text-[11px] text-slate-500">قطع غيار، كفرات، صيانة مركبة محددة، أو مشتريات مدفوعة من السائق للتعويض أو المديونية</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div>
-            <label class="block text-gray-700 mb-2 font-bold">اختر السائق</label>
-            <select id="driver_id" required
-              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all">
-              <option value="">-- اختر السائق --</option>
+          <!-- Driver (Nullable / Optional) -->
+          <div id="driver-select-container">
+            <label class="block text-slate-700 mb-2 font-bold text-xs" id="driver-label">السائق (اختياري للمصاريف العامة)</label>
+            <select id="driver_id"
+              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm">
+              <option value="">-- (بدون سائق - مصروف عام للمؤسسة) --</option>
             </select>
           </div>
-          <div>
-            <label class="block text-gray-700 mb-2 font-bold">اختر السيارة</label>
-            <select id="car_id" required
-              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all">
-              <option value="">-- اختر السيارة --</option>
+
+          <!-- Car (Nullable / Optional) -->
+          <div id="car-select-container">
+            <label class="block text-slate-700 mb-2 font-bold text-xs" id="car-label">المركبة (اختياري للمصاريف العامة)</label>
+            <select id="car_id"
+              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm">
+              <option value="">-- (بدون سيارة - مصروف عام للمؤسسة) --</option>
             </select>
           </div>
+
           <div>
-            <label class="block text-gray-700 mb-2 font-bold">تاريخ الفاتورة</label>
+            <label class="block text-slate-700 mb-2 font-bold text-xs">تاريخ الفاتورة / المصروف <span class="text-rose-500">*</span></label>
             <input type="date" required id="invoice_date"
-              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-gray-600">
+              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm text-slate-700 font-bold">
           </div>
+
           <div>
-            <label class="block text-gray-700 mb-2 font-bold">المورد / المتجر (اختياري)</label>
-            <input type="text" id="vendor_name" placeholder="مثال: ورشة المحترف، بنشر السلام"
-              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all">
+            <label class="block text-slate-700 mb-2 font-bold text-xs">المورد / الجهه المستفيدة (اختياري)</label>
+            <input type="text" id="vendor_name" placeholder="مثال: مكتبة النور، شركة الكهرباء، ورشة المحترف"
+              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm">
           </div>
+
           <div>
-            <label class="block text-gray-700 mb-2 font-bold">رقم الفاتورة المرجعي (اختياري)</label>
-            <input type="text" id="invoice_number" placeholder="مثال: PINV-10293"
-              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-mono">
+            <label class="block text-slate-700 mb-2 font-bold text-xs">رقم الفاتورة المرجعي (اختياري)</label>
+            <input type="text" id="invoice_number" placeholder="مثال: EXP-9281 أو PINV-10293"
+              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm font-mono">
+          </div>
+
+          <div>
+            <label class="block text-slate-700 mb-2 font-bold text-xs">المبلغ الكلي للفاتورة (ر.س)</label>
+            <input type="number" step="0.01" required id="total_amount" placeholder="0.00" readonly
+              class="w-full border border-slate-200 p-3 rounded-xl bg-slate-100 text-slate-900 focus:outline-none font-mono font-black text-lg cursor-not-allowed text-center">
+            <span class="text-[11px] text-slate-400 mt-1 block">* يتم احتسابه تلقائياً من بنود الأصناف أدناه</span>
           </div>
 
           <!-- Multi-Items Table Section -->
           <div class="col-span-1 md:col-span-2 lg:col-span-3 bg-slate-50/90 p-5 rounded-2xl border border-slate-200 space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
-                <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
-                  <span>📦</span> بنود وأصناف الفاتورة (Multi-Item Lines)
+                <h3 class="text-sm font-black text-slate-800 flex items-center gap-2">
+                  <span>📦</span> بنود وأصناف المصروف / الفاتورة
                 </h3>
-                <p class="text-xs text-slate-500 mt-0.5">أضف الأصناف والقطع وأجور التركيب، وسيتم احتساب إجمالي الفاتورة آلياً</p>
+                <p class="text-xs text-slate-500 mt-0.5">أضف الأصناف، الفواتير أو المشتريات، وسيتم احتساب إجمالي الفاتورة آلياً</p>
               </div>
               <button type="button" id="add-item-row-btn"
-                class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer">
-                <span>+</span> إضافة بند / صنف آخر
+                class="bg-black hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer">
+                <span>+</span> إضافة بند آخر
               </button>
             </div>
 
             <div class="overflow-x-auto">
               <table class="w-full text-right border-collapse text-sm bg-white rounded-xl overflow-hidden border border-slate-200">
                 <thead>
-                  <tr class="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200 text-xs">
+                  <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-xs">
                     <th class="p-3 w-10 text-center">#</th>
-                    <th class="p-3 min-w-[200px]">البيان / اسم الصنف أو القطعة *</th>
+                    <th class="p-3 min-w-[200px]">البيان / وصف المصروف أو البند *</th>
                     <th class="p-3 w-28 text-center">الكمية *</th>
                     <th class="p-3 w-36 text-center">سعر الوحدة (ر.س) *</th>
                     <th class="p-3 w-36 text-center">الإجمالي (ر.س)</th>
@@ -110,9 +182,9 @@
                   <!-- Injected via JavaScript -->
                 </tbody>
                 <tfoot>
-                  <tr class="bg-teal-50/90 border-t-2 border-teal-200 font-black text-slate-800">
-                    <td colspan="4" class="p-3.5 text-left pl-6 font-bold text-teal-900 text-sm">الإجمالي الكلي المحتسب لكافة البنود:</td>
-                    <td class="p-3.5 text-center font-mono text-base text-teal-700 font-black" id="items-computed-total">0.00 ر.س</td>
+                  <tr class="bg-amber-50/80 border-t-2 border-amber-300 font-black text-slate-800">
+                    <td colspan="4" class="p-3.5 text-left pl-6 font-bold text-amber-950 text-sm">الإجمالي الكلي المحتسب لكافة البنود:</td>
+                    <td class="p-3.5 text-center font-mono text-base text-amber-900 font-black" id="items-computed-total">0.00 ر.س</td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -120,113 +192,99 @@
             </div>
           </div>
 
-          <!-- Hidden product_name and auto-synced total_amount for backward compatibility -->
-          <input type="hidden" id="product_name" value="">
-          <div>
-            <label class="block text-gray-700 mb-2 font-bold">المبلغ الكلي للفاتورة (ر.س)</label>
-            <input type="number" step="0.01" required id="total_amount" placeholder="0.00" readonly
-              class="w-full border border-slate-200 p-3 rounded-xl bg-slate-100 text-teal-800 focus:outline-none font-mono font-black text-lg cursor-not-allowed">
-            <span class="text-[11px] text-gray-400 mt-1 block">* يتم احتسابه تلقائياً من مجموع بنود الأصناف أعلاه</span>
-          </div>
-          <div>
-            <label class="block text-gray-700 mb-2 font-bold">المبلغ المدفوع من السائق (ر.س)</label>
-            <input type="number" step="0.01" required id="driver_paid_amount" placeholder="0.00"
-              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-mono font-bold"
-              value="0">
-          </div>
+          <!-- Driver Settlement Options (Only for Driver Operational Purchases) -->
+          <div id="driver-settlement-container" class="col-span-1 md:col-span-2 lg:col-span-3 space-y-4 hidden">
+            <div class="bg-slate-100 p-4 rounded-xl flex flex-wrap gap-8 items-center border border-slate-200">
+              <span class="font-bold text-gray-700 text-sm">نوع تسوية المشتريات مع السائق:</span>
+              <label class="inline-flex items-center cursor-pointer font-bold text-emerald-700">
+                <input type="radio" name="settlement_type" value="reimbursement" class="form-radio h-5 w-5 text-amber-500 focus:ring-amber-400 ml-2" checked>
+                تعويض للسائق (سدده السائق من جيبه)
+              </label>
+              <label class="inline-flex items-center cursor-pointer font-bold text-rose-600">
+                <input type="radio" name="settlement_type" value="debt" class="form-radio h-5 w-5 text-amber-500 focus:ring-amber-400 ml-2">
+                مديونية على السائق (سددته المؤسسة ويقيد على ذمته)
+              </label>
+            </div>
 
-          <div
-            class="col-span-1 md:col-span-2 lg:col-span-3 bg-slate-100/80 p-4 rounded-xl flex gap-8 items-center border border-slate-200">
-            <span class="font-bold text-gray-700 text-sm">نوع تسوية الفاتورة:</span>
-            <label class="inline-flex items-center cursor-pointer font-bold text-emerald-700">
-              <input type="radio" name="settlement_type" value="reimbursement"
-                class="form-radio h-5 w-5 text-teal-600 focus:ring-teal-500 ml-2" checked>
-              تعويض للسائق
-            </label>
-            <label class="inline-flex items-center cursor-pointer font-bold text-red-600">
-              <input type="radio" name="settlement_type" value="debt"
-                class="form-radio h-5 w-5 text-teal-600 focus:ring-teal-500 ml-2">
-              مديونية على السائق
-            </label>
-          </div>
-
-          <div id="reimbursement-section"
-            class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 space-y-3 col-span-1 md:col-span-2 lg:col-span-3">
-            <span class="block text-emerald-800 font-bold text-sm">تفاصيل التعويض المستحق</span>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs text-gray-600 mb-1">نسبة التعويض (%)</label>
-                <input type="number" step="0.1" id="reimbursement_percent" placeholder="0"
-                  class="w-full border border-slate-200 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono">
+                <label class="block text-xs font-bold text-slate-700 mb-1">المبلغ المدفوع من السائق (ر.س)</label>
+                <input type="number" step="0.01" id="driver_paid_amount" placeholder="0.00" value="0"
+                  class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] font-mono font-bold">
               </div>
-              <div>
-                <label class="block text-xs text-gray-600 mb-1">مبلغ التعويض المستحق (ر.س)</label>
-                <input type="number" step="0.01" id="reimbursement_amount" placeholder="0.00"
-                  class="w-full border border-slate-200 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono font-bold"
-                  value="0">
+
+              <div id="reimbursement-box">
+                <label class="block text-xs font-bold text-emerald-800 mb-1">مبلغ التعويض المستحق للسائق (ر.س)</label>
+                <input type="number" step="0.01" id="reimbursement_amount" placeholder="0.00" value="0"
+                  class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold text-emerald-700">
+              </div>
+
+              <div id="debt-box" class="hidden">
+                <label class="block text-xs font-bold text-rose-800 mb-1">المبلغ المقيد كدين على السائق (ر.س)</label>
+                <input type="number" step="0.01" id="debt_charge_amount" placeholder="0.00" value="0"
+                  class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 font-mono font-bold text-rose-700">
               </div>
             </div>
-          </div>
-
-          <div id="debt-section"
-            class="bg-red-50/50 p-4 rounded-xl border border-red-100 space-y-3 col-span-1 md:col-span-2 lg:col-span-3 hidden">
-            <span class="block text-red-800 font-bold text-sm">تفاصيل الدين المقيد</span>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs text-gray-600 mb-1">نسبة الدين (%)</label>
-                <input type="number" step="0.1" id="debt_percent" placeholder="0"
-                  class="w-full border border-slate-200 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono">
-              </div>
-              <div>
-                <label class="block text-xs text-gray-600 mb-1">المبلغ المقيد كدين (ر.س)</label>
-                <input type="number" step="0.01" id="debt_charge_amount" placeholder="0.00"
-                  class="w-full border border-slate-200 p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono font-bold"
-                  value="0">
-              </div>
-            </div>
-          </div>
-
-          <div id="summary-container"
-            class="col-span-1 md:col-span-2 lg:col-span-3 border p-4 rounded-xl hidden transition-all">
-            <span id="summary-text" class="text-sm font-bold"></span>
-            <span id="summary-val" class="font-mono font-black text-lg mx-1">0.00</span>
-            <span class="text-sm font-bold">ر.س</span>
           </div>
         </div>
 
-        <div class="flex gap-4 mt-6">
+        <div class="flex gap-4 mt-6 pt-4 border-t border-slate-100">
           <button type="submit" id="submit-form-btn"
-            class="bg-teal-600 text-white px-8 py-3 rounded-xl hover:bg-teal-700 font-bold shadow-lg transition-colors">
-            حفظ الفاتورة
+            class="bg-[#F5B800] hover:bg-amber-400 text-black px-8 py-3 rounded-xl font-black text-sm shadow-md transition-all cursor-pointer border border-amber-400">
+            حفظ الفاتورة والمصروف ✓
           </button>
           <button type="button" id="cancel-form-btn"
-            class="bg-gray-200 text-gray-800 px-8 py-3 rounded-xl hover:bg-gray-300 font-bold transition-colors">
+            class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-6 py-3 rounded-xl font-bold text-sm transition-all cursor-pointer">
             إلغاء
           </button>
         </div>
       </form>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-      <h2 class="text-2xl font-bold text-slate-800 mb-6">سجل المشتريات والتعويضات</h2>
+    <!-- Filter & Search Bar -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="🔍 بحث باسم السائق أو السيارة أو المورد أو البيان..."
+          class="border border-slate-200 bg-slate-50/50 rounded-xl px-4 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#F5B800] w-72"
+        />
+
+        <select id="filter-category"
+          class="border border-slate-200 bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#F5B800]">
+          <option value="all">جميع المصاريف (عامة وتشغيلية)</option>
+          <option value="company">🏢 مصاريف المؤسسة العامة فقط</option>
+          <option value="driver">🚕 مشتريات السائقين والتشغيل فقط</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-3 text-xs font-bold text-slate-500">
+        <span>الفواتير المعروضة:</span>
+        <span id="purchases-count-badge" class="bg-black text-[#F5B800] px-3 py-1 rounded-lg font-black text-sm">0</span>
+      </div>
+    </div>
+
+    <!-- Purchases Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-right border-collapse">
-          <thead class="bg-slate-50 text-slate-600 border-b border-slate-100">
+          <thead class="bg-slate-100/80 text-slate-700 border-b border-slate-200 text-xs font-black">
             <tr>
-              <th class="p-4 rounded-tr-xl font-bold">السائق</th>
-              <th class="p-4 font-bold">السيارة</th>
-              <th class="p-4 font-bold">تاريخ الفاتورة</th>
-              <th class="p-4 font-bold">البيان/المنتج</th>
-              <th class="p-4 font-bold text-center">المبلغ الكلي</th>
-              <th class="p-4 font-bold text-center">المدفوع من السائق</th>
-              <th class="p-4 font-bold text-center">التعويض المستحق</th>
-              <th class="p-4 font-bold text-center">الدين المقيد</th>
+              <th class="p-4 w-12 text-center rounded-tr-xl">#</th>
+              <th class="p-4">نوع المصروف</th>
+              <th class="p-4">السائق / الجهة</th>
+              <th class="p-4">المركبة</th>
+              <th class="p-4 text-center">تاريخ الفاتورة</th>
+              <th class="p-4">البيان والأصناف</th>
+              <th class="p-4 font-black text-center">المبلغ الكلي</th>
+              <th class="p-4 text-center">المدفوع / التعويض</th>
               <th class="p-4 rounded-tl-xl font-bold text-center">الإجراءات</th>
             </tr>
           </thead>
-          <tbody id="purchases-table-body" class="divide-y divide-slate-100">
+          <tbody id="purchases-table-body" class="divide-y divide-slate-100 text-sm">
             <tr>
-              <td colSpan="9" class="text-center p-8 text-gray-500">جاري تحميل البيانات...</td>
+              <td colSpan="9" class="text-center p-8 text-slate-400 font-bold">جاري تحميل البيانات...</td>
             </tr>
           </tbody>
         </table>
@@ -239,17 +297,29 @@
     const API_DRIVERS = "/api/drivers";
     const API_CARS = "/api/cars";
 
+    let allPurchases = [];
+    let allDrivers = [];
+    let allCars = [];
+    let editingPurchaseId = null;
+
+    // DOM References
     const showFormBtn = document.getElementById("show-form-btn");
     const cancelFormBtn = document.getElementById("cancel-form-btn");
+    const cancelFormBtnTop = document.getElementById("cancel-form-btn-top");
     const addPurchaseForm = document.getElementById("add-purchase-form");
     const purchaseForm = document.getElementById("purchase-form");
+    const formTitle = document.getElementById("form-title");
     const tableBody = document.getElementById("purchases-table-body");
+    const purchasesCountBadge = document.getElementById("purchases-count-badge");
+    const searchInput = document.getElementById("search-input");
+    const filterCategorySelect = document.getElementById("filter-category");
 
     const driverSelect = document.getElementById("driver_id");
     const carSelect = document.getElementById("car_id");
-
     const totalAmountInput = document.getElementById("total_amount");
     const driverPaidInput = document.getElementById("driver_paid_amount");
+    const reimbursementInput = document.getElementById("reimbursement_amount");
+    const debtChargeInput = document.getElementById("debt_charge_amount");
 
     const itemsTbody = document.getElementById("invoice-items-tbody");
     const addItemRowBtn = document.getElementById("add-item-row-btn");
@@ -257,367 +327,326 @@
     const vendorNameInput = document.getElementById("vendor_name");
     const invoiceNumberInput = document.getElementById("invoice_number");
 
-    // تم تصحيح المعرفات هنا لتطابق الـ HTML تماماً بالشرطة العادية (-)
-    const reimbursementSection = document.getElementById("reimbursement-section");
-    const debtSection = document.getElementById("debt-section");
+    const driverSettlementContainer = document.getElementById("driver-settlement-container");
+    const reimbursementBox = document.getElementById("reimbursement-box");
+    const debtBox = document.getElementById("debt-box");
 
-    const reimbursementPercentInput = document.getElementById("reimbursement_percent");
-    const reimbursementInput = document.getElementById("reimbursement_amount");
-
-    const debtPercentInput = document.getElementById("debt_percent");
-    const debtChargeInput = document.getElementById("debt_charge_amount");
-
-    const summaryContainer = document.getElementById("summary-container");
-    const summaryText = document.getElementById("summary-text");
-    const summaryVal = document.getElementById("summary-val");
-
-    function getSelectedSettlementType() {
-      const checkedRadio = document.querySelector('input[name="settlement_type"]:checked');
-      return checkedRadio ? checkedRadio.value : "reimbursement";
-    }
-
-    function toggleSections() {
-      const type = getSelectedSettlementType();
-      if (type === "reimbursement") {
-        reimbursementSection.classList.remove("hidden");
-        debtSection.classList.add("hidden");
-        debtPercentInput.value = "";
-        debtChargeInput.value = "0";
-      } else {
-        debtSection.classList.remove("hidden");
-        reimbursementSection.classList.add("hidden");
-        reimbursementPercentInput.value = "";
-        reimbursementInput.value = "0";
-      }
-      handleInputsChange();
-    }
-
-    document.querySelectorAll('input[name="settlement_type"]').forEach(radio => {
-      radio.addEventListener("change", toggleSections);
+    // Toggle Category (Company vs Driver)
+    document.querySelectorAll('input[name="expense_category"]').forEach(r => {
+      r.addEventListener('change', () => {
+        handleCategoryChange();
+      });
     });
 
-    // -------------------------------------------------------------
-    // Multi-Item Rows Management & Client-Side Real-Time Calculation
-    // -------------------------------------------------------------
-    function createItemRow(desc = '', qty = 1, price = 0) {
-      const tr = document.createElement('tr');
-      tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-100";
-      const lineTotal = (qty * price).toFixed(2);
+    function handleCategoryChange() {
+      const isCompany = document.querySelector('input[name="expense_category"]:checked').value === 'company';
+      if (isCompany) {
+        driverSettlementContainer.classList.add("hidden");
+        driverPaidInput.value = "0";
+        reimbursementInput.value = "0";
+        debtChargeInput.value = "0";
+        driverSelect.value = "";
+        carSelect.value = "";
+      } else {
+        driverSettlementContainer.classList.remove("hidden");
+        toggleSettlementTypeBoxes();
+      }
+    }
 
+    // Toggle Settlement Types (Reimbursement vs Debt)
+    document.querySelectorAll('input[name="settlement_type"]').forEach(r => {
+      r.addEventListener('change', toggleSettlementTypeBoxes);
+    });
+
+    function toggleSettlementTypeBoxes() {
+      const type = document.querySelector('input[name="settlement_type"]:checked').value;
+      if (type === 'reimbursement') {
+        reimbursementBox.classList.remove('hidden');
+        debtBox.classList.add('hidden');
+        debtChargeInput.value = '0';
+      } else {
+        reimbursementBox.classList.add('hidden');
+        debtBox.classList.remove('hidden');
+        reimbursementInput.value = '0';
+      }
+    }
+
+    // Items row builder
+    function createItemRow(desc = "", qty = 1, price = 0) {
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-50 transition-colors";
       tr.innerHTML = `
-        <td class="p-3 text-center text-xs text-slate-400 row-idx font-mono font-bold">1</td>
-        <td class="p-2">
-          <input type="text" required placeholder="مثال: إطار هانكوك، زيت محرك" value="${desc.replace(/"/g, '&quot;')}"
-            class="item-desc w-full border border-slate-200 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium bg-white">
+        <td class="p-3 text-center font-mono font-bold text-slate-400 row-idx">1</td>
+        <td class="p-3">
+          <input type="text" value="${desc}" placeholder="وصف البند / الصنف / الفاتورة" required
+            class="w-full border border-slate-200 p-2 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#F5B800] item-desc">
         </td>
-        <td class="p-2">
-          <input type="number" step="1" min="1" required placeholder="1" value="${qty}"
-            class="item-qty w-full border border-slate-200 p-2.5 rounded-lg text-sm text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+        <td class="p-3 text-center">
+          <input type="number" step="1" min="1" value="${qty}" required
+            class="w-20 border border-slate-200 p-2 rounded-lg text-xs font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-[#F5B800] item-qty">
         </td>
-        <td class="p-2">
-          <input type="number" step="0.01" min="0" required placeholder="0.00" value="${price > 0 ? price : ''}"
-            class="item-price w-full border border-slate-200 p-2.5 rounded-lg text-sm text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+        <td class="p-3 text-center">
+          <input type="number" step="0.01" min="0" value="${price}" placeholder="0.00" required
+            class="w-28 border border-slate-200 p-2 rounded-lg text-xs font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-[#F5B800] item-price">
         </td>
-        <td class="p-2 text-center">
-          <span class="item-line-total font-mono font-black text-slate-700 text-sm">${lineTotal}</span>
-          <span class="text-xs text-slate-400"> ر.س</span>
+        <td class="p-3 text-center font-mono font-bold text-slate-800 item-line-total">
+          ${(qty * price).toFixed(2)} ر.س
         </td>
-        <td class="p-2 text-center">
-          <button type="button" class="delete-row-btn text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer" title="حذف البند">
-            ✕
-          </button>
+        <td class="p-3 text-center">
+          <button type="button" class="text-rose-500 hover:text-rose-700 font-bold text-sm delete-row-btn" title="حذف البند">🗑️</button>
         </td>
       `;
 
-      // Row events
-      const qtyInput = tr.querySelector('.item-qty');
-      const priceInput = tr.querySelector('.item-price');
-      const descInput = tr.querySelector('.item-desc');
-      const deleteBtn = tr.querySelector('.delete-row-btn');
+      const qtyInput = tr.querySelector(".item-qty");
+      const priceInput = tr.querySelector(".item-price");
+      const deleteBtn = tr.querySelector(".delete-row-btn");
 
-      const onRowChange = () => {
+      const updateRow = () => {
         const q = parseFloat(qtyInput.value || 0);
         const p = parseFloat(priceInput.value || 0);
-        const lt = (q * p).toFixed(2);
-        tr.querySelector('.item-line-total').textContent = lt;
-        recalculateItemsTotal();
+        tr.querySelector(".item-line-total").textContent = `${(q * p).toFixed(2)} ر.س`;
+        recalcGrandTotal();
       };
 
-      qtyInput.addEventListener('input', onRowChange);
-      priceInput.addEventListener('input', onRowChange);
-      descInput.addEventListener('input', () => {
-        // Update product_name hidden field
-        updateProductSummary();
-      });
-
-      deleteBtn.addEventListener('click', () => {
-        if (itemsTbody.children.length > 1) {
+      qtyInput.addEventListener("input", updateRow);
+      priceInput.addEventListener("input", updateRow);
+      deleteBtn.addEventListener("click", () => {
+        if (itemsTbody.querySelectorAll("tr").length > 1) {
           tr.remove();
-          updateRowIndices();
-          recalculateItemsTotal();
+          reindexItemsRows();
+          recalcGrandTotal();
         } else {
-          alert('يجب الإبقاء على بند واحد على الأقل في الفاتورة.');
+          alert("يجب إبقاء بند واحد على الأقل في الفاتورة.");
         }
       });
 
       return tr;
     }
 
-    function updateRowIndices() {
-      const rows = itemsTbody.querySelectorAll('tr');
-      rows.forEach((r, idx) => {
-        const idxSpan = r.querySelector('.row-idx');
-        if (idxSpan) idxSpan.textContent = idx + 1;
+    function reindexItemsRows() {
+      itemsTbody.querySelectorAll("tr").forEach((r, i) => {
+        r.querySelector(".row-idx").textContent = i + 1;
       });
     }
 
-    function updateProductSummary() {
-      const descriptions = [];
-      itemsTbody.querySelectorAll('.item-desc').forEach(input => {
-        if (input.value.trim()) descriptions.push(input.value.trim());
-      });
-      document.getElementById('product_name').value = descriptions.join('، ');
-    }
-
-    function recalculateItemsTotal() {
+    function recalcGrandTotal() {
       let sum = 0;
-      itemsTbody.querySelectorAll('tr').forEach(r => {
-        const q = parseFloat(r.querySelector('.item-qty').value || 0);
-        const p = parseFloat(r.querySelector('.item-price').value || 0);
-        sum += (q * p);
+      itemsTbody.querySelectorAll("tr").forEach(r => {
+        const q = parseFloat(r.querySelector(".item-qty").value || 0);
+        const p = parseFloat(r.querySelector(".item-price").value || 0);
+        sum += q * p;
       });
-
       sum = parseFloat(sum.toFixed(2));
-      totalAmountInput.value = sum > 0 ? sum : '';
-      if (itemsComputedTotal) {
-        itemsComputedTotal.textContent = sum.toFixed(2) + ' ر.س';
-      }
-      updateProductSummary();
-      handleInputsChange();
+      totalAmountInput.value = sum;
+      itemsComputedTotal.textContent = `${sum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س`;
     }
 
-    function resetItemsTable(items = null) {
-      itemsTbody.innerHTML = '';
-      if (Array.isArray(items) && items.length > 0) {
-        items.forEach(it => {
-          itemsTbody.appendChild(createItemRow(it.description || '', it.quantity || 1, it.unit_price || 0));
-        });
-      } else {
-        // Baseline 1 empty row
-        itemsTbody.appendChild(createItemRow('', 1, ''));
-      }
-      updateRowIndices();
-      recalculateItemsTotal();
-    }
-
-    addItemRowBtn.addEventListener('click', () => {
-      const newRow = createItemRow('', 1, '');
-      itemsTbody.appendChild(newRow);
-      updateRowIndices();
-      const firstInput = newRow.querySelector('.item-desc');
-      if (firstInput) firstInput.focus();
+    addItemRowBtn.addEventListener("click", () => {
+      itemsTbody.appendChild(createItemRow());
+      reindexItemsRows();
     });
 
-    function handleInputsChange(e) {
-      const totalAmount = parseFloat(totalAmountInput.value || 0);
-      const driverPaid = parseFloat(driverPaidInput.value || 0);
-      const type = getSelectedSettlementType();
-
-      let reimbursementPercent = parseFloat(reimbursementPercentInput.value || 0);
-      let reimbursement = parseFloat(reimbursementInput.value || 0);
-      let debtPercent = parseFloat(debtPercentInput.value || 0);
-      let debtCharge = parseFloat(debtChargeInput.value || 0);
-
-      const targetId = e ? e.target.id : null;
-
-      if (type === "reimbursement") {
-        if (targetId === 'reimbursement_percent' && reimbursementPercent > 0) {
-          reimbursementInput.value = ((reimbursementPercent / 100) * driverPaid).toFixed(2);
-        } else if (targetId === 'reimbursement_amount' && reimbursement > 0) {
-          reimbursementPercentInput.value = driverPaid > 0 ? ((reimbursement / driverPaid) * 100).toFixed(1) : "0";
-        }
-      } else if (type === "debt") {
-        if (targetId === 'debt_percent' && debtPercent > 0) {
-          debtChargeInput.value = ((debtPercent / 100) * totalAmount).toFixed(2);
-        } else if (targetId === 'debt_charge_amount' && debtCharge > 0) {
-          debtPercentInput.value = totalAmount > 0 ? ((debtCharge / totalAmount) * 100).toFixed(1) : "0";
-        }
-      }
-
-      reimbursement = parseFloat(reimbursementInput.value || 0);
-      debtCharge = parseFloat(debtChargeInput.value || 0);
-
-      summaryContainer.classList.add("hidden");
-      if (type === "debt" && debtCharge > 0) {
-        summaryText.textContent = "تنبيه: سيتم قيد دين مباشر على حساب السائق بقيمة:";
-        summaryVal.textContent = debtCharge.toFixed(2);
-        summaryContainer.className = "col-span-1 md:col-span-2 lg:col-span-3 bg-red-50 border-red-200 text-red-700 p-4 rounded-xl block";
-      } else if (type === "reimbursement" && driverPaid > 0 && driverPaid > reimbursement) {
-        const diff = driverPaid - reimbursement;
-        summaryText.textContent = "المبلغ المتبقي المعلق (مستحق كتعويض لاحق للسائق):";
-        summaryVal.textContent = diff.toFixed(2);
-        summaryContainer.className = "col-span-1 md:col-span-2 lg:col-span-3 bg-emerald-50 border-emerald-200 text-emerald-700 p-4 rounded-xl block";
-      }
-    }
-
-    driverPaidInput.addEventListener("input", handleInputsChange);
-    reimbursementPercentInput.addEventListener("input", handleInputsChange);
-    reimbursementInput.addEventListener("input", handleInputsChange);
-    debtPercentInput.addEventListener("input", handleInputsChange);
-    debtChargeInput.addEventListener("input", handleInputsChange);
-
-    document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
-
-    let editingPurchaseId = null;
-    let allPurchases = [];
-    const formTitle = document.getElementById("form-title");
-    const submitFormBtn = document.getElementById("submit-form-btn");
-
-    function resetFormState() {
-      editingPurchaseId = null;
-      if (formTitle) formTitle.textContent = "تسجيل فاتورة مشتريات جديدة";
-      if (submitFormBtn) submitFormBtn.textContent = "حفظ الفاتورة";
-      purchaseForm.reset();
-      document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
-      if (vendorNameInput) vendorNameInput.value = "";
-      if (invoiceNumberInput) invoiceNumberInput.value = "";
-      resetItemsTable();
-      toggleSections();
-    }
-
+    // Form open/hide
     showFormBtn.addEventListener("click", () => {
-      resetFormState();
+      editingPurchaseId = null;
+      purchaseForm.reset();
+      formTitle.textContent = "تسجيل فاتورة مشتريات / مصروف جديد";
+      document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
+      itemsTbody.innerHTML = "";
+      itemsTbody.appendChild(createItemRow());
+      reindexItemsRows();
+      recalcGrandTotal();
+      document.getElementById("cat-company").checked = true;
+      handleCategoryChange();
       addPurchaseForm.classList.remove("hidden");
-      showFormBtn.classList.add("hidden");
+      addPurchaseForm.scrollIntoView({ behavior: 'smooth' });
     });
 
-    cancelFormBtn.addEventListener("click", () => {
+    const hideForm = () => {
       addPurchaseForm.classList.add("hidden");
-      showFormBtn.classList.remove("hidden");
-      resetFormState();
-    });
+      editingPurchaseId = null;
+      purchaseForm.reset();
+    };
+    cancelFormBtn.addEventListener("click", hideForm);
+    cancelFormBtnTop.addEventListener("click", hideForm);
 
+    // Load data
     async function loadData() {
       try {
-        const driversRes = await fetch(API_DRIVERS);
-        const drivers = await driversRes.json();
-        driverSelect.innerHTML = `<option value="">-- اختر السائق --</option>` +
-          drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+        const [purchasesRes, driversRes, carsRes] = await Promise.all([
+          fetch(API_PURCHASES),
+          fetch(API_DRIVERS),
+          fetch(API_CARS)
+        ]);
 
-        const carsRes = await fetch(API_CARS);
-        const cars = await carsRes.json();
-        carSelect.innerHTML = `<option value="">-- اختر السيارة --</option>` +
-          cars.map(c => `<option value="${c.id}">${c.plate_number} - ${c.company} ${c.model}</option>`).join('');
+        allPurchases = await purchasesRes.json();
+        allDrivers = await driversRes.json();
+        allCars = await carsRes.json();
 
-        const purchasesRes = await fetch(API_PURCHASES);
-        const purchases = await purchasesRes.json();
-        allPurchases = purchases;
+        // Populate selects
+        driverSelect.innerHTML = '<option value="">-- (بدون سائق - مصروف عام للمؤسسة) --</option>' +
+          allDrivers.map(d => `<option value="${d.id}">${d.name} (${d.phone || d.national_id || ''})</option>`).join('');
 
-        if (purchases.length === 0) {
-          tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-gray-500 italic">لا توجد فواتير مشتريات مسجلة</td></tr>`;
-          return;
-        }
+        carSelect.innerHTML = '<option value="">-- (بدون سيارة - مصروف عام للمؤسسة) --</option>' +
+          allCars.map(c => `<option value="${c.id}">${c.plate_number} - ${c.company} ${c.model}</option>`).join('');
 
-        tableBody.innerHTML = purchases.map(p => {
-          const itemsBadge = p.items && p.items.length > 1
-            ? `<span class="inline-flex items-center gap-1 bg-teal-50 text-teal-700 text-[10px] font-black px-2 py-0.5 rounded-md border border-teal-200 mr-1.5" title="${p.items.map(it => `${it.description} (${it.quantity}×${it.unit_price})`).join(' | ')}">
-                📦 ${p.items.length} بنود
-               </span>`
-            : '';
-
-          return `
-            <tr class="hover:bg-slate-50 transition-colors text-sm">
-              <td class="p-4 font-bold text-slate-900">${p.driver_name || 'غير معروف'}</td>
-              <td class="p-4 text-slate-600">${p.plate_number || 'غير معروف'}</td>
-              <td class="p-4 text-slate-600 font-mono text-xs">${p.invoice_date}</td>
-              <td class="p-4 font-medium text-slate-800">
-                <div class="flex items-center">
-                  <span>${p.product_name || 'بدون بيان'}</span>
-                  ${itemsBadge}
-                </div>
-                ${p.vendor_name ? `<div class="text-[11px] text-slate-400 mt-0.5">المورد: ${p.vendor_name}</div>` : ''}
-              </td>
-              <td class="p-4 text-center font-mono font-black text-slate-800">${parseFloat(p.grand_total || p.total_amount || 0).toFixed(2)} ر.س</td>
-              <td class="p-4 text-center font-mono font-bold text-slate-600">${parseFloat(p.driver_paid_amount || 0).toFixed(2)} ر.س</td>
-              <td class="p-4 text-center font-mono font-bold text-emerald-600">${parseFloat(p.reimbursement_amount || 0).toFixed(2)} ر.س</td>
-              <td class="p-4 text-center font-mono font-bold text-red-500">${parseFloat(p.debt_charge_amount || 0).toFixed(2)} ر.س</td>
-              <td class="p-4 text-center">
-                <div class="flex justify-center items-center gap-3">
-                  <button onclick="editPurchase(${p.id})" class="text-amber-600 hover:text-amber-800 font-bold hover:underline cursor-pointer">تعديل</button>
-                  <button onclick="deletePurchase(${p.id})" class="text-red-500 hover:text-red-700 font-bold hover:underline cursor-pointer">حذف</button>
-                </div>
-              </td>
-            </tr>
-          `;
-        }).join('');
-      } catch (error) {
-        console.error("Error loading data:", error);
-        tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
+        renderTable();
+      } catch (err) {
+        console.error("Error loading purchases data:", err);
+        tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-rose-500 font-bold">حدث خطأ أثناء تحميل بيانات المصاريف</td></tr>`;
       }
     }
 
-    window.editPurchase = function(id) {
+    function renderTable() {
+      const query = (searchInput.value || "").trim().toLowerCase();
+      const catFilter = filterCategorySelect.value;
+
+      const filtered = allPurchases.filter(p => {
+        const isCompany = p.expense_category === 'company' || (!p.driver_id && !p.car_id);
+        if (catFilter === 'company' && !isCompany) return false;
+        if (catFilter === 'driver' && isCompany) return false;
+
+        if (!query) return true;
+        const driverMatch = (p.driver_name || "").toLowerCase().includes(query);
+        const carMatch = (p.plate_number || "").toLowerCase().includes(query);
+        const vendorMatch = (p.vendor_name || "").toLowerCase().includes(query);
+        const descMatch = (p.product_name || "").toLowerCase().includes(query);
+        const invNumMatch = (p.invoice_number || "").toLowerCase().includes(query);
+        return driverMatch || carMatch || vendorMatch || descMatch || invNumMatch;
+      });
+
+      purchasesCountBadge.textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        tableBody.innerHTML = `<tr><td colSpan="9" class="text-center p-8 text-slate-400 font-bold">لا توجد فواتير أو مصاريف مطابقة</td></tr>`;
+        return;
+      }
+
+      const canEdit = window.MasaratRBAC ? window.MasaratRBAC.hasPermission('edit') : true;
+      const canDelete = window.MasaratRBAC ? window.MasaratRBAC.hasPermission('delete') : true;
+
+      tableBody.innerHTML = filtered.map((p, index) => {
+        const autoIndex = index + 1; // Auto-indexing
+        const isCompany = p.expense_category === 'company' || (!p.driver_id && !p.car_id);
+
+        const typeBadge = isCompany
+          ? `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1 rounded-full text-xs font-black">🏢 مصروف عام</span>`
+          : `<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-bold">🚕 تشغيل سائق</span>`;
+
+        const driverCell = isCompany
+          ? `<span class="font-bold text-amber-900 text-xs">مصروف مؤسسة عام</span>`
+          : `<span class="font-bold text-slate-800">${p.driver_name || 'سائق'}</span>`;
+
+        const carCell = p.plate_number && p.plate_number !== '—'
+          ? `<span class="font-mono font-bold text-xs bg-slate-100 px-2 py-0.5 rounded">${p.plate_number}</span>`
+          : `<span class="text-slate-400">—</span>`;
+
+        const grandTotalFormatted = Number(p.total_amount || p.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        let settlementSummary = '<span class="text-xs text-slate-500 font-medium">سداد مؤسسة مباشر</span>';
+        if (!isCompany) {
+          if (p.reimbursement_amount > 0) {
+            settlementSummary = `<span class="text-xs text-emerald-700 font-bold">تعويض: ${Number(p.reimbursement_amount).toLocaleString()} ر.س</span>`;
+          } else if (p.debt_charge_amount > 0) {
+            settlementSummary = `<span class="text-xs text-rose-700 font-bold">دين: ${Number(p.debt_charge_amount).toLocaleString()} ر.س</span>`;
+          }
+        }
+
+        return `
+          <tr class="border-b border-slate-100 hover:bg-amber-50/30 transition-colors">
+            <td class="p-4 text-center font-mono font-bold text-slate-500 bg-slate-50/50">${autoIndex}</td>
+            <td class="p-4">${typeBadge}</td>
+            <td class="p-4">${driverCell}</td>
+            <td class="p-4 text-center">${carCell}</td>
+            <td class="p-4 text-center font-medium text-slate-600 text-xs">${p.invoice_date || '--'}</td>
+            <td class="p-4 max-w-xs truncate text-xs" title="${p.product_name || ''}">
+              <span class="font-bold text-slate-800">${p.product_name || 'فاتورة مشتريات'}</span>
+              ${p.vendor_name ? `<span class="block text-[11px] text-slate-400 mt-0.5">المورد: ${p.vendor_name}</span>` : ''}
+            </td>
+            <td class="p-4 text-center font-mono font-black text-slate-900">${grandTotalFormatted} <span class="text-xs font-normal text-slate-400">ر.س</span></td>
+            <td class="p-4 text-center">${settlementSummary}</td>
+            <td class="p-4 text-center">
+              <div class="flex items-center justify-center gap-2">
+                <button onclick="editPurchase(${p.id})" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-xs font-bold transition-all ${!canEdit ? 'hidden' : ''}">
+                  تعديل
+                </button>
+                <button onclick="deletePurchase(${p.id})" class="bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-1 rounded-lg text-xs font-bold transition-all ${!canDelete ? 'hidden' : ''}">
+                  حذف
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (window.MasaratRBAC) window.MasaratRBAC.applyGuards();
+    }
+
+    searchInput.addEventListener("input", renderTable);
+    filterCategorySelect.addEventListener("change", renderTable);
+
+    // Edit purchase
+    window.editPurchase = async function(id) {
       const p = allPurchases.find(item => item.id === id);
       if (!p) return;
 
       editingPurchaseId = id;
-      if (formTitle) formTitle.textContent = "تعديل فاتورة مشتريات متعددة البنود";
-      if (submitFormBtn) submitFormBtn.textContent = "حفظ التعديلات";
+      formTitle.textContent = `تعديل فاتورة المصروف (${p.invoice_number || 'PINV-' + id})`;
+
+      const isCompany = p.expense_category === 'company' || (!p.driver_id && !p.car_id);
+      if (isCompany) {
+        document.getElementById("cat-company").checked = true;
+      } else {
+        document.getElementById("cat-driver").checked = true;
+      }
+      handleCategoryChange();
 
       driverSelect.value = p.driver_id || "";
       carSelect.value = p.car_id || "";
-      document.getElementById("invoice_date").value = p.invoice_date || new Date().toISOString().split("T")[0];
-      if (vendorNameInput) vendorNameInput.value = p.vendor_name || "";
-      if (invoiceNumberInput) invoiceNumberInput.value = p.invoice_number || "";
+      document.getElementById("invoice_date").value = p.invoice_date || "";
+      vendorNameInput.value = p.vendor_name || "";
+      invoiceNumberInput.value = p.invoice_number || "";
+
       driverPaidInput.value = p.driver_paid_amount || 0;
+      reimbursementInput.value = p.reimbursement_amount || 0;
+      debtChargeInput.value = p.debt_charge_amount || 0;
 
-      // Populate items table
-      if (p.items && p.items.length > 0) {
-        resetItemsTable(p.items);
+      // Populate items
+      itemsTbody.innerHTML = "";
+      if (Array.isArray(p.items) && p.items.length > 0) {
+        p.items.forEach(it => {
+          itemsTbody.appendChild(createItemRow(it.description, it.quantity, it.unit_price));
+        });
       } else {
-        resetItemsTable([{
-          description: p.product_name || 'بند مشتريات',
-          quantity: 1,
-          unit_price: parseFloat(p.total_amount || 0)
-        }]);
+        itemsTbody.appendChild(createItemRow(p.product_name || "بند مشتريات رئيسي", 1, p.total_amount || 0));
       }
 
-      const debtAmount = parseFloat(p.debt_charge_amount || 0);
-      if (debtAmount > 0) {
-        const radioDebt = document.querySelector('input[name="settlement_type"][value="debt"]');
-        if (radioDebt) radioDebt.checked = true;
-        debtChargeInput.value = debtAmount;
-        reimbursementInput.value = 0;
-      } else {
-        const radioReimb = document.querySelector('input[name="settlement_type"][value="reimbursement"]');
-        if (radioReimb) radioReimb.checked = true;
-        reimbursementInput.value = parseFloat(p.reimbursement_amount || 0);
-        debtChargeInput.value = 0;
-      }
+      reindexItemsRows();
+      recalcGrandTotal();
 
-      toggleSections();
       addPurchaseForm.classList.remove("hidden");
-      showFormBtn.classList.add("hidden");
       addPurchaseForm.scrollIntoView({ behavior: 'smooth' });
     };
 
-    async function deletePurchase(id) {
-      if (confirm("هل أنت متأكد من حذف فاتورة المشتريات هذه وكافة بنودها؟")) {
+    // Delete purchase
+    window.deletePurchase = async function(id) {
+      if (confirm("هل أنت متأكد من حذف فاتورة المصاريف هذه نهائياً؟")) {
         try {
           const res = await fetch(`${API_PURCHASES}/${id}`, { method: "DELETE" });
           if (res.ok) {
             loadData();
           } else {
-            const err = await res.json();
-            alert("فشل الحذف: " + (err.error || "خطأ"));
+            const data = await res.json();
+            alert("فشل الحذف: " + (data.error || "خطأ غير معروف"));
           }
-        } catch (error) {
-          console.error("Error deleting purchase:", error);
-          alert("حدث خطأ أثناء الحذف");
+        } catch (err) {
+          console.error("Error deleting purchase:", err);
+          alert("حدث خطأ أثناء الاتصال بالخادم");
         }
       }
-    }
+    };
 
+    // Form submit
     purchaseForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
@@ -625,62 +654,49 @@
       const itemRows = itemsTbody.querySelectorAll('tr');
       const items = [];
       itemRows.forEach(r => {
-        const descInput = r.querySelector('.item-desc');
-        const qtyInput = r.querySelector('.item-qty');
-        const priceInput = r.querySelector('.item-price');
-        if (descInput && priceInput) {
-          const desc = descInput.value.trim();
-          const qty = parseFloat(qtyInput.value || 1);
-          const price = parseFloat(priceInput.value || 0);
-          if (desc || price > 0) {
-            items.push({
-              description: desc || 'بند مشتريات',
-              quantity: qty,
-              unit_price: price,
-              line_total: parseFloat((qty * price).toFixed(2))
-            });
-          }
+        const desc = r.querySelector('.item-desc').value.trim();
+        const qty = parseFloat(r.querySelector('.item-qty').value || 1);
+        const price = parseFloat(r.querySelector('.item-price').value || 0);
+        if (desc || price > 0) {
+          items.push({
+            description: desc || 'بند مشتريات',
+            quantity: qty,
+            unit_price: price,
+            line_total: parseFloat((qty * price).toFixed(2))
+          });
         }
       });
 
       if (items.length === 0) {
-        alert("يرجى إضافة بند واحد على الأقل للفاتورة مع تحديد السعر والبيان.");
+        alert("يرجى إضافة بند واحد على الأقل مع تحديد السعر والبيان.");
         return;
       }
 
       const totalAmount = parseFloat(totalAmountInput.value || 0);
-      const driverPaid = parseFloat(driverPaidInput.value || 0);
-      const reimbursement = parseFloat(reimbursementInput.value || 0);
-      const debtCharge = parseFloat(debtChargeInput.value || 0);
-
       if (totalAmount <= 0) {
-        alert("خطأ: إجمالي الفاتورة يجب أن يكون أكبر من الصفر.");
+        alert("إجمالي الفاتورة يجب أن يكون أكبر من الصفر.");
         return;
       }
 
-      if ((driverPaid + debtCharge) > totalAmount + 0.01) {
-        alert("خطأ: مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.");
-        return;
-      }
+      const isCompanyExpense = document.querySelector('input[name="expense_category"]:checked').value === 'company';
+      const driverPaid = isCompanyExpense ? 0 : parseFloat(driverPaidInput.value || 0);
+      const reimbursement = isCompanyExpense ? 0 : parseFloat(reimbursementInput.value || 0);
+      const debtCharge = isCompanyExpense ? 0 : parseFloat(debtChargeInput.value || 0);
 
-      if (reimbursement > driverPaid + 0.01) {
-        alert("خطأ: لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.");
-        return;
-      }
-
-      const data = {
-        driver_id: parseInt(driverSelect.value),
-        car_id: parseInt(carSelect.value),
+      const payload = {
+        expense_category: isCompanyExpense ? 'company' : 'driver',
+        driver_id: driverSelect.value ? parseInt(driverSelect.value) : null,
+        car_id: carSelect.value ? parseInt(carSelect.value) : null,
         invoice_date: document.getElementById("invoice_date").value,
-        vendor_name: vendorNameInput ? vendorNameInput.value.trim() : '',
-        invoice_number: invoiceNumberInput ? invoiceNumberInput.value.trim() : '',
-        items: items,
+        vendor_name: vendorNameInput.value.trim(),
+        invoice_number: invoiceNumberInput.value.trim(),
+        items,
         total_amount: totalAmount,
         grand_total: totalAmount,
         driver_paid_amount: driverPaid,
         reimbursement_amount: reimbursement,
         debt_charge_amount: debtCharge,
-        settlement_type: getSelectedSettlementType()
+        settlement_type: isCompanyExpense ? 'company_expense' : (debtCharge > 0 ? 'debt' : 'reimbursement')
       };
 
       const isEdit = editingPurchaseId !== null;
@@ -688,33 +704,31 @@
       const targetMethod = isEdit ? "PUT" : "POST";
 
       try {
-        const response = await fetch(targetUrl, {
+        const res = await fetch(targetUrl, {
           method: targetMethod,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
+          body: JSON.stringify(payload)
         });
 
-        if (response.ok) {
-          alert(isEdit ? "تم تحديث فاتورة المشتريات والبنود بنجاح" : "تم تسجيل فاتورة المشتريات وبنودها بنجاح");
-          addPurchaseForm.classList.add("hidden");
-          showFormBtn.classList.remove("hidden");
-          resetFormState();
+        if (res.ok) {
+          hideForm();
           loadData();
         } else {
-          const err = await response.json();
-          alert("فشل الحفظ: " + (err.error || "خطأ غير معروف"));
+          const data = await res.json();
+          alert("فشل الحفظ: " + (data.error || "خطأ غير معروف"));
         }
-      } catch (error) {
-        console.error("Error saving purchase:", error);
+      } catch (err) {
+        console.error("Error saving purchase:", err);
         alert("حدث خطأ أثناء الاتصال بالخادم");
       }
     });
 
-    // Initialize items table with baseline row
-    resetItemsTable();
-
+    // Initial Load
+    document.getElementById("invoice_date").value = new Date().toISOString().split("T")[0];
+    itemsTbody.appendChild(createItemRow());
+    reindexItemsRows();
+    recalcGrandTotal();
     loadData();
   </script>
 </body>
-
 </html>

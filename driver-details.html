@@ -33,24 +33,32 @@
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
   <!-- Screen Layout (Hidden during printing) -->
   <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 mt-4 print:hidden" id="screen-layout">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-8">
-      <div>
-        <h1 class="text-4xl font-bold text-green-500">كشف حساب السائق الشامل</h1>
-        <p class="text-gray-500 mt-2">بيانات السائق، العقود، وكل الحركات المالية</p>
+    <!-- Header with Masarat Branding -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      <div class="flex items-center gap-4">
+        <img src="logo.png" alt="مسارات" class="h-14 w-auto object-contain">
+        <div>
+          <span class="bg-amber-100 text-amber-900 text-xs font-black px-2.5 py-0.5 rounded-full border border-amber-300">مسارات | Masarat</span>
+          <h1 class="text-3xl font-black text-slate-900 mt-1">كشف حساب السائق الشامل</h1>
+          <p class="text-slate-500 text-xs mt-1">بيانات السائق، العقود النشطة، وسجل الذمم والمسددات</p>
+        </div>
       </div>
-      <div class="space-x-4 space-x-reverse flex">
-        <button id="open-edit-btn" class="bg-yellow-600 text-white px-6 py-3 rounded-xl hover:bg-yellow-700 shadow-lg font-bold">
-          تعديل بيانات السائق
+      <div class="flex flex-wrap items-center gap-3">
+        <a id="btn-settlement-statement" href="settlements.html?tab=statement" class="bg-amber-400 hover:bg-amber-500 text-slate-950 px-4 py-2.5 rounded-xl shadow-sm font-black text-xs transition-all flex items-center gap-1.5">
+          <span>📑</span>
+          <span>كشف الحساب في التسويات</span>
+        </a>
+        <button id="open-edit-btn" data-permission="edit" class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs transition-all">
+          تعديل البيانات
         </button>
-        <button onclick="window.print()" class="bg-green-600 text-white px-6 py-3 rounded-xl hover:bg-green-700 shadow-lg font-bold">
-          طباعة الكشف
+        <button onclick="window.print()" data-permission="print" class="bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-700 shadow-md font-bold text-xs transition-all">
+          طباعة الكشف الرسمي
         </button>
-        <a id="print-all-vouchers-btn" href="#" class="bg-sky-600 text-white px-6 py-3 rounded-xl hover:bg-sky-700 shadow-lg font-bold">
+        <a id="print-all-vouchers-btn" href="#" data-permission="print" class="bg-sky-600 text-white px-4 py-2.5 rounded-xl hover:bg-sky-700 shadow-md font-bold text-xs transition-all">
           طباعة كافة السندات (A4)
         </a>
-        <a href="drivers.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
-          العودة
+        <a href="drivers.html" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl hover:bg-slate-800 shadow-md font-bold text-xs transition-all">
+          العودة للقائمة
         </a>
       </div>
     </div>
@@ -184,9 +192,12 @@
       <div style="border: 1px solid #000; flex: 1; padding: 8px 12px; display: flex; flexDirection: column; boxSizing: border-box;">
         <!-- Header -->
         <div style="display: flex; justify-content: space-between; alignItems: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
-          <div>
-            <div style="font-size: 16px; font-weight: 900;">مؤسسة أجرة لتقنية المعلومات</div>
-            <div style="font-size: 10px; color: #444;">إدارة أسطول المركبات — المملكة العربية السعودية</div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="logo.png" style="height: 48px; object-contain: contain;">
+            <div>
+              <div style="font-size: 16px; font-weight: 900;">مسارات لتقنية وتشغيل أسطول المركبات</div>
+              <div style="font-size: 10px; color: #444;">إدارة أسطول المركبات — المملكة العربية السعودية</div>
+            </div>
           </div>
           <div style="border: 2px solid #000; padding: 4px 16px; font-size: 18px; font-weight: 900; letter-spacing: 1px;">كشف حساب سائق رسمي</div>
         </div>
@@ -263,7 +274,7 @@
         <!-- Footer -->
         <div style="border-top: 1px solid #ccc; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 9px; color: #666;">
           <span>هذه الوثيقة تعتبر كشف حساب رسمي معتمد وصادر إلكترونياً</span>
-          <span id="print-footer-copyright">أجرة © 2026</span>
+          <span id="print-footer-copyright">مسارات © 2026</span>
         </div>
       </div>
     </div>
@@ -389,6 +400,8 @@
 
         // Contract Info
         const contractInfo = document.getElementById("driver-contract-info");
+        document.getElementById("btn-settlement-statement").href = `settlements.html?tab=statement&driver_id=${driver.id}`;
+
         if (driver.contracts && driver.contracts.length > 0) {
           const lastContract = driver.contracts[driver.contracts.length - 1];
           contractInfo.innerHTML = `

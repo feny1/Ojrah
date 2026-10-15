@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ojrah-win-v12';
+const CACHE_NAME = 'masarat-fleet-v2.1.0';
 const ASSETS = [
   './',
   './index.html',
@@ -26,6 +26,7 @@ const ASSETS = [
   './js/tailwind.js',
   './css/style.css',
   './manifest.json',
+  './logo.png',
   './tauri.svg'
 ];
 

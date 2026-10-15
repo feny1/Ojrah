@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>أجرة ويندوز - لوحة التحكم الشاملة</title>
+  <title>مسارات - نظام إدارة الأسطول</title>
+  <link rel="icon" type="image/png" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
@@ -27,44 +28,47 @@
   <div class="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-60 z-0"></div>
 
   <!-- Top bar -->
-  <header class="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/85 backdrop-blur-md px-4 sm:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+  <header class="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-4 shadow-sm">
     <div class="flex items-center gap-3">
-      <span class="relative flex h-3 w-3">
-        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-      </span>
-      <span class="text-base font-black text-slate-800">أجرة ويندوز</span>
-      <button onclick="openUpdateModal()" class="text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded-lg px-2.5 py-0.5 font-extrabold shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95" title="عرض تفاصيل وما الجديد في الإصدار 1.3.0">
-        <span>الإصدار 1.3.0</span>
-        <span class="text-[10px] bg-emerald-200/80 text-emerald-800 rounded px-1 font-bold">جديد ✨</span>
+      <img src="logo.png" alt="شعار مسارات" class="h-10 w-auto object-contain drop-shadow-sm">
+      <div class="flex flex-col">
+        <span class="text-xl font-black text-black tracking-wide flex items-center gap-1.5">
+          <span>مسارات</span>
+          <span class="w-2 h-2 rounded-full bg-[#F5B800] inline-block"></span>
+        </span>
+        <span class="text-[10px] text-slate-500 font-bold -mt-1">نظام إدارة أسطول المركبات</span>
+      </div>
+      <button onclick="openUpdateModal()" class="text-xs text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg px-2.5 py-0.5 font-extrabold shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 mr-2" title="عرض تفاصيل التحديث">
+        <span>الإصدار v2.1.0</span>
+        <span class="text-[10px] bg-[#F5B800] text-black rounded px-1.5 py-0.5 font-black">ما الجديد؟ ✨</span>
       </button>
-      <span class="hidden md:inline-flex items-center gap-1.5 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200/80 rounded-lg px-2.5 py-0.5 font-bold">
-        <span>📅</span> الاستحقاق الأسبوعي: الجمعة حصراً
-      </span>
     </div>
 
-    <div class="flex items-center gap-3 sm:gap-5">
+    <div class="flex items-center gap-3 sm:gap-4 flex-wrap">
+      <!-- PWA Install Button (Always visible / active prompt) -->
+      <button
+        id="pwa-install-btn"
+        class="text-xs bg-[#F5B800] hover:bg-amber-400 active:scale-95 text-black font-black px-4 py-2 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer border border-amber-400"
+        title="تثبيت نظام مسارات كأيقونة مستقلة على سطح المكتب"
+      >
+        <span class="text-base">💻</span>
+        <span>تثبيت البرنامج على الجهاز</span>
+      </button>
+
+      <!-- RBAC User Badge & Quick Switcher Mount -->
+      <div id="masarat-user-badge"></div>
+
       <!-- Quick Action: Friday Due Alignment -->
       <button
         id="sync-due-btn"
         onclick="runQuickDueAlignment()"
         title="تطهير ومواءمة الاستحقاق الأسبوعي ليوم الجمعة حصراً"
-        class="text-xs text-purple-700 bg-purple-50 hover:bg-purple-100 active:scale-95 border border-purple-200/80 rounded-xl px-3 py-1.5 font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+        class="text-xs text-slate-800 bg-slate-100 hover:bg-slate-200 active:scale-95 border border-slate-300 rounded-xl px-3 py-1.5 font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
       >
-        <span>✨</span>
+        <span>📅</span>
         <span class="hidden sm:inline">مواءمة استحقاقات الجمعة</span>
-        <span class="sm:hidden">مواءمة الجمعة</span>
+        <span class="sm:hidden">استحقاق الجمعة</span>
       </button>
-
-      <!-- Clear Cache / System Update -->
-      <a
-        href="update.html"
-        class="text-xs text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 border border-indigo-200/80 rounded-xl px-3 py-1.5 font-bold transition-all flex items-center gap-1.5 shadow-xs"
-      >
-        <span>🔄</span>
-        <span class="hidden sm:inline">تحديث النظام والكاش</span>
-        <span class="sm:hidden">تحديث</span>
-      </a>
 
       <!-- Live Clock -->
       <div class="text-right border-r border-slate-200 pr-3 sm:pr-4">
@@ -75,32 +79,41 @@
   </header>
 
   <main class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 relative z-10 mt-2">
-    <!-- Welcome Card -->
-    <div class="bg-gradient-to-l from-emerald-600 via-teal-700 to-slate-800 rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl text-white relative overflow-hidden flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 border border-emerald-500/20">
-      <div class="absolute right-0 top-0 w-80 h-80 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
-      <div class="space-y-3 relative z-10 max-w-3xl">
-        <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 px-3.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm shadow-xs">
-          <span>👑</span> لوحة الإدارة والتشغيل المركزية
+    <!-- Welcome Card with Masarat Gold & Black Identity -->
+    <div class="bg-gradient-to-l from-black via-slate-900 to-black rounded-3xl p-6 sm:p-8 md:p-10 shadow-2xl text-white relative overflow-hidden flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 border-2 border-[#F5B800]/40">
+      <div class="absolute right-0 top-0 w-96 h-96 bg-[#F5B800]/10 rounded-full blur-3xl pointer-events-none"></div>
+      
+      <div class="space-y-4 relative z-10 max-w-3xl">
+        <div class="inline-flex items-center gap-2 bg-[#F5B800]/20 border border-[#F5B800]/50 text-[#F5B800] px-4 py-1.5 rounded-full text-xs font-black backdrop-blur-sm shadow-sm">
+          <span>🚕</span> الهوية الرسمية: مسارات لإدارة الأسطول
         </div>
-        <h1 class="text-3xl sm:text-4xl font-black tracking-tight">مرحباً بك في نظام أجرة ويندوز</h1>
-        <p class="text-emerald-100/90 text-sm sm:text-base font-light leading-relaxed">
-          المنصة الشاملة لإدارة أسطول سيارات الأجرة: جدولة التوريد الأسبوعي ليوم الجمعة حصراً، إدارة التسوية العامة والمقاصات، حركة الصندوق، فترات وقوف السيارات، الفواتير متعددة البنود، وكشوفات الحسابات المباشرة دون أي فقدان للبيانات.
+        <div class="flex items-center gap-4">
+          <img src="logo.png" alt="مسارات" class="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-lg bg-white p-2 rounded-2xl">
+          <div>
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
+              مرحباً بك في نظام <span class="text-[#F5B800]">مسارات</span>
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-300 font-bold mt-1">المنصة الشاملة لإدارة وتشغيل أسطول سيارات الأجرة والنقل</p>
+          </div>
+        </div>
+        <p class="text-slate-300 text-sm sm:text-base font-normal leading-relaxed">
+          إدارة متقدمة لأسطول المركبات والسائقين بنظام الورديات، جدولة التوريد الأسبوعي ليوم الجمعة حصراً، تسجيل التسويات العامة مع ضبط الدائن والمدين، إدارة المصاريف العامة والتشغيلية، ونظام متكامل لإدارة الصلاحيات (RBAC).
         </p>
       </div>
 
       <!-- Quick Status Badges -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 relative z-10 bg-white/10 p-3 sm:p-4 rounded-2xl backdrop-blur-md border border-white/15 w-full lg:w-auto shrink-0 text-center">
-        <div class="p-2 sm:px-4 py-1.5 border-l border-white/10">
-          <span class="text-2xl font-black block" id="hero-apps-count">15</span>
-          <span class="text-xs text-emerald-100/80 font-medium">تطبيق نشط</span>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 relative z-10 bg-white/5 p-4 rounded-2xl backdrop-blur-md border border-white/10 w-full lg:w-auto shrink-0 text-center">
+        <div class="p-2 sm:px-4 py-2 border-l border-white/10">
+          <span class="text-2xl sm:text-3xl font-black block text-[#F5B800]" id="hero-apps-count">15</span>
+          <span class="text-xs text-slate-300 font-bold">تطبيق نشط</span>
         </div>
-        <div class="p-2 sm:px-4 py-1.5 sm:border-l border-white/10">
-          <span class="text-2xl font-black block text-emerald-300">الجمعة</span>
-          <span class="text-xs text-emerald-100/80 font-medium">دورة التوريد</span>
+        <div class="p-2 sm:px-4 py-2 sm:border-l border-white/10">
+          <span class="text-2xl sm:text-3xl font-black block text-amber-400">الجمعة</span>
+          <span class="text-xs text-slate-300 font-bold">دورة التوريد</span>
         </div>
-        <div class="p-2 sm:px-4 py-1.5 col-span-2 sm:col-span-1">
-          <span class="text-2xl font-black block text-teal-300">آمن 100%</span>
-          <span class="text-xs text-emerald-100/80 font-medium">حالة البيانات</span>
+        <div class="p-2 sm:px-4 py-2 col-span-2 sm:col-span-1">
+          <span class="text-2xl sm:text-3xl font-black block text-emerald-400">PWA جاهز</span>
+          <span class="text-xs text-slate-300 font-bold">تثبيت سطح المكتب</span>
         </div>
       </div>
     </div>
@@ -181,7 +194,7 @@
     <!-- Launchpad Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6" id="launchpad-grid">
       <!-- 1. Reports & Summary -->
-      <a href="summary.html" data-cat="financial" data-keywords="ملخصات تقارير ايرادات لوحة مراقبة فلتر تاريخ جمعة احصائيات" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="summary.html" data-module="dashboard" data-cat="financial" data-keywords="ملخصات تقارير ايرادات لوحة مراقبة فلتر تاريخ جمعة احصائيات" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full border border-purple-200/60">محدث v1.3</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-purple-500 to-indigo-600 text-white mb-5 shadow-lg shadow-purple-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           📊
@@ -191,7 +204,7 @@
       </a>
 
       <!-- 2. Cars Management -->
-      <a href="cars.html" data-cat="fleet" data-keywords="سيارات مركبات اسطول لوحات صيانة استهلاك" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="cars.html" data-module="cars" data-cat="fleet" data-keywords="سيارات مركبات اسطول لوحات صيانة استهلاك" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">الأسطول</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-blue-500 to-cyan-600 text-white mb-5 shadow-lg shadow-blue-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           🚗
@@ -201,7 +214,7 @@
       </a>
 
       <!-- 3. Drivers Management -->
-      <a href="drivers.html" data-cat="fleet" data-keywords="سائقين حساب سلف دفعات كشف حساب استحقاق جمعة مقاصة" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="drivers.html" data-module="drivers" data-cat="fleet" data-keywords="سائقين حساب سلف دفعات كشف حساب استحقاق جمعة مقاصة" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200/60">محدث v1.3</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-emerald-500 to-green-600 text-white mb-5 shadow-lg shadow-emerald-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           👨‍✈️
@@ -211,7 +224,7 @@
       </a>
 
       <!-- 4. Operating Contracts -->
-      <a href="contracts.html" data-cat="fleet" data-keywords="عقود تشغيل التزامات استحقاق اسبوعي ترحيل دورة" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="contracts.html" data-module="contracts" data-cat="fleet" data-keywords="عقود تشغيل التزامات استحقاق اسبوعي ترحيل دورة" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200/60">استحقاق الجمعة</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-indigo-500 to-violet-600 text-white mb-5 shadow-lg shadow-indigo-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           📝
@@ -221,7 +234,7 @@
       </a>
 
       <!-- 5. General Settlements (NEW) -->
-      <a href="settlements.html" data-cat="financial" data-keywords="تسوية عامة تسويات مقاصة رصيد تعديل مكافأة خصم دائن مدين" class="app-card group relative bg-white rounded-3xl p-6 border border-indigo-200/80 shadow-xs hover:shadow-xl hover:border-indigo-500/50 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden ring-1 ring-indigo-500/10">
+      <a href="settlements.html" data-module="settlements" data-cat="financial" data-keywords="تسوية عامة تسويات مقاصة رصيد تعديل مكافأة خصم دائن مدين" class="app-card group relative bg-white rounded-3xl p-6 border border-indigo-200/80 shadow-xs hover:shadow-xl hover:border-indigo-500/50 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden ring-1 ring-indigo-500/10">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-indigo-600 text-white px-2.5 py-0.5 rounded-full shadow-xs">جديد v1.3</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-indigo-600 to-purple-600 text-white mb-5 shadow-lg shadow-indigo-500/30 group-hover:scale-110 group-hover:rotate-3 transition-all">
           ⚖️
@@ -231,7 +244,7 @@
       </a>
 
       <!-- 6. Vehicle Downtime (NEW) -->
-      <a href="downtime.html" data-cat="fleet" data-keywords="وقوف توقف خصم أيام معطلة عطل صيانة سيارة سائق" class="app-card group relative bg-white rounded-3xl p-6 border border-orange-200/80 shadow-xs hover:shadow-xl hover:border-orange-500/50 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden ring-1 ring-orange-500/10">
+      <a href="downtime.html" data-module="downtime" data-cat="fleet" data-keywords="وقوف توقف خصم أيام معطلة عطل صيانة سيارة سائق" class="app-card group relative bg-white rounded-3xl p-6 border border-orange-200/80 shadow-xs hover:shadow-xl hover:border-orange-500/50 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden ring-1 ring-orange-500/10">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-orange-500 text-white px-2.5 py-0.5 rounded-full shadow-xs">جديد v1.3</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-orange-500 to-amber-600 text-white mb-5 shadow-lg shadow-orange-500/30 group-hover:scale-110 group-hover:rotate-3 transition-all">
           ⏸️
@@ -241,7 +254,7 @@
       </a>
 
       <!-- 7. Treasury Movement (NEW) -->
-      <a href="treasury.html" data-cat="financial" data-keywords="صندوق خزينة تسوية وارد منصرف تقرير حركة كاش شبكة" class="app-card group relative bg-white rounded-3xl p-6 border border-violet-200/80 shadow-xs hover:shadow-xl hover:border-violet-500/50 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden ring-1 ring-violet-500/10">
+      <a href="treasury.html" data-module="treasury" data-cat="financial" data-keywords="صندوق خزينة تسوية وارد منصرف تقرير حركة كاش شبكة" class="app-card group relative bg-white rounded-3xl p-6 border border-violet-200/80 shadow-xs hover:shadow-xl hover:border-violet-500/50 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden ring-1 ring-violet-500/10">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-violet-600 text-white px-2.5 py-0.5 rounded-full shadow-xs">جديد v1.3</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-violet-600 to-purple-600 text-white mb-5 shadow-lg shadow-violet-500/30 group-hover:scale-110 group-hover:rotate-3 transition-all">
           🏦
@@ -251,7 +264,7 @@
       </a>
 
       <!-- 8. Maintenance Schedule -->
-      <a href="maintenance.html" data-cat="fleet" data-keywords="صيانة زيوت فلاتر اعطال ورشة قطع غيار" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="maintenance.html" data-module="maintenance" data-cat="fleet" data-keywords="صيانة زيوت فلاتر اعطال ورشة قطع غيار" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">صيانة</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-rose-500 to-red-600 text-white mb-5 shadow-lg shadow-rose-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           🔧
@@ -261,7 +274,7 @@
       </a>
 
       <!-- 9. Traffic Violations -->
-      <a href="violations.html" data-cat="financial" data-keywords="مخالفات مرور غرامات ساهر تسديد تسوية" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="violations.html" data-module="violations" data-cat="financial" data-keywords="مخالفات مرور غرامات ساهر تسديد تسوية" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">مخالفات</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-amber-500 to-orange-600 text-white mb-5 shadow-lg shadow-amber-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           ⚠️
@@ -271,7 +284,7 @@
       </a>
 
       <!-- 10. Financial Vouchers -->
-      <a href="vouchers.html" data-cat="financial" data-keywords="سندات قبض صرف مالي سداد كاش شبكة تامين" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="vouchers.html" data-module="vouchers" data-cat="financial" data-keywords="سندات قبض صرف مالي سداد كاش شبكة تامين" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-sky-50 text-sky-700 px-2 py-0.5 rounded-full border border-sky-200/60">سندات</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-sky-500 to-blue-600 text-white mb-5 shadow-lg shadow-sky-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           💵
@@ -281,7 +294,7 @@
       </a>
 
       <!-- 11. Tax Invoices -->
-      <a href="invoices.html" data-cat="financial" data-keywords="فواتير ضريبية ضريبة مبيعات بنود متعددة اصناف" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="invoices.html" data-module="invoices" data-cat="financial" data-keywords="فواتير ضريبية ضريبة مبيعات بنود متعددة اصناف" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200/60">متعدد البنود</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-amber-500 to-yellow-600 text-white mb-5 shadow-lg shadow-amber-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           🧾
@@ -291,7 +304,7 @@
       </a>
 
       <!-- 12. Debts & Claims -->
-      <a href="debts.html" data-cat="financial" data-keywords="ديون مديونيات ذمم مطالبة ارصدة متراكمة" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="debts.html" data-module="reports" data-cat="financial" data-keywords="ديون مديونيات ذمم مطالبة ارصدة متراكمة" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">المالية</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-red-500 to-rose-600 text-white mb-5 shadow-lg shadow-red-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           📉
@@ -301,7 +314,7 @@
       </a>
 
       <!-- 13. Purchases Program -->
-      <a href="purchases.html" data-cat="financial" data-keywords="مشتريات فواتير سائقين ديون تعويض اصناف متعددة مقاصة" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="purchases.html" data-module="purchases" data-cat="financial" data-keywords="مشتريات فواتير سائقين ديون تعويض اصناف متعددة مقاصة" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full border border-teal-200/60">متعدد الأصناف</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-teal-500 to-emerald-600 text-white mb-5 shadow-lg shadow-teal-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           🛒
@@ -311,7 +324,7 @@
       </a>
 
       <!-- 14. Settings -->
-      <a href="settings.html" data-cat="system" data-keywords="إعدادات نظام نسخة احتياطية ضريبة استرجاع قاعدة بيانات" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="settings.html" data-module="settings" data-cat="system" data-keywords="إعدادات نظام نسخة احتياطية ضريبة استرجاع قاعدة بيانات" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/40">إعدادات</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-slate-600 to-slate-800 text-white mb-5 shadow-lg shadow-slate-600/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           ⚙️
@@ -321,7 +334,7 @@
       </a>
 
       <!-- 15. System Update -->
-      <a href="update.html" data-cat="system" data-keywords="تحديث نظام كاش مسح اصلاح اصدار" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
+      <a href="update.html" data-module="settings" data-cat="system" data-keywords="تحديث نظام كاش مسح اصلاح اصدار" class="app-card group relative bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-xl hover:border-emerald-500/30 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center text-center overflow-hidden">
         <span class="absolute top-4 left-4 text-[10px] font-extrabold bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full border border-rose-200/60">النظام</span>
         <div class="w-16 h-16 rounded-[22px] flex items-center justify-center bg-gradient-to-tr from-rose-500 to-pink-600 text-white mb-5 shadow-lg shadow-rose-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all">
           🔄
@@ -340,25 +353,39 @@
         مسح نص البحث وإظهار كل التطبيقات
       </button>
     </div>
+    <!-- Footer with Masarat Branding & Version Info -->
+    <footer class="mt-12 pt-6 pb-4 border-t border-slate-200 text-center text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-3">
+      <div class="flex items-center gap-2 font-bold text-slate-700">
+        <img src="logo.png" alt="مسارات" class="h-6 w-auto object-contain">
+        <span>نظام مسارات لإدارة وتشغيل أسطول المركبات</span>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap justify-center">
+        <button onclick="openUpdateModal()" class="text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1 rounded-lg font-bold flex items-center gap-1.5 transition-all text-xs cursor-pointer">
+          <span>🚀 الإصدار v2.1.0</span>
+          <span class="text-[10px] bg-[#F5B800] text-black px-1.5 py-0.5 rounded font-black">ما الجديد؟</span>
+        </button>
+        <a href="update.html" class="hover:text-amber-700 transition-colors font-bold text-xs">تحديث الكاش والخدمات</a>
+        <span class="text-slate-300">|</span>
+        <span>جميع الحقوق محفوظة © 2026 مسارات (Masarat)</span>
+      </div>
+    </footer>
   </main>
 
-  <!-- New Update Explanation Modal (v1.3.0) -->
+  <!-- Masarat Update Explanation Modal (v2.1.0) -->
   <div id="update-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
-    <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col" id="update-modal-content">
+    <div class="bg-white rounded-3xl max-w-3xl w-full shadow-2xl border border-slate-100 overflow-hidden transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col" id="update-modal-content">
       
       <!-- Modal Header -->
-      <div class="bg-gradient-to-l from-emerald-600 via-teal-700 to-slate-900 text-white p-6 sm:p-7 relative overflow-hidden shrink-0">
-        <div class="absolute -right-10 -top-10 w-44 h-44 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+      <div class="bg-gradient-to-l from-black via-slate-900 to-black text-white p-6 sm:p-7 relative overflow-hidden shrink-0 border-b-2 border-masarat-gold/50">
+        <div class="absolute -right-10 -top-10 w-44 h-44 bg-masarat-gold/15 rounded-full blur-2xl pointer-events-none"></div>
         <div class="flex items-center justify-between relative z-10">
           <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center text-2xl shadow-inner border border-white/20">
-              🚀
-            </div>
+            <img src="logo.png" alt="مسارات" class="w-12 h-12 object-contain bg-white/10 p-1.5 rounded-2xl border border-white/20">
             <div>
-              <div class="inline-flex items-center gap-1.5 bg-emerald-500/30 border border-emerald-300/30 text-emerald-200 text-[11px] px-2.5 py-0.5 rounded-full font-bold mb-1">
-                تحديث شامل جديد • الإصدار v1.3.0
+              <div class="inline-flex items-center gap-1.5 bg-masarat-gold/20 border border-masarat-gold/40 text-masarat-gold text-[11px] px-2.5 py-0.5 rounded-full font-black mb-1">
+                تحديث رئيسي شامل • الإصدار v2.1.0
               </div>
-              <h2 class="text-xl sm:text-2xl font-black">ما الجديد في تحديث النظام؟</h2>
+              <h2 class="text-xl sm:text-2xl font-black text-white">ما الجديد في تحديث نظام "مسارات"؟</h2>
             </div>
           </div>
           <button onclick="closeUpdateModal()" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-lg transition-colors cursor-pointer border border-white/10" title="إغلاق">
@@ -367,85 +394,101 @@
         </div>
       </div>
 
-      <!-- Modal Body (Scrollable) -->
+      <!-- Modal Body (Scrollable Changelog List) -->
       <div class="p-6 sm:p-7 space-y-4 overflow-y-auto text-slate-700 text-sm leading-relaxed divide-y divide-slate-100">
         
-        <!-- Feature 1: Friday Due Alignment & Pre-contract purge -->
+        <!-- Feature 1: Desktop PWA & Branding -->
         <div class="pt-3 first:pt-0 flex items-start gap-4">
-          <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shrink-0 font-bold border border-purple-100">
-            📅
+          <div class="w-11 h-11 rounded-2xl bg-amber-50 text-masarat-gold flex items-center justify-center text-2xl shrink-0 font-bold border border-amber-200">
+            💻
           </div>
           <div class="space-y-1">
             <div class="flex items-center gap-2">
-              <h3 class="font-black text-slate-800 text-base">جدولة الاستحقاق الأسبوعي (يوم الجمعة حصراً)</h3>
-              <span class="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-2 py-0.5 rounded-md">إصلاح وتطهير</span>
+              <h3 class="font-black text-slate-900 text-base">تطبيق سطح المكتب والهوية البصرية الرسمية</h3>
+              <span class="bg-amber-100 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-md">هوية جديدة</span>
             </div>
             <p class="text-slate-500 text-xs sm:text-sm">
-              تم تطهير وحذف أي استحقاقات سابقة لتاريخ بدء العقد (مثل سجل 2023-01-31)، وضبط مواعيد الاستحقاقات الدورية لتكون يوم الجمعة حصراً، مع تسلسل الأسابيع بدءاً من الأسبوع 1 وإعادة احتساب الرصيد التراكمي بدقة تامة.
+              اعتماد الاسم الرسمي "مسارات" (Masarat) مع الألوان الأساسية: الأصفر الذهبي (<code class="font-mono text-amber-800">#F5B800</code>) والأسود، مع دعم كامل لتثبيت النظام كبرنامج مستقل (Installable PWA) بأيقونة ثابتة على سطح المكتب مع العمل دون انقطاع.
             </p>
           </div>
         </div>
 
-        <!-- Feature 2: General Settlements -->
+        <!-- Feature 2: RBAC Users & Permissions -->
         <div class="pt-4 flex items-start gap-4">
-          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0 font-bold border border-indigo-100">
+          <div class="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl shrink-0 font-bold border border-indigo-100">
+            🛡️
+          </div>
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <h3 class="font-black text-slate-900 text-base">نظام إدارة المستخدمين والصلاحيات (RBAC)</h3>
+              <span class="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2 py-0.5 rounded-md">أمان ورقابة</span>
+            </div>
+            <p class="text-slate-500 text-xs sm:text-sm">
+              شاشة متكاملة في الإعدادات لإدارة حسابات الموظفين وتحديد الأدوار (مدير نظام، محاسب عام، مشرف/مدخل بيانات) أو تخصيص صلاحيات دقيقة (عرض، إضافة، تعديل، حذف، طباعة، تسويات) مع تطبيق حراس أمنيين على الواجهة والعمليات.
+            </p>
+          </div>
+        </div>
+
+        <!-- Feature 3: Drivers & Cars Auto-Indexing & Live Search & Print -->
+        <div class="pt-4 flex items-start gap-4">
+          <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl shrink-0 font-bold border border-emerald-100">
+            📋
+          </div>
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <h3 class="font-black text-slate-900 text-base">تطوير قوائم السائقين والمركبات والبحث الفوري والطباعة</h3>
+              <span class="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded-md">كفاءة تشغيلية</span>
+            </div>
+            <p class="text-slate-500 text-xs sm:text-sm">
+              إضافة عمود ترقيم تسلسلي تلقائي (<code class="font-mono text-emerald-800">#</code>) يتحدث ديناميكياً مع البحث، شريط بحث فوري فائق السرعة، وزر طباعة كشف منسق بحجم A4 يحتوي ترويسة بشعار واسم "مسارات" والجدول المفلتر جاهزاً للاعتماد.
+            </p>
+          </div>
+        </div>
+
+        <!-- Feature 4: Multi-Driver Assignment -->
+        <div class="pt-4 flex items-start gap-4">
+          <div class="w-11 h-11 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-2xl shrink-0 font-bold border border-sky-100">
+            👥
+          </div>
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <h3 class="font-black text-slate-900 text-base">تعدد السائقين على المركبة الواحدة (نظام الورديات)</h3>
+              <span class="bg-sky-100 text-sky-700 text-[10px] font-black px-2 py-0.5 rounded-md">تشغيل مرن</span>
+            </div>
+            <p class="text-slate-500 text-xs sm:text-sm">
+              إتاحة إسناد وربط أكثر من سائق على مركبة واحدة (سائق أساسي وفرعي أو نظام الورديات) مع دعم الاختيار المتعدد في النماذج وعرض شارات السائقين في بطاقة السيارة وتفاصيلها.
+            </p>
+          </div>
+        </div>
+
+        <!-- Feature 5: General Company Expenses -->
+        <div class="pt-4 flex items-start gap-4">
+          <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center text-2xl shrink-0 font-bold border border-amber-200">
+            🏢
+          </div>
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <h3 class="font-black text-slate-900 text-base">المصاريف والمشتريات الإدارية العامة للمؤسسة</h3>
+              <span class="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-md">إدارة مالية</span>
+            </div>
+            <p class="text-slate-500 text-xs sm:text-sm">
+              أصبح ربط المصروف بسائق أو مركبة اختيارياً بالكامل، مع إضافة تصنيف خاص بمصاريف المؤسسة العامة (فواتير المقر، أدوات مكتبية، ضيافة) واحتسابها ضمن التقارير المالية العامة دون إجبار على إلزامها بذمة سائق.
+            </p>
+          </div>
+        </div>
+
+        <!-- Feature 6: Settlements & Ledger Fixes -->
+        <div class="pt-4 flex items-start gap-4">
+          <div class="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl shrink-0 font-bold border border-rose-100">
             ⚖️
           </div>
           <div class="space-y-1">
             <div class="flex items-center gap-2">
-              <h3 class="font-black text-slate-800 text-base">وحدة التسوية العامة والمقاصة</h3>
-              <span class="bg-indigo-100 text-indigo-700 text-[10px] font-extrabold px-2 py-0.5 rounded-md">وحدة جديدة</span>
+              <h3 class="font-black text-slate-900 text-base">إصلاح التسويات وتدقيق الدائن والمدين وكشف حساب السائق التفصيلي</h3>
+              <span class="bg-rose-100 text-rose-700 text-[10px] font-black px-2 py-0.5 rounded-md">تدقيق حسابي</span>
             </div>
             <p class="text-slate-500 text-xs sm:text-sm">
-              إدارة مرنة للمقاصات وتعديل أرصدة السائقين المالية (دائن ومدين)، والمكافآت، والخصومات الخاصة، مع ربطها المباشر بكشف حساب السائق وحركة الخزينة.
-            </p>
-          </div>
-        </div>
-
-        <!-- Feature 3: Treasury Movement -->
-        <div class="pt-4 flex items-start gap-4">
-          <div class="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center text-xl shrink-0 font-bold border border-violet-100">
-            🏦
-          </div>
-          <div class="space-y-1">
-            <div class="flex items-center gap-2">
-              <h3 class="font-black text-slate-800 text-base">حركة الصندوق والخزينة</h3>
-              <span class="bg-violet-100 text-violet-700 text-[10px] font-extrabold px-2 py-0.5 rounded-md">وحدة جديدة</span>
-            </div>
-            <p class="text-slate-500 text-xs sm:text-sm">
-              لوحة متكاملة لمتابعة حركة السيولة النقدية والمقبوضات البنكية (شبكة)، والمنصرفات، والتسويات، وصافي رصيد الصندوق مع فلترة الفترات الزمنية.
-            </p>
-          </div>
-        </div>
-
-        <!-- Feature 4: Vehicle Downtime -->
-        <div class="pt-4 flex items-start gap-4">
-          <div class="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center text-xl shrink-0 font-bold border border-orange-100">
-            ⏸️
-          </div>
-          <div class="space-y-1">
-            <div class="flex items-center gap-2">
-              <h3 class="font-black text-slate-800 text-base">وقوف السيارات وتوقف التشغيل</h3>
-              <span class="bg-orange-100 text-orange-700 text-[10px] font-extrabold px-2 py-0.5 rounded-md">ميزة جديدة</span>
-            </div>
-            <p class="text-slate-500 text-xs sm:text-sm">
-              تسجيل فترات وأيام توقف السيارات عن العمل لأسباب الصيانة أو الحوادث مع خصم قيمتها المالية تلقائياً من الاستحقاق الأسبوعي المطلوب من السائق.
-            </p>
-          </div>
-        </div>
-
-        <!-- Feature 5: Multi-Item Invoices & Zero Data Loss -->
-        <div class="pt-4 flex items-start gap-4">
-          <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0 font-bold border border-emerald-100">
-            🧾
-          </div>
-          <div class="space-y-1">
-            <div class="flex items-center gap-2">
-              <h3 class="font-black text-slate-800 text-base">فواتير ومشتريات متعددة الأصناف</h3>
-              <span class="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2 py-0.5 rounded-md">ترقية شاملة</span>
-            </div>
-            <p class="text-slate-500 text-xs sm:text-sm">
-              دعم إدراج أصناف وبنود متعددة في فواتير المشتريات والمبيعات مع حفظ 100% من السجلات والبيانات التاريخية القديمة تلقائياً دون أي فقدان للبيانات.
+              تصحيح ومعالجة الخلل السابق في نوع التسوية، مع التحديد الصريح لـ (دائن [له] / مدين [عليه]) وضبط انعكاس الإشارة الحسابية على الأرصدة، وإضافة تبويب مخصص لكشف حساب السائق التفصيلي التراكمي بالأعمدة الدقيقة مع الطباعة المعتمدة.
             </p>
           </div>
         </div>
@@ -455,20 +498,20 @@
       <!-- Modal Footer -->
       <div class="bg-slate-50 px-6 py-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
         <div class="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
-          <span class="text-emerald-600 font-bold">✓</span> يمكنك مراجعة هذا الدليل لاحقاً بالضغط على شارة الإصدار في الأعلى.
+          <span class="text-masarat-gold font-bold">✓</span> يمكنك استعراض هذا الدليل في أي وقت من شارة الإصدار في الأعلى أو من تذييل الصفحة.
         </div>
         <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-          <button
-            onclick="closeUpdateModal(); runQuickDueAlignment();"
-            class="px-4 py-2 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-xl border border-purple-200 transition-all cursor-pointer"
+          <a
+            href="update.html"
+            class="px-4 py-2 text-xs font-bold text-slate-800 bg-slate-200 hover:bg-slate-300 rounded-xl transition-all cursor-pointer"
           >
-            ✨ مواءمة استحقاقات الجمعة
-          </button>
+            🔄 مركز التحديث والكاش
+          </a>
           <button
             onclick="closeUpdateModal()"
-            class="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl shadow-xs transition-all cursor-pointer"
+            class="px-6 py-2 text-xs font-black text-slate-950 bg-masarat-gold hover:bg-masarat-goldHover active:scale-95 rounded-xl shadow-sm transition-all cursor-pointer"
           >
-            فهمت، متابعة للوحة التحكم
+            فهمت، متابعة للنظام
           </button>
         </div>
       </div>
@@ -576,7 +619,18 @@
 
     function filterCards() {
       let visibleCount = 0;
+      let totalPermittedCount = 0;
+
       appCards.forEach(card => {
+        const mod = card.getAttribute("data-module");
+        // Strict Zero-Trust & Default-Deny check
+        const hasAccess = !window.MasaratAuth || window.MasaratAuth.hasPermission(mod, 'view');
+        if (!hasAccess) {
+          card.style.display = "none";
+          return;
+        }
+        totalPermittedCount++;
+
         const matchesCategory = currentCategory === "all" || card.getAttribute("data-cat") === currentCategory;
         const cardTitle = card.querySelector("h3").textContent.toLowerCase();
         const cardDesc = card.querySelector("p").textContent.toLowerCase();
@@ -590,6 +644,11 @@
           card.style.display = "none";
         }
       });
+
+      const heroAppsEl = document.getElementById("hero-apps-count");
+      if (heroAppsEl) {
+        heroAppsEl.textContent = totalPermittedCount;
+      }
 
       if (visibleCount === 0) {
         emptyState.classList.remove("hidden");
@@ -640,8 +699,8 @@
     });
 
     // Update Modal & First-Time Flag Logic
-    const CURRENT_UPDATE_VERSION = "1.3.0";
-    const UPDATE_FLAG_KEY = "ojrah_update_seen_" + CURRENT_UPDATE_VERSION.replace(/\./g, "_");
+    const CURRENT_UPDATE_VERSION = "2.1.0";
+    const UPDATE_FLAG_KEY = "masarat_update_seen_" + CURRENT_UPDATE_VERSION.replace(/\./g, "_");
 
     function openUpdateModal() {
       const modal = document.getElementById("update-modal");
@@ -703,8 +762,45 @@
       });
     }
 
-    // Initialize KPI fetch & check first time update
+    // PWA Desktop Installation Handler
+    let deferredPrompt = null;
+    const pwaBtn = document.getElementById("pwa-install-btn");
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (pwaBtn) {
+        pwaBtn.classList.remove("hidden");
+        pwaBtn.classList.add("animate-bounce");
+        setTimeout(() => pwaBtn.classList.remove("animate-bounce"), 3000);
+      }
+    });
+
+    if (pwaBtn) {
+      pwaBtn.addEventListener("click", async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === "accepted") {
+            console.log("User accepted Masarat PWA installation");
+          }
+          deferredPrompt = null;
+          pwaBtn.classList.add("hidden");
+        } else {
+          // If already installed or browser hasn't fired beforeinstallprompt
+          alert("تطبيق مسارات مهيأ للتثبيت (PWA):\n- إذا كنت تستخدم متصفح Chrome/Edge: انقر على أيقونة التثبيت (🖥️) في أعلى شريط العنوان، أو من القائمة (⋮) اختر 'تثبيت مسارات'.\n- سيعمل التطبيق كبرنامج مستقل على سطح المكتب بأيقونة ثابتة وبدون شريط متصفح وبسرعة فائقة حتى بدون إنترنت.");
+        }
+      });
+    }
+
+    window.addEventListener("appinstalled", () => {
+      if (pwaBtn) pwaBtn.classList.add("hidden");
+      console.log("تم تثبيت تطبيق مسارات بنجاح على الجهاز!");
+    });
+
+    // Initialize KPI fetch, permission filtering & check first time update
     loadDashboardKPIs();
+    filterCards();
     checkFirstTimeUpdate();
   </script>
 </body>

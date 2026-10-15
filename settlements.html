@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>التسوية العامة - نظام أجرة</title>
+  <title>مسارات | التسويات وكشوف الحسابات المالية</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
@@ -17,228 +17,473 @@
         extend: {
           fontFamily: {
             sans: ['Cairo', 'sans-serif'],
+          },
+          colors: {
+            masarat: {
+              gold: '#F5B800',
+              goldHover: '#e0a700',
+              dark: '#111827',
+              black: '#000000',
+              slate: '#1E293B'
+            }
           }
         }
       }
     }
   </script>
+  <style>
+    @media print {
+      body {
+        background: white !important;
+        color: black !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .no-print, header, nav, #masarat-user-badge, .tab-nav-btn {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      .page-break {
+        page-break-before: always;
+      }
+      .print-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+      }
+      .print-table th, .print-table td {
+        border: 1px solid #cbd5e1 !important;
+        padding: 6px 10px !important;
+        font-size: 11px !important;
+      }
+      .print-table th {
+        background-color: #f8fafc !important;
+        color: #000 !important;
+      }
+    }
+    .print-only {
+      display: none;
+    }
+  </style>
 </head>
 
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
-  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 mt-4">
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-      <div>
-        <h1 class="text-4xl font-extrabold text-indigo-600 flex items-center gap-3">
-          <span>⚖️</span>
-          <span>برنامج التسوية العامة</span>
-        </h1>
-        <p class="text-gray-500 mt-2">تسجيل التسويات الاستثنائية، المكافآت، الخصومات الخاصة، وتعديل أرصدة السائقين</p>
+  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-6 mt-2">
+
+    <!-- Header with Masarat Branding -->
+    <div class="no-print flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      <div class="flex items-center gap-4">
+        <img src="logo.png" alt="مسارات" class="h-16 w-auto object-contain drop-shadow-sm">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="bg-masarat-gold/20 text-masarat-dark border border-masarat-gold/40 text-xs font-black px-2.5 py-0.5 rounded-full">
+              مسارات | Masarat
+            </span>
+            <span class="text-xs text-slate-400 font-bold">إدارة العمليات المالية</span>
+          </div>
+          <h1 class="text-3xl font-black text-slate-900 mt-1 flex items-center gap-2">
+            <span>⚖️</span>
+            <span>التسويات وكشوف الحسابات المالية</span>
+          </h1>
+          <p class="text-slate-500 text-xs mt-1">إدارة التسويات الدائنة والمدينة، قيود الأثر المالي، واستعراض كشف حساب السائق التفصيلي</p>
+        </div>
       </div>
-      <div class="flex items-center gap-3">
-        <a href="summary.html" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-1.5">
+      <div class="flex flex-wrap items-center gap-3">
+        <div id="masarat-user-badge"></div>
+        <a href="summary.html" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5">
           <span>📊</span>
           <span>لوحة المراقبة</span>
         </a>
-        <a href="index.html" class="bg-slate-800 text-white px-5 py-2.5 rounded-xl hover:bg-slate-700 shadow-lg font-bold text-sm transition-all">
+        <a href="index.html" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl hover:bg-slate-800 shadow-md font-bold text-xs transition-all">
           العودة للرئيسية
         </a>
       </div>
     </div>
 
-    <!-- Quick Stats Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
-        <div>
-          <span class="text-xs font-bold text-slate-400">إجمالي التسويات</span>
-          <p id="stat-total-count" class="text-2xl font-black text-slate-800 mt-1">0</p>
-        </div>
-        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl font-black">
-          📋
-        </div>
-      </div>
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
-        <div>
-          <span class="text-xs font-bold text-emerald-600">إجمالي الدائن (لصالح السائقين)</span>
-          <p id="stat-total-credit" class="text-2xl font-black text-emerald-600 mt-1">0 ر.س</p>
-        </div>
-        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-black">
-          🟢
-        </div>
-      </div>
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
-        <div>
-          <span class="text-xs font-bold text-rose-600">إجمالي المدين (التزام على السائقين)</span>
-          <p id="stat-total-debit" class="text-2xl font-black text-rose-600 mt-1">0 ر.س</p>
-        </div>
-        <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-xl font-black">
-          🔴
-        </div>
-      </div>
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
-        <div>
-          <span class="text-xs font-bold text-slate-500">صافي الأثر المالي</span>
-          <p id="stat-net-impact" class="text-2xl font-black text-slate-800 mt-1">0 ر.س</p>
-        </div>
-        <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-xl flex items-center justify-center text-xl font-black">
-          ⚖️
-        </div>
-      </div>
-    </div>
-
-    <!-- Actions & Filter Bar -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-      <div class="flex flex-wrap items-center gap-2">
-        <input type="text" id="search-input" placeholder="🔍 بحث باسم السائق أو رقم التسوية أو البيان..."
-          class="border border-slate-200 bg-white rounded-xl px-4 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none w-72">
-        <select id="filter-impact"
-          class="border border-slate-200 bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-          <option value="all">جميع الآثار (دائن ومدين)</option>
-          <option value="credit">دائن للسائق (تعويض / تخفيض)</option>
-          <option value="debit">مدين على السائق (قيد التزام)</option>
-        </select>
-      </div>
-      <button id="show-form-btn"
-        class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 font-bold shadow-md hover:shadow-indigo-500/10 transition-all flex items-center gap-2 cursor-pointer text-sm">
-        <span>+</span>
-        <span>تسجيل تسوية عامة جديدة</span>
+    <!-- Navigation Tabs -->
+    <div class="no-print flex border-b border-slate-200 bg-white p-2 rounded-2xl shadow-sm gap-2">
+      <button id="tab-btn-settlements" onclick="switchTab('settlements')"
+        class="tab-nav-btn flex-1 py-3 px-5 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 bg-masarat-gold text-slate-950 shadow-sm">
+        <span>⚖️</span>
+        <span>سجل التسويات المالية العامة</span>
+        <span id="badge-settlements-count" class="bg-slate-900 text-white text-[11px] px-2 py-0.5 rounded-full font-bold">0</span>
+      </button>
+      <button id="tab-btn-statement" onclick="switchTab('statement')"
+        class="tab-nav-btn flex-1 py-3 px-5 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 bg-slate-50 hover:bg-slate-100 text-slate-600">
+        <span>👤📑</span>
+        <span>كشف حساب السائق التفصيلي</span>
       </button>
     </div>
 
-    <!-- Add / Edit Settlement Form Card (Collapsible) -->
-    <div id="settlement-form-card" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 hidden">
-      <div class="flex justify-between items-center mb-6">
-        <div>
-          <h2 id="form-title" class="text-2xl font-bold text-slate-800">تسجيل تسوية عامة جديدة</h2>
-          <p class="text-xs text-slate-400 mt-0.5">حدد السائق ونوع الأثر (دائن/مدين) وقيمة التسوية للترحيل المباشر</p>
+    <!-- ========================================== -->
+    <!-- TAB 1: سجل التسويات المالية العامة -->
+    <!-- ========================================== -->
+    <div id="tab-content-settlements" class="space-y-6">
+      
+      <!-- Quick Stats Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-slate-400">إجمالي التسويات المعتمدة</span>
+            <p id="stat-total-count" class="text-2xl font-black text-slate-800 mt-1">0</p>
+          </div>
+          <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-xl font-black border border-amber-100">
+            📋
+          </div>
         </div>
-        <button type="button" id="close-form-btn" class="text-slate-400 hover:text-slate-600 text-lg font-bold cursor-pointer">✕</button>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-emerald-600">إجمالي الدائن (له - تخفيض المديونية)</span>
+            <p id="stat-total-credit" class="text-2xl font-black text-emerald-600 mt-1">0.00 ر.س</p>
+          </div>
+          <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-black border border-emerald-100">
+            🟢
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-rose-600">إجمالي المدين (عليه - قيد التزام)</span>
+            <p id="stat-total-debit" class="text-2xl font-black text-rose-600 mt-1">0.00 ر.س</p>
+          </div>
+          <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-xl font-black border border-rose-100">
+            🔴
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-slate-500">صافي الأثر المالي العام</span>
+            <p id="stat-net-impact" class="text-2xl font-black text-slate-800 mt-1">0.00 ر.س</p>
+          </div>
+          <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-xl flex items-center justify-center text-xl font-black border border-slate-200">
+            ⚖️
+          </div>
+        </div>
       </div>
 
-      <form id="settlement-form" class="space-y-6">
-        <input type="hidden" id="editing-id" value="">
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div>
-            <label class="block text-slate-700 mb-2 font-bold text-sm">السائق المعني <span class="text-rose-500">*</span></label>
-            <select id="driver_id" required
-              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-semibold">
-              <option value="">-- اختر السائق --</option>
-            </select>
+      <!-- Actions & Filter Bar -->
+      <div class="no-print flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+        <div class="flex flex-wrap items-center gap-3 flex-1 w-full md:w-auto">
+          <div class="relative flex-1 sm:w-80">
+            <input type="text" id="search-input" placeholder="🔍 بحث فوري بالاسم، رقم التسوية، أو البيان..."
+              class="w-full border border-slate-200 bg-slate-50/50 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-masarat-gold focus:outline-none transition-all">
           </div>
-
-          <div>
-            <label class="block text-slate-700 mb-2 font-bold text-sm">المركبة (اختياري)</label>
-            <select id="car_id"
-              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-semibold">
-              <option value="">-- اختر السيارة أو غير مرتبطة --</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-slate-700 mb-2 font-bold text-sm">تاريخ التسوية <span class="text-rose-500">*</span></label>
-            <input type="date" required id="settlement_date"
-              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-semibold text-slate-700">
-          </div>
-
-          <div>
-            <label class="block text-slate-700 mb-2 font-bold text-sm">تصنيف / نوع التسوية</label>
-            <select id="category"
-              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-semibold">
-              <option value="تسوية رصيد عامة">تسوية رصيد عامة</option>
-              <option value="مكافأة والتزام">مكافأة والتزام</option>
-              <option value="خصم خاص من الإدارة">خصم خاص من الإدارة</option>
-              <option value="تحميل تلفيات أو صيانة">تحميل تلفيات أو صيانة</option>
-              <option value="تسوية استثنائية">تسوية استثنائية</option>
-              <option value="أخرى">أخرى</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-slate-700 mb-2 font-bold text-sm">الأثر المالي على ذمة السائق <span class="text-rose-500">*</span></label>
-            <select id="driver_impact" required
-              class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-black">
-              <option value="credit">🟢 دائن للسائق (له - تخفيض المديونية / تعويض)</option>
-              <option value="debit">🔴 مدين على السائق (عليه - إضافة التزام / زيادة المديونية)</option>
-            </select>
-            <span class="text-[11px] text-slate-400 mt-1 block">«دائن» يقلل المطلوب من السائق، «مدين» يزيد المطالبة عليه.</span>
-          </div>
-
-          <div>
-            <label class="block text-slate-700 mb-2 font-bold text-sm">مبلغ التسوية (ر.س) <span class="text-rose-500">*</span></label>
-            <input type="number" step="0.01" min="0.01" required id="amount" placeholder="0.00"
-              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-lg font-black text-indigo-700 text-center">
-          </div>
+          <select id="filter-impact"
+            class="border border-slate-200 bg-slate-50/50 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-masarat-gold focus:outline-none transition-all">
+            <option value="all">جميع الآثار (دائن ومدين)</option>
+            <option value="credit">🟢 دائن للسائق (له - تخفيض/تعويض)</option>
+            <option value="debit">🔴 مدين على السائق (عليه - التزام/مطالبة)</option>
+          </select>
         </div>
-
-        <div>
-          <label class="block text-slate-700 mb-2 font-bold text-sm">بيان وسبب التسوية <span class="text-rose-500">*</span></label>
-          <input type="text" required id="description" placeholder="مثال: خصم إضافي لمخالفة مرورية سددتها الشركة، أو مكافأة التزام أسبوعي"
-            class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm">
-        </div>
-
-        <div>
-          <label class="block text-slate-700 mb-2 font-bold text-sm">ملاحظات إضافية (اختياري)</label>
-          <textarea id="notes" rows="2" placeholder="أي تفاصيل أو وثائق مرتبطة..."
-            class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"></textarea>
-        </div>
-
-        <div class="flex gap-4 pt-4 border-t border-slate-100">
-          <button type="submit" id="submit-btn"
-            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl shadow-md transition-all text-sm cursor-pointer">
-            حفظ التسوية
+        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+          <button onclick="printSettlementsStatement()" data-permission="print"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-sm">
+            <span>🖨️</span>
+            <span>طباعة كشف التسويات</span>
           </button>
-          <button type="button" id="cancel-btn"
-            class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-xl transition-all text-sm cursor-pointer">
-            إلغاء
+          <button id="show-form-btn" data-permission="settlements"
+            class="bg-masarat-gold hover:bg-masarat-goldHover text-slate-950 font-black px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer text-xs">
+            <span>+</span>
+            <span>تسجيل تسوية مالية جديدة</span>
           </button>
         </div>
-      </form>
+      </div>
+
+      <!-- Add / Edit Settlement Form Card (Collapsible) -->
+      <div id="settlement-form-card" class="bg-white rounded-2xl shadow-md border-2 border-masarat-gold/50 p-6 hidden transition-all">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-masarat-gold"></span>
+              <h2 id="form-title" class="text-xl font-black text-slate-900">تسجيل تسوية مالية جديدة</h2>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">حدد السائق ونوع الأثر المالي (دائن أو مدين) بدقة لترحيل القيد فورياً</p>
+          </div>
+          <button type="button" id="close-form-btn" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center cursor-pointer">✕</button>
+        </div>
+
+        <form id="settlement-form" class="space-y-6">
+          <input type="hidden" id="editing-id" value="">
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+              <label class="block text-slate-700 mb-2 font-bold text-xs">السائق المعني بالتسوية <span class="text-rose-500">*</span></label>
+              <select id="driver_id" required
+                class="w-full border border-slate-200 p-3 rounded-xl bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-masarat-gold text-xs font-bold">
+                <option value="">-- اختر السائق --</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-slate-700 mb-2 font-bold text-xs">المركبة (اختياري)</label>
+              <select id="car_id"
+                class="w-full border border-slate-200 p-3 rounded-xl bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-masarat-gold text-xs font-bold">
+                <option value="">-- غير مرتبطة بمركبة محددة --</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-slate-700 mb-2 font-bold text-xs">تاريخ التسوية <span class="text-rose-500">*</span></label>
+              <input type="date" required id="settlement_date"
+                class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-masarat-gold text-xs font-bold text-slate-800">
+            </div>
+
+            <div>
+              <label class="block text-slate-700 mb-2 font-bold text-xs">تصنيف التسوية</label>
+              <select id="category"
+                class="w-full border border-slate-200 p-3 rounded-xl bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-masarat-gold text-xs font-bold">
+                <option value="تسوية رصيد عامة">تسوية رصيد عامة</option>
+                <option value="مكافأة والتزام">مكافأة والتزام (حافز)</option>
+                <option value="خصم خاص من الإدارة">خصم خاص من الإدارة</option>
+                <option value="تحميل تلفيات أو صيانة">تحميل تلفيات أو صيانة</option>
+                <option value="مخالفة أو غرامة خاصة">مخالفة أو غرامة خاصة</option>
+                <option value="تسوية استثنائية">تسوية استثنائية</option>
+                <option value="أخرى">أخرى</option>
+              </select>
+            </div>
+
+            <!-- Credit / Debit Selector with clear visual feedback -->
+            <div class="lg:col-span-2">
+              <label class="block text-slate-800 mb-2 font-black text-xs">
+                الأثر المالي على ذمة السائق (نوع المديونية) <span class="text-rose-500">*</span>
+              </label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label id="label-impact-credit" class="flex items-center gap-3 p-3 rounded-xl border-2 border-emerald-500 bg-emerald-50/60 cursor-pointer transition-all">
+                  <input type="radio" name="driver_impact_radio" value="credit" checked class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
+                  <div>
+                    <span class="block font-black text-xs text-emerald-900">🟢 دائن للسائق (له)</span>
+                    <span class="block text-[11px] text-emerald-700">تخفيض المديونية / تعويض / حافز يقلل المطالبة</span>
+                  </div>
+                </label>
+                <label id="label-impact-debit" class="flex items-center gap-3 p-3 rounded-xl border-2 border-slate-200 hover:border-rose-400 bg-slate-50 cursor-pointer transition-all">
+                  <input type="radio" name="driver_impact_radio" value="debit" class="w-4 h-4 text-rose-600 focus:ring-rose-500">
+                  <div>
+                    <span class="block font-black text-xs text-rose-900">🔴 مدين على السائق (عليه)</span>
+                    <span class="block text-[11px] text-rose-700">قيد التزام مالي / زيادة المديونية والمطالبة</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-slate-700 mb-2 font-bold text-xs">مبلغ التسوية (ر.س) <span class="text-rose-500">*</span></label>
+              <input type="number" step="0.01" min="0.01" required id="amount" placeholder="0.00"
+                class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-masarat-gold text-xl font-black text-slate-900 text-center">
+            </div>
+
+            <div class="lg:col-span-2">
+              <label class="block text-slate-700 mb-2 font-bold text-xs">بيان وسبب التسوية <span class="text-rose-500">*</span></label>
+              <input type="text" required id="description" placeholder="شرح تفصيلي لسبب التسوية وأثرها المالي..."
+                class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-masarat-gold text-xs font-semibold">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-slate-700 mb-2 font-bold text-xs">ملاحظات إضافية (اختياري)</label>
+            <textarea id="notes" rows="2" placeholder="أي تفاصيل أو مستندات أو مراجع إدارية..."
+              class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-masarat-gold text-xs"></textarea>
+          </div>
+
+          <div class="flex items-center gap-3 pt-4 border-t border-slate-100">
+            <button type="submit" id="submit-btn"
+              class="bg-masarat-gold hover:bg-masarat-goldHover text-slate-950 font-black py-3 px-8 rounded-xl shadow-md transition-all text-xs cursor-pointer">
+              حفظ واعتماد التسوية
+            </button>
+            <button type="button" id="cancel-btn"
+              class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-xl transition-all text-xs cursor-pointer">
+              إلغاء
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Settlements Data Table -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div class="flex justify-between items-center mb-6">
+          <div>
+            <h2 class="text-xl font-black text-slate-900">سجل حركات التسوية العامة</h2>
+            <p class="text-xs text-slate-400 mt-0.5">قائمة بجميع قيود التسويات المحفوظة والأثر الحسابي المترتب عليها</p>
+          </div>
+          <span id="filtered-count-badge" class="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-lg"></span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-right border-collapse">
+            <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-100 text-xs">
+              <tr>
+                <th class="p-3 text-center w-12 rounded-tr-xl">#</th>
+                <th class="p-3">رقم التسوية</th>
+                <th class="p-3">السائق</th>
+                <th class="p-3">المركبة</th>
+                <th class="p-3 text-center">التاريخ</th>
+                <th class="p-3 text-center">التصنيف</th>
+                <th class="p-3 text-center">الأثر المالي</th>
+                <th class="p-3 text-center">المبلغ (ر.س)</th>
+                <th class="p-3">البيان</th>
+                <th class="p-3 rounded-tl-xl text-center no-print">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="settlements-table-body" class="divide-y divide-slate-100">
+              <tr>
+                <td colspan="10" class="text-center p-8 text-slate-400 font-bold">جاري تحميل البيانات...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <!-- Settlements Data Table -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-      <div class="flex justify-between items-center mb-6">
-        <div>
-          <h2 class="text-xl font-black text-slate-800">سجل حركات التسوية العامة</h2>
-          <p class="text-xs text-slate-400 mt-0.5">قائمة بجميع قيود التسويات المحفوظة وأثرها على حسابات السائقين</p>
+    <!-- ========================================== -->
+    <!-- TAB 2: كشف حساب السائق التفصيلي -->
+    <!-- ========================================== -->
+    <div id="tab-content-statement" class="hidden space-y-6">
+      
+      <!-- Driver Selection & Filter Bar -->
+      <div class="no-print bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div class="flex-1 w-full md:w-auto">
+          <label class="block text-xs font-black text-slate-700 mb-2">اختر السائق لعرض وطباعة كشف الحساب المالي:</label>
+          <div class="flex flex-wrap items-center gap-3">
+            <select id="statement-driver-select" onchange="onStatementDriverChange()"
+              class="flex-1 sm:w-96 border border-slate-200 bg-slate-50 rounded-xl p-3 text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-masarat-gold focus:outline-none transition-all">
+              <option value="">-- اختر السائق من القائمة --</option>
+            </select>
+            <button onclick="refreshCurrentStatement()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-3 rounded-xl text-xs font-bold transition-all" title="تحديث البيانات">
+              🔄 تحديث
+            </button>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="print-statement-btn" onclick="printDriverAccountStatement()" disabled data-permission="print"
+            class="bg-masarat-gold hover:bg-masarat-goldHover disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black px-6 py-3 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer text-xs">
+            <span>🖨️</span>
+            <span>طباعة كشف حساب السائق (A4)</span>
+          </button>
         </div>
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-right border-collapse">
-          <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-100 text-xs">
-            <tr>
-              <th class="p-4 rounded-tr-xl">رقم التسوية</th>
-              <th class="p-4">السائق</th>
-              <th class="p-4">المركبة</th>
-              <th class="p-4 text-center">التاريخ</th>
-              <th class="p-4 text-center">التصنيف</th>
-              <th class="p-4 text-center">الأثر المالي</th>
-              <th class="p-4 text-center">المبلغ (ر.س)</th>
-              <th class="p-4">البيان</th>
-              <th class="p-4 rounded-tl-xl text-center">الإجراءات</th>
-            </tr>
-          </thead>
-          <tbody id="settlements-table-body">
-            <tr>
-              <td colspan="9" class="text-center p-8 text-slate-400 font-bold">جاري تحميل البيانات...</td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Statement Body (Shown when driver is selected) -->
+      <div id="statement-view-container" class="space-y-6 hidden">
+
+        <!-- Driver Profile Header Card -->
+        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 rounded-2xl shadow-md border-t-4 border-masarat-gold flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div class="flex items-center gap-4">
+            <div class="w-16 h-16 rounded-2xl bg-masarat-gold text-slate-950 flex items-center justify-center font-black text-2xl shadow-lg">
+              👤
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="bg-masarat-gold/20 text-masarat-gold border border-masarat-gold/30 text-[11px] font-bold px-2 py-0.5 rounded-md">
+                  كشف حساب تفصيلي
+                </span>
+                <span id="stmt-driver-status" class="bg-emerald-500/20 text-emerald-300 text-[11px] font-bold px-2 py-0.5 rounded-md">نشط</span>
+              </div>
+              <h2 id="stmt-driver-name" class="text-2xl font-black mt-1">--</h2>
+              <div class="flex flex-wrap items-center gap-4 text-xs text-slate-300 mt-1 font-semibold">
+                <span>📱 رقم الجوال: <strong id="stmt-driver-phone" class="text-white font-mono">--</strong></span>
+                <span>🪪 الهوية/الإقامة: <strong id="stmt-driver-id-num" class="text-white font-mono">--</strong></span>
+                <span>🚗 المركبة الحالية: <strong id="stmt-driver-car" class="text-masarat-gold">--</strong></span>
+              </div>
+            </div>
+          </div>
+          <div class="text-left md:text-right bg-white/5 border border-white/10 p-4 rounded-xl">
+            <span class="text-[11px] text-slate-300 block">تاريخ استخراج الكشف:</span>
+            <span id="stmt-generated-date" class="text-xs font-mono font-bold text-masarat-gold">--</span>
+          </div>
+        </div>
+
+        <!-- KPI Financial Cards for the Driver -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+            <span class="text-xs font-bold text-rose-600 block">إجمالي المطلوب / المدين [عليه]</span>
+            <p id="stmt-kpi-total-debit" class="text-2xl font-black text-rose-600 mt-1">0.00 ر.س</p>
+            <span class="text-[11px] text-slate-400 mt-1 block">إيجارات، مخالفات، سلف، تلفيات</span>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+            <span class="text-xs font-bold text-emerald-600 block">إجمالي المسدد / الدائن [له]</span>
+            <p id="stmt-kpi-total-credit" class="text-2xl font-black text-emerald-600 mt-1">0.00 ر.س</p>
+            <span class="text-[11px] text-slate-400 mt-1 block">سندات قبض كاش وشبكة، تعويضات</span>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+            <span class="text-xs font-bold text-slate-500 block">الرصيد التراكمي النهائي</span>
+            <p id="stmt-kpi-net-balance" class="text-2xl font-black text-slate-900 mt-1">0.00 ر.س</p>
+            <span id="stmt-kpi-balance-label" class="text-[11px] text-slate-500 mt-1 block">صافي الذمة</span>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+            <span class="text-xs font-bold text-slate-400 block">الحالة الحسابية الحالية</span>
+            <div id="stmt-kpi-final-status" class="mt-2">
+              <span class="bg-slate-100 text-slate-700 text-xs font-black px-3 py-1.5 rounded-xl border border-slate-200">
+                جاري التقييم...
+              </span>
+            </div>
+            <span class="text-[11px] text-slate-400 mt-2 block">حالة التسوية الإجمالية</span>
+          </div>
+        </div>
+
+        <!-- Detailed Statement Movements Table -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h3 class="text-xl font-black text-slate-900">سجل حركات الحساب المالي التفصيلي</h3>
+              <p class="text-xs text-slate-400 mt-0.5">تسلسل زمني دقيق لكافة القيود المالية والمستحقات والمسددات مع الرصيد التراكمي</p>
+            </div>
+            <span id="stmt-movements-count" class="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-lg">0 حركة</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-right border-collapse">
+              <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 text-xs">
+                <tr>
+                  <th class="p-3 text-center w-12 rounded-tr-xl">#</th>
+                  <th class="p-3 text-center w-28">التاريخ</th>
+                  <th class="p-3">البيان / التفاصيل</th>
+                  <th class="p-3 text-center w-32 bg-rose-50/50 text-rose-700">مدين [عليه]</th>
+                  <th class="p-3 text-center w-32 bg-emerald-50/50 text-emerald-700">دائن [له]</th>
+                  <th class="p-3 text-center w-36">الرصيد التراكمي</th>
+                  <th class="p-3 text-center w-32 rounded-tl-xl">الحالة النهائية</th>
+                </tr>
+              </thead>
+              <tbody id="stmt-table-body" class="divide-y divide-slate-100 text-xs">
+                <tr>
+                  <td colspan="7" class="text-center p-8 text-slate-400 font-bold">لا توجد حركات مسجلة</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
+
+      <!-- Empty State when no driver is selected -->
+      <div id="statement-empty-state" class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
+        <div class="w-20 h-20 rounded-2xl bg-amber-50 text-masarat-gold flex items-center justify-center text-3xl mx-auto mb-4 border border-amber-100">
+          👤
+        </div>
+        <h3 class="text-lg font-black text-slate-800">يرجى اختيار سائق من القائمة أعلاه</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">سيتم استعراض كافة الحركات المالية (استحقاق الإيجارات، سندات القبض، المخالفات، الصيانة، والتسويات) وحساب الرصيد التراكمي بدقة مع إمكانية الطباعة الرسمية.</p>
+      </div>
+
     </div>
+
+  </div>
+
+  <!-- Print Container (Hidden on screen, shown in print) -->
+  <div id="print-area" class="print-only p-8 bg-white text-black font-sans">
+    <!-- Will be dynamically populated upon clicking print -->
   </div>
 
   <script>
     let settlements = [];
     let drivers = [];
     let cars = [];
+    let currentStatementDriver = null;
 
-    // DOM Elements
+    // DOM Elements - Settlements Tab
     const formCard = document.getElementById('settlement-form-card');
     const showFormBtn = document.getElementById('show-form-btn');
     const closeFormBtn = document.getElementById('close-form-btn');
@@ -250,7 +495,6 @@
     const carSelect = document.getElementById('car_id');
     const settlementDateInput = document.getElementById('settlement_date');
     const categorySelect = document.getElementById('category');
-    const driverImpactSelect = document.getElementById('driver_impact');
     const amountInput = document.getElementById('amount');
     const descriptionInput = document.getElementById('description');
     const notesInput = document.getElementById('notes');
@@ -258,12 +502,68 @@
     const searchInput = document.getElementById('search-input');
     const filterImpactSelect = document.getElementById('filter-impact');
     const tableBody = document.getElementById('settlements-table-body');
+    const filteredCountBadge = document.getElementById('filtered-count-badge');
 
-    // Stats elements
+    // Stats Elements
     const statTotalCount = document.getElementById('stat-total-count');
     const statTotalCredit = document.getElementById('stat-total-credit');
     const statTotalDebit = document.getElementById('stat-total-debit');
     const statNetImpact = document.getElementById('stat-net-impact');
+    const badgeSettlementsCount = document.getElementById('badge-settlements-count');
+
+    // Credit/Debit Radio bindings
+    const impactRadios = document.getElementsByName('driver_impact_radio');
+    const labelCredit = document.getElementById('label-impact-credit');
+    const labelDebit = document.getElementById('label-impact-debit');
+
+    function getSelectedImpact() {
+      for (const r of impactRadios) {
+        if (r.checked) return r.value;
+      }
+      return 'credit';
+    }
+
+    function setSelectedImpact(val) {
+      for (const r of impactRadios) {
+        r.checked = (r.value === val);
+      }
+      updateImpactRadioStyles();
+    }
+
+    function updateImpactRadioStyles() {
+      const val = getSelectedImpact();
+      if (val === 'credit') {
+        labelCredit.className = 'flex items-center gap-3 p-3 rounded-xl border-2 border-emerald-500 bg-emerald-50/60 cursor-pointer transition-all shadow-sm';
+        labelDebit.className = 'flex items-center gap-3 p-3 rounded-xl border-2 border-slate-200 hover:border-rose-400 bg-slate-50 cursor-pointer transition-all';
+      } else {
+        labelCredit.className = 'flex items-center gap-3 p-3 rounded-xl border-2 border-slate-200 hover:border-emerald-400 bg-slate-50 cursor-pointer transition-all';
+        labelDebit.className = 'flex items-center gap-3 p-3 rounded-xl border-2 border-rose-500 bg-rose-50/60 cursor-pointer transition-all shadow-sm';
+      }
+    }
+
+    for (const r of impactRadios) {
+      r.addEventListener('change', updateImpactRadioStyles);
+    }
+
+    // Tab Switching Logic
+    window.switchTab = function(tabName) {
+      const btnSettlements = document.getElementById('tab-btn-settlements');
+      const btnStatement = document.getElementById('tab-btn-statement');
+      const contentSettlements = document.getElementById('tab-content-settlements');
+      const contentStatement = document.getElementById('tab-content-statement');
+
+      if (tabName === 'settlements') {
+        btnSettlements.className = 'tab-nav-btn flex-1 py-3 px-5 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 bg-masarat-gold text-slate-950 shadow-sm';
+        btnStatement.className = 'tab-nav-btn flex-1 py-3 px-5 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 bg-slate-50 hover:bg-slate-100 text-slate-600';
+        contentSettlements.classList.remove('hidden');
+        contentStatement.classList.add('hidden');
+      } else {
+        btnStatement.className = 'tab-nav-btn flex-1 py-3 px-5 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 bg-masarat-gold text-slate-950 shadow-sm';
+        btnSettlements.className = 'tab-nav-btn flex-1 py-3 px-5 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 bg-slate-50 hover:bg-slate-100 text-slate-600';
+        contentStatement.classList.remove('hidden');
+        contentSettlements.classList.add('hidden');
+      }
+    };
 
     // Toggle Form visibility
     function openForm(isEdit = false) {
@@ -271,9 +571,10 @@
       if (!isEdit) {
         form.reset();
         editingIdInput.value = '';
-        formTitle.textContent = 'تسجيل تسوية عامة جديدة';
-        submitBtn.textContent = 'حفظ التسوية';
+        formTitle.textContent = 'تسجيل تسوية مالية جديدة';
+        submitBtn.textContent = 'حفظ واعتماد التسوية';
         settlementDateInput.value = new Date().toISOString().split('T')[0];
+        setSelectedImpact('credit');
       }
       formCard.scrollIntoView({ behavior: 'smooth' });
     }
@@ -282,6 +583,7 @@
       formCard.classList.add('hidden');
       form.reset();
       editingIdInput.value = '';
+      setSelectedImpact('credit');
     }
 
     showFormBtn.addEventListener('click', () => openForm(false));
@@ -301,43 +603,67 @@
         drivers = await driversRes.json();
         cars = await carsRes.json();
 
-        // Populate Driver Select
-        driverSelect.innerHTML = '<option value="">-- اختر السائق --</option>' +
+        // Populate Driver Selects
+        const driverOptionsHtml = '<option value="">-- اختر السائق من القائمة --</option>' +
           drivers.map(d => `<option value="${d.id}">${d.name} (${d.phone || d.national_id || ''})</option>`).join('');
+        
+        driverSelect.innerHTML = driverOptionsHtml;
+        document.getElementById('statement-driver-select').innerHTML = driverOptionsHtml;
 
         // Populate Car Select
-        carSelect.innerHTML = '<option value="">-- اختر السيارة أو غير مرتبطة --</option>' +
+        carSelect.innerHTML = '<option value="">-- غير مرتبطة بمركبة محددة --</option>' +
           cars.map(c => `<option value="${c.id}">${c.plate_number} - ${c.company} ${c.model}</option>`).join('');
 
         // Update stats & table
         updateStats();
         renderTable();
+
+        // Check URL params for direct navigation
+        const params = new URLSearchParams(window.location.search);
+        const urlTab = params.get('tab');
+        const urlDriverId = params.get('driver_id');
+
+        if (urlDriverId) {
+          document.getElementById('statement-driver-select').value = urlDriverId;
+          switchTab('statement');
+          loadDriverStatement(parseInt(urlDriverId));
+        } else if (urlTab === 'statement') {
+          switchTab('statement');
+        }
+
+        // Apply RBAC UI Guards
+        if (window.MasaratRBAC) {
+          window.MasaratRBAC.applyUIGuards();
+        }
       } catch (err) {
         console.error('Error loading settlements data:', err);
-        tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-8 text-rose-500">فشل تحميل البيانات من الخادم</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-8 text-rose-500 font-bold">فشل تحميل البيانات من الخادم</td></tr>`;
       }
     }
 
     function updateStats() {
       const activeSettlements = settlements.filter(s => s.status !== 'ملغاة');
       statTotalCount.textContent = activeSettlements.length;
+      badgeSettlementsCount.textContent = activeSettlements.length;
 
       let totalCredit = 0;
       let totalDebit = 0;
 
       activeSettlements.forEach(s => {
         const amt = parseFloat(s.amount || 0);
-        if (s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص') {
+        const isCredit = s.driver_impact === 'credit' || (!s.driver_impact && (s.settlement_type === 'تعويض' || s.settlement_type === 'مكافأة'));
+        if (isCredit) {
           totalCredit += amt;
         } else {
           totalDebit += amt;
         }
       });
 
-      statTotalCredit.textContent = `${totalCredit.toLocaleString()} ر.س`;
-      statTotalDebit.textContent = `${totalDebit.toLocaleString()} ر.س`;
+      statTotalCredit.textContent = `${totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س`;
+      statTotalDebit.textContent = `${totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س`;
+      
       const net = totalCredit - totalDebit;
-      statNetImpact.textContent = `${net >= 0 ? '+' : ''}${net.toLocaleString()} ر.س`;
+      statNetImpact.textContent = `${net >= 0 ? '+' : ''}${net.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س`;
       statNetImpact.className = `text-2xl font-black mt-1 ${net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
     }
 
@@ -347,11 +673,9 @@
 
       const filtered = settlements.filter(s => {
         // Impact filter
-        if (impactFilter !== 'all') {
-          const isCredit = s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص';
-          if (impactFilter === 'credit' && !isCredit) return false;
-          if (impactFilter === 'debit' && isCredit) return false;
-        }
+        const isCredit = s.driver_impact === 'credit' || (!s.driver_impact && (s.settlement_type === 'تعويض' || s.settlement_type === 'مكافأة'));
+        if (impactFilter === 'credit' && !isCredit) return false;
+        if (impactFilter === 'debit' && isCredit) return false;
 
         // Search text
         if (searchTerm) {
@@ -365,49 +689,57 @@
         return true;
       });
 
+      filteredCountBadge.textContent = `${filtered.length} من أصل ${settlements.length} تسوية`;
+
       if (filtered.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-8 text-slate-400 italic">لا توجد تسويات مسجلة مطابقة للبحث</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-8 text-slate-400 font-bold italic">لا توجد تسويات مسجلة مطابقة للبحث أو الفلتر المختار</td></tr>`;
         return;
       }
 
-      tableBody.innerHTML = filtered.map(s => {
-        const isCredit = s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص';
+      tableBody.innerHTML = filtered.map((s, idx) => {
+        const isCredit = s.driver_impact === 'credit' || (!s.driver_impact && (s.settlement_type === 'تعويض' || s.settlement_type === 'مكافأة'));
         const impactBadge = isCredit
-          ? `<span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200">🟢 دائن (له)</span>`
-          : `<span class="inline-flex items-center gap-1 bg-rose-50 text-rose-700 text-xs font-bold px-2.5 py-1 rounded-full border border-rose-200">🔴 مدين (عليه)</span>`;
+          ? `<span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 text-[11px] font-black px-2.5 py-1 rounded-full border border-emerald-200">🟢 دائن (له)</span>`
+          : `<span class="inline-flex items-center gap-1 bg-rose-50 text-rose-800 text-[11px] font-black px-2.5 py-1 rounded-full border border-rose-200">🔴 مدين (عليه)</span>`;
 
         const amtFormatted = parseFloat(s.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         return `
-          <tr class="border-b border-slate-50 hover:bg-slate-50/80 transition-colors text-sm">
-            <td class="p-4 font-mono font-bold text-slate-500 text-xs">${s.settlement_number || ('SET-' + s.id)}</td>
-            <td class="p-4 font-bold text-slate-800">
-              <a href="driver-details.html?id=${s.driver_id}" class="hover:text-indigo-600 transition-colors">
-                ${s.driver_name || 'سائق غير محدد'}
+          <tr class="hover:bg-amber-50/30 transition-colors text-xs font-semibold">
+            <td class="p-3 text-center font-bold text-slate-400 font-mono">${idx + 1}</td>
+            <td class="p-3 font-mono font-black text-slate-700">${s.settlement_number || ('SET-' + s.id)}</td>
+            <td class="p-3 font-black text-slate-900">
+              <a href="driver-details.html?id=${s.driver_id}" class="hover:text-masarat-goldHover transition-colors flex items-center gap-1.5">
+                <span>👤</span>
+                <span>${s.driver_name || 'سائق غير محدد'}</span>
               </a>
             </td>
-            <td class="p-4 text-slate-600 text-xs">${s.plate_number || 'غير مرتبطة'}</td>
-            <td class="p-4 text-center font-semibold text-slate-600 text-xs">${s.settlement_date || '--'}</td>
-            <td class="p-4 text-center text-xs">
-              <span class="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-lg border border-indigo-100">
+            <td class="p-3 text-slate-600 font-mono font-bold">${s.plate_number || 'غير مرتبطة'}</td>
+            <td class="p-3 text-center font-mono text-slate-600">${s.settlement_date || '--'}</td>
+            <td class="p-3 text-center">
+              <span class="bg-slate-100 text-slate-700 font-bold px-2.5 py-1 rounded-lg border border-slate-200">
                 ${s.category || 'تسوية رصيد'}
               </span>
             </td>
-            <td class="p-4 text-center">${impactBadge}</td>
-            <td class="p-4 text-center font-black ${isCredit ? 'text-emerald-600' : 'text-rose-600'} text-base">
-              ${amtFormatted} <span class="text-xs font-normal text-slate-400">ر.س</span>
+            <td class="p-3 text-center">${impactBadge}</td>
+            <td class="p-3 text-center font-black ${isCredit ? 'text-emerald-600' : 'text-rose-600'} font-mono text-sm">
+              ${amtFormatted} <span class="text-[10px] font-normal text-slate-400">ر.س</span>
             </td>
-            <td class="p-4 text-slate-700 text-xs max-w-xs truncate" title="${s.description || ''}">
+            <td class="p-3 text-slate-700 max-w-xs truncate" title="${s.description || ''}">
               ${s.description || '--'}
             </td>
-            <td class="p-4 text-center">
-              <div class="flex justify-center items-center gap-2">
-                <button onclick="editSettlement(${s.id})"
-                  class="bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 p-2 rounded-lg transition-colors cursor-pointer" title="تعديل">
+            <td class="p-3 text-center no-print">
+              <div class="flex justify-center items-center gap-1.5">
+                <button onclick="viewDriverStatementDirect(${s.driver_id})"
+                  class="bg-amber-50 hover:bg-masarat-gold/20 text-slate-950 p-2 rounded-lg transition-colors cursor-pointer border border-masarat-gold/40" title="عرض كشف حساب السائق">
+                  📑
+                </button>
+                <button onclick="editSettlement(${s.id})" data-permission="settlements"
+                  class="bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 p-2 rounded-lg transition-colors cursor-pointer" title="تعديل التسوية">
                   ✏️
                 </button>
-                <button onclick="deleteSettlement(${s.id})"
-                  class="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 p-2 rounded-lg transition-colors cursor-pointer" title="حذف">
+                <button onclick="deleteSettlement(${s.id})" data-permission="delete"
+                  class="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 p-2 rounded-lg transition-colors cursor-pointer" title="حذف التسوية">
                   🗑️
                 </button>
               </div>
@@ -415,10 +747,22 @@
           </tr>
         `;
       }).join('');
+
+      if (window.MasaratRBAC) {
+        window.MasaratRBAC.applyUIGuards();
+      }
     }
 
     searchInput.addEventListener('input', renderTable);
     filterImpactSelect.addEventListener('change', renderTable);
+
+    // Direct jump to driver statement
+    window.viewDriverStatementDirect = function(driverId) {
+      if (!driverId) return;
+      document.getElementById('statement-driver-select').value = driverId;
+      switchTab('statement');
+      loadDriverStatement(driverId);
+    };
 
     // Edit Settlement
     window.editSettlement = async function(id) {
@@ -434,7 +778,10 @@
       carSelect.value = s.car_id || '';
       settlementDateInput.value = s.settlement_date || '';
       categorySelect.value = s.category || 'تسوية رصيد عامة';
-      driverImpactSelect.value = s.driver_impact || (s.settlement_type === 'تعويض' ? 'credit' : 'debit');
+
+      const isCredit = s.driver_impact === 'credit' || (!s.driver_impact && (s.settlement_type === 'تعويض' || s.settlement_type === 'مكافأة'));
+      setSelectedImpact(isCredit ? 'credit' : 'debit');
+
       amountInput.value = s.amount || '';
       descriptionInput.value = s.description || '';
       notesInput.value = s.notes || '';
@@ -452,7 +799,7 @@
       try {
         const res = await fetch(`/api/general-settlements/${id}`, { method: 'DELETE' });
         if (res.ok) {
-          alert('تم حذف التسوية بنجاح');
+          alert('تم حذف التسوية بنجاح وتم إلغاء أثرها المالي');
           loadData();
         } else {
           const err = await res.json();
@@ -470,14 +817,15 @@
 
       const editingId = editingIdInput.value;
       const isEdit = Boolean(editingId);
+      const chosenImpact = getSelectedImpact();
 
       const payload = {
         driver_id: parseInt(driverSelect.value),
         car_id: carSelect.value ? parseInt(carSelect.value) : null,
         settlement_date: settlementDateInput.value,
         category: categorySelect.value,
-        driver_impact: driverImpactSelect.value,
-        settlement_type: driverImpactSelect.value === 'credit' ? 'تعويض' : 'خصم خاص',
+        driver_impact: chosenImpact,
+        settlement_type: chosenImpact === 'credit' ? 'تعويض' : 'خصم خاص',
         amount: parseFloat(amountInput.value),
         description: descriptionInput.value.trim(),
         notes: notesInput.value.trim(),
@@ -494,7 +842,7 @@
       }
 
       submitBtn.disabled = true;
-      submitBtn.textContent = 'جاري الحفظ...';
+      submitBtn.textContent = 'جاري الحفظ والترحيل...';
 
       try {
         const url = isEdit ? `/api/general-settlements/${editingId}` : '/api/general-settlements';
@@ -507,7 +855,7 @@
         });
 
         if (res.ok) {
-          alert(isEdit ? 'تم تحديث التسوية العامة بنجاح!' : 'تم حفظ التسوية العامة وترحيل أثرها المالي بنجاح!');
+          alert(isEdit ? 'تم تحديث التسوية بنجاح وترحيل أثرها الحسابي!' : 'تم حفظ التسوية وترحيل أثرها الحسابي بنجاح!');
           closeForm();
           loadData();
         } else {
@@ -519,11 +867,11 @@
         alert('حدث خطأ أثناء الاتصال بالخادم');
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = isEdit ? 'حفظ التعديلات' : 'حفظ التسوية';
+        submitBtn.textContent = isEdit ? 'حفظ التعديلات' : 'حفظ واعتماد التسوية';
       }
     });
 
-    // Auto-prefill car when driver changes
+    // Auto-prefill car when driver changes in the form
     driverSelect.addEventListener('change', async () => {
       const dId = driverSelect.value;
       if (!dId) return;
@@ -541,7 +889,399 @@
       }
     });
 
-    // Initial Load
+    // ==========================================
+    // TAB 2: كشف حساب السائق التفصيلي
+    // ==========================================
+    window.onStatementDriverChange = function() {
+      const driverId = parseInt(document.getElementById('statement-driver-select').value);
+      if (driverId) {
+        loadDriverStatement(driverId);
+      } else {
+        document.getElementById('statement-view-container').classList.add('hidden');
+        document.getElementById('statement-empty-state').classList.remove('hidden');
+        document.getElementById('print-statement-btn').disabled = true;
+        currentStatementDriver = null;
+      }
+    };
+
+    window.refreshCurrentStatement = function() {
+      const driverId = parseInt(document.getElementById('statement-driver-select').value);
+      if (driverId) loadDriverStatement(driverId);
+    };
+
+    async function loadDriverStatement(driverId) {
+      const container = document.getElementById('statement-view-container');
+      const emptyState = document.getElementById('statement-empty-state');
+      const printBtn = document.getElementById('print-statement-btn');
+
+      try {
+        const res = await fetch(`/api/drivers/${driverId}`);
+        if (!res.ok) throw new Error('فشل جلب بيانات السائق');
+
+        const data = await res.json();
+        currentStatementDriver = data;
+
+        // Populate Driver Card
+        document.getElementById('stmt-driver-name').textContent = data.name || '--';
+        document.getElementById('stmt-driver-phone').textContent = data.phone || '--';
+        document.getElementById('stmt-driver-id-num').textContent = data.national_id || '--';
+        document.getElementById('stmt-driver-status').textContent = data.status || 'نشط';
+        
+        let carText = 'غير مرتبط بمركبة حالياً';
+        if (data.contract && data.contract.car_plate) {
+          carText = `${data.contract.car_plate} (${data.contract.car_model || ''})`;
+        } else if (data.assigned_car) {
+          carText = `${data.assigned_car.plate_number} (${data.assigned_car.model || ''})`;
+        }
+        document.getElementById('stmt-driver-car').textContent = carText;
+        document.getElementById('stmt-generated-date').textContent = new Date().toLocaleDateString('ar-SA') + ' - ' + new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+
+        // Calculate Statements & Movements
+        let statements = Array.isArray(data.statements) ? [...data.statements] : [];
+        
+        // Sort chronologically (oldest to newest) to calculate cumulative balance correctly
+        statements.sort((a, b) => {
+          const dateCmp = (a.date || '').localeCompare(b.date || '');
+          if (dateCmp !== 0) return dateCmp;
+          return String(a.id || '').localeCompare(String(b.id || ''));
+        });
+
+        let totalDebit = 0;
+        let totalCredit = 0;
+        let cumulative = 0;
+
+        const calculatedMovements = statements.map((item, idx) => {
+          const debit = parseFloat(item.debit || 0);
+          const credit = parseFloat(item.credit || 0);
+          totalDebit += debit;
+          totalCredit += credit;
+          cumulative += (debit - credit);
+
+          // Status label for this movement
+          let statusBadge = '';
+          if (cumulative > 0) {
+            statusBadge = `<span class="bg-rose-50 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px] border border-rose-200">مطلوب ذمة</span>`;
+          } else if (cumulative < 0) {
+            statusBadge = `<span class="bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px] border border-emerald-200">رصيد دائن له</span>`;
+          } else {
+            statusBadge = `<span class="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px] border border-slate-200">مسدد بالكامل</span>`;
+          }
+
+          return {
+            index: idx + 1,
+            date: item.date || '--',
+            description: item.description || '--',
+            debit,
+            credit,
+            cumulativeBalance: Math.round(cumulative * 100) / 100,
+            statusBadge
+          };
+        });
+
+        // Store calculated on driver object
+        currentStatementDriver.calculatedMovements = calculatedMovements;
+        currentStatementDriver.totalDebit = totalDebit;
+        currentStatementDriver.totalCredit = totalCredit;
+        currentStatementDriver.netBalance = cumulative;
+
+        // Populate KPIs
+        document.getElementById('stmt-kpi-total-debit').textContent = `${totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س`;
+        document.getElementById('stmt-kpi-total-credit').textContent = `${totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س`;
+        
+        const netElem = document.getElementById('stmt-kpi-net-balance');
+        const netLabel = document.getElementById('stmt-kpi-balance-label');
+        const finalStatusElem = document.getElementById('stmt-kpi-final-status');
+
+        netElem.textContent = `${Math.abs(cumulative).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س`;
+
+        if (cumulative > 0) {
+          netElem.className = 'text-2xl font-black text-rose-600 mt-1';
+          netLabel.textContent = 'مدين (مطلوب سداد متبقي)';
+          finalStatusElem.innerHTML = `<span class="bg-rose-100 text-rose-800 text-xs font-black px-3 py-1.5 rounded-xl border border-rose-300">🔴 عليه مديونية: ${cumulative.toLocaleString()} ر.س</span>`;
+        } else if (cumulative < 0) {
+          netElem.className = 'text-2xl font-black text-emerald-600 mt-1';
+          netLabel.textContent = 'دائن (رصيد مستحق لصالح السائق)';
+          finalStatusElem.innerHTML = `<span class="bg-emerald-100 text-emerald-800 text-xs font-black px-3 py-1.5 rounded-xl border border-emerald-300">🟢 له رصيد فائض: ${Math.abs(cumulative).toLocaleString()} ر.س</span>`;
+        } else {
+          netElem.className = 'text-2xl font-black text-slate-800 mt-1';
+          netLabel.textContent = 'الحساب متوازن (خالص)';
+          finalStatusElem.innerHTML = `<span class="bg-slate-100 text-slate-800 text-xs font-black px-3 py-1.5 rounded-xl border border-slate-300">⚪ الحساب خالص بالكامل</span>`;
+        }
+
+        // Render Table Rows (show newest movements first or chronological)
+        const stmtTableBody = document.getElementById('stmt-table-body');
+        document.getElementById('stmt-movements-count').textContent = `${calculatedMovements.length} حركة مسجلة`;
+
+        if (calculatedMovements.length === 0) {
+          stmtTableBody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-slate-400 font-bold italic">لا توجد حركات مالية مسجلة لهذا السائق حتى الآن</td></tr>`;
+        } else {
+          // Display newest first for comfortable viewing on screen
+          const displayList = [...calculatedMovements].reverse();
+          stmtTableBody.innerHTML = displayList.map(m => {
+            const debitText = m.debit > 0 
+              ? `<span class="text-rose-600 font-black font-mono">${m.debit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>` 
+              : `<span class="text-slate-300 font-mono">-</span>`;
+            
+            const creditText = m.credit > 0 
+              ? `<span class="text-emerald-600 font-black font-mono">${m.credit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>` 
+              : `<span class="text-slate-300 font-mono">-</span>`;
+
+            let balColor = 'text-slate-700';
+            let balSuffix = '';
+            if (m.cumulativeBalance > 0) {
+              balColor = 'text-rose-600 font-black';
+              balSuffix = ' (مدين)';
+            } else if (m.cumulativeBalance < 0) {
+              balColor = 'text-emerald-600 font-black';
+              balSuffix = ' (دائن)';
+            }
+
+            return `
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-center font-bold text-slate-400 font-mono">${m.index}</td>
+                <td class="p-3 text-center font-mono font-bold text-slate-700">${m.date}</td>
+                <td class="p-3 font-bold text-slate-800">${m.description}</td>
+                <td class="p-3 text-center bg-rose-50/20">${debitText}</td>
+                <td class="p-3 text-center bg-emerald-50/20">${creditText}</td>
+                <td class="p-3 text-center font-mono ${balColor}">
+                  ${Math.abs(m.cumulativeBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span class="text-[10px] font-normal text-slate-400">${balSuffix}</span>
+                </td>
+                <td class="p-3 text-center">${m.statusBadge}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        container.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+        printBtn.disabled = false;
+      } catch (err) {
+        console.error('Error fetching driver statement:', err);
+        alert('تعذر تحميل كشف حساب السائق: ' + err.message);
+      }
+    }
+
+    // ==========================================
+    // Print Statements (A4 Layouts)
+    // ==========================================
+
+    // 1. Print General Settlements List
+    window.printSettlementsStatement = function() {
+      const printArea = document.getElementById('print-area');
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('ar-SA') + ' ' + now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+
+      const filtered = settlements.filter(s => s.status !== 'ملغاة');
+
+      let totalCredit = 0;
+      let totalDebit = 0;
+      filtered.forEach(s => {
+        const amt = parseFloat(s.amount || 0);
+        const isCredit = s.driver_impact === 'credit' || (!s.driver_impact && (s.settlement_type === 'تعويض' || s.settlement_type === 'مكافأة'));
+        if (isCredit) totalCredit += amt; else totalDebit += amt;
+      });
+
+      const rowsHtml = filtered.map((s, idx) => {
+        const isCredit = s.driver_impact === 'credit' || (!s.driver_impact && (s.settlement_type === 'تعويض' || s.settlement_type === 'مكافأة'));
+        return `
+          <tr>
+            <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
+            <td style="font-family: monospace; font-weight: bold;">${s.settlement_number || ('SET-' + s.id)}</td>
+            <td style="font-weight: bold;">${s.driver_name || '--'}</td>
+            <td>${s.plate_number || '--'}</td>
+            <td style="text-align: center;">${s.settlement_date || '--'}</td>
+            <td style="text-align: center;">${s.category || 'تسوية'}</td>
+            <td style="text-align: center; font-weight: bold; color: ${isCredit ? '#047857' : '#b91c1c'};">
+              ${isCredit ? 'دائن (له)' : 'مدين (عليه)'}
+            </td>
+            <td style="text-align: center; font-weight: bold;">
+              ${parseFloat(s.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ر.س
+            </td>
+            <td>${s.description || '--'}</td>
+          </tr>
+        `;
+      }).join('');
+
+      printArea.innerHTML = `
+        <div style="border-bottom: 3px solid #F5B800; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="logo.png" style="height: 60px; object-contain: contain;">
+            <div>
+              <h1 style="font-size: 20px; font-weight: 900; margin: 0; color: #000;">مسارات | Masarat</h1>
+              <p style="font-size: 13px; color: #475569; margin: 2px 0 0 0; font-weight: bold;">كشف قيود التسويات المالية العامة</p>
+            </div>
+          </div>
+          <div style="text-align: left; font-size: 11px; color: #475569;">
+            <p style="margin: 0;"><strong>تاريخ الطباعة:</strong> ${dateStr}</p>
+            <p style="margin: 2px 0 0 0;"><strong>عدد القيود:</strong> ${filtered.length}</p>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 15px; margin-bottom: 15px; font-size: 11px;">
+          <div style="flex: 1; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; background: #f8fafc;">
+            <strong>إجمالي الدائن (له):</strong> <span style="color: #047857; font-weight: bold;">${totalCredit.toLocaleString()} ر.س</span>
+          </div>
+          <div style="flex: 1; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; background: #f8fafc;">
+            <strong>إجمالي المدين (عليه):</strong> <span style="color: #b91c1c; font-weight: bold;">${totalDebit.toLocaleString()} ر.س</span>
+          </div>
+          <div style="flex: 1; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; background: #f8fafc;">
+            <strong>صافي الأثر المالي:</strong> <span style="font-weight: 900;">${(totalCredit - totalDebit).toLocaleString()} ر.س</span>
+          </div>
+        </div>
+
+        <table class="print-table">
+          <thead>
+            <tr>
+              <th style="width: 30px; text-align: center;">#</th>
+              <th>رقم التسوية</th>
+              <th>السائق</th>
+              <th>المركبة</th>
+              <th style="text-align: center;">التاريخ</th>
+              <th style="text-align: center;">التصنيف</th>
+              <th style="text-align: center;">الأثر</th>
+              <th style="text-align: center;">المبلغ</th>
+              <th>البيان</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div style="margin-top: 35px; display: flex; justify-content: space-between; font-size: 11px; padding: 0 20px;">
+          <div style="text-align: center;">
+            <p style="margin: 0 0 40px 0; font-weight: bold;">إعداد المحاسب المسؤول</p>
+            <p style="margin: 0; border-top: 1px dotted #94a3b8; padding-top: 5px; width: 140px;">التوقيع</p>
+          </div>
+          <div style="text-align: center;">
+            <p style="margin: 0 0 40px 0; font-weight: bold;">اعتماد الإدارة المالية</p>
+            <p style="margin: 0; border-top: 1px dotted #94a3b8; padding-top: 5px; width: 140px;">الختم والتوقيع</p>
+          </div>
+        </div>
+      `;
+
+      window.print();
+    };
+
+    // 2. Print Driver Account Statement
+    window.printDriverAccountStatement = function() {
+      if (!currentStatementDriver || !currentStatementDriver.calculatedMovements) {
+        alert('يرجى اختيار سائق لتحميل كشف حسابه أولاً');
+        return;
+      }
+
+      const d = currentStatementDriver;
+      const printArea = document.getElementById('print-area');
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('ar-SA') + ' ' + now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+
+      let carPlate = 'غير محددة';
+      if (d.contract && d.contract.car_plate) {
+        carPlate = `${d.contract.car_plate} (${d.contract.car_model || ''})`;
+      } else if (d.assigned_car) {
+        carPlate = `${d.assigned_car.plate_number}`;
+      }
+
+      const rowsHtml = d.calculatedMovements.map(m => {
+        const debitStr = m.debit > 0 ? `${m.debit.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-';
+        const creditStr = m.credit > 0 ? `${m.credit.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-';
+        const balSuffix = m.cumulativeBalance > 0 ? ' [مدين]' : (m.cumulativeBalance < 0 ? ' [دائن]' : '');
+        
+        let statusText = 'مسدد';
+        if (m.cumulativeBalance > 0) statusText = 'مطلوب ذمة';
+        if (m.cumulativeBalance < 0) statusText = 'دائن له';
+
+        return `
+          <tr>
+            <td style="text-align: center; font-weight: bold;">${m.index}</td>
+            <td style="text-align: center; font-family: monospace;">${m.date}</td>
+            <td style="font-weight: 600;">${m.description}</td>
+            <td style="text-align: center; color: #b91c1c; font-weight: bold; font-family: monospace;">${debitStr}</td>
+            <td style="text-align: center; color: #047857; font-weight: bold; font-family: monospace;">${creditStr}</td>
+            <td style="text-align: center; font-weight: 800; font-family: monospace;">
+              ${Math.abs(m.cumulativeBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}${balSuffix}
+            </td>
+            <td style="text-align: center; font-size: 10px;">${statusText}</td>
+          </tr>
+        `;
+      }).join('');
+
+      printArea.innerHTML = `
+        <div style="border-bottom: 3px solid #F5B800; padding-bottom: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="logo.png" style="height: 60px; object-contain: contain;">
+            <div>
+              <h1 style="font-size: 22px; font-weight: 900; margin: 0; color: #000;">مسارات | Masarat</h1>
+              <p style="font-size: 13px; color: #475569; margin: 2px 0 0 0; font-weight: bold;">كشف حساب السائق التفصيلي</p>
+            </div>
+          </div>
+          <div style="text-align: left; font-size: 11px; color: #475569;">
+            <p style="margin: 0;"><strong>تاريخ الاستخراج:</strong> ${dateStr}</p>
+            <p style="margin: 2px 0 0 0;"><strong>الرقم المرجعي:</strong> DRV-${d.id}</p>
+          </div>
+        </div>
+
+        <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 15px; background: #f8fafc; font-size: 12px;">
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+            <div><strong>اسم السائق:</strong> ${d.name || '--'}</div>
+            <div><strong>رقم الجوال:</strong> ${d.phone || '--'}</div>
+            <div><strong>الهوية / الإقامة:</strong> ${d.national_id || '--'}</div>
+            <div><strong>المركبة المسندة:</strong> ${carPlate}</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 15px; margin-bottom: 15px; font-size: 11px;">
+          <div style="flex: 1; border: 1px solid #fca5a5; padding: 8px 12px; border-radius: 6px; background: #fef2f2;">
+            <strong>إجمالي المطلوب / المدين [عليه]:</strong> <br>
+            <span style="color: #b91c1c; font-weight: 900; font-size: 14px;">${d.totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2 })} ر.س</span>
+          </div>
+          <div style="flex: 1; border: 1px solid #86efac; padding: 8px 12px; border-radius: 6px; background: #f0fdf4;">
+            <strong>إجمالي المسدد / الدائن [له]:</strong> <br>
+            <span style="color: #047857; font-weight: 900; font-size: 14px;">${d.totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2 })} ر.س</span>
+          </div>
+          <div style="flex: 1; border: 2px solid #F5B800; padding: 8px 12px; border-radius: 6px; background: #fffbeb;">
+            <strong>الرصيد التراكمي النهائي:</strong> <br>
+            <span style="font-weight: 900; font-size: 15px; color: ${d.netBalance > 0 ? '#b91c1c' : '#047857'};">
+              ${Math.abs(d.netBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })} ر.س 
+              <span style="font-size: 11px;">(${d.netBalance > 0 ? 'متبقي ذمة عليه' : (d.netBalance < 0 ? 'رصيد دائن له' : 'خالص')})</span>
+            </span>
+          </div>
+        </div>
+
+        <table class="print-table">
+          <thead>
+            <tr>
+              <th style="width: 25px; text-align: center;">#</th>
+              <th style="width: 75px; text-align: center;">التاريخ</th>
+              <th>البيان / التفاصيل</th>
+              <th style="width: 75px; text-align: center;">مدين [عليه]</th>
+              <th style="width: 75px; text-align: center;">دائن [له]</th>
+              <th style="width: 95px; text-align: center;">الرصيد التراكمي</th>
+              <th style="width: 75px; text-align: center;">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div style="margin-top: 35px; display: flex; justify-content: space-between; font-size: 11px; padding: 0 20px;">
+          <div style="text-align: center;">
+            <p style="margin: 0 0 40px 0; font-weight: bold;">توقيع السائق بالعلم والموافقة</p>
+            <p style="margin: 0; border-top: 1px dotted #94a3b8; padding-top: 5px; width: 150px;">السائق: ${d.name}</p>
+          </div>
+          <div style="text-align: center;">
+            <p style="margin: 0 0 40px 0; font-weight: bold;">إدارة الحسابات والتدقيق</p>
+            <p style="margin: 0; border-top: 1px dotted #94a3b8; padding-top: 5px; width: 150px;">الختم والتوقيع الرسمي</p>
+          </div>
+        </div>
+      `;
+
+      window.print();
+    };
+
+    // Initialize
     settlementDateInput.value = new Date().toISOString().split('T')[0];
     loadData();
   </script>

@@ -1,8 +1,19 @@
+:root {
+  --masarat-gold: #F5B800;
+  --masarat-gold-hover: #dfa700;
+  --masarat-gold-light: #fff9e6;
+  --masarat-black: #000000;
+  --masarat-dark: #111827;
+  --masarat-gray: #64748b;
+  --masarat-bg: #f8fafc;
+}
+
 body {
   font-family: 'Cairo', sans-serif;
-  background-color: #F4F6F9;
+  background-color: var(--masarat-bg);
   margin: 0;
   padding: 0;
+  color: var(--masarat-dark);
 }
 
 /* Custom Scrollbar for better UX */
@@ -11,7 +22,7 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f1f1; 
+  background: #f1f5f9; 
 }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1; 
@@ -19,6 +30,37 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8; 
+}
+
+/* Masarat Theme Utility Helpers */
+.bg-masarat-gold {
+  background-color: #F5B800 !important;
+}
+.text-masarat-gold {
+  color: #F5B800 !important;
+}
+.border-masarat-gold {
+  border-color: #F5B800 !important;
+}
+.bg-masarat-black {
+  background-color: #000000 !important;
+}
+
+/* User Permission Badges */
+.badge-admin {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.badge-accountant {
+  background-color: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+.badge-entry {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
 }
 
 /* Print Styles for A4 */
@@ -32,6 +74,14 @@ body {
     background-color: white !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  .no-print, .print\:hidden {
+    display: none !important;
+  }
+
+  .print-only, .print\:block {
+    display: block !important;
   }
 
   /* Force background colors to show in print */

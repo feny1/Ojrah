@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>صفحة المركبة الشاملة</title>
+  <title>مسارات - تفاصيل المركبة الشاملة</title>
+  <link rel="icon" type="image/png" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
@@ -14,6 +15,13 @@
     tailwind.config = {
       theme: {
         extend: {
+          colors: {
+            masarat: {
+              gold: '#F5B800',
+              hover: '#dfa700',
+              black: '#000000'
+            }
+          },
           fontFamily: {
             sans: ['Cairo', 'sans-serif'],
           }
@@ -26,19 +34,22 @@
   <!-- Screen Layout -->
   <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 mt-4 print:hidden" id="screen-layout">
     <!-- Header -->
-    <div class="flex justify-between items-center mb-8">
-      <div>
-        <h1 class="text-4xl font-bold text-blue-600">صفحة المركبة الشاملة</h1>
-        <p class="text-gray-500 mt-2">بيانات المركبة، السائقين، ونسبة التغطية وجدول السندات الزمني</p>
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+      <div class="flex items-center gap-4">
+        <img src="logo.png" alt="مسارات" class="h-12 w-auto object-contain">
+        <div>
+          <h1 class="text-3xl font-black text-black">ملف المركبة الشامل</h1>
+          <p class="text-slate-500 text-xs sm:text-sm mt-0.5">بيانات المركبة، السائقين المسندين (الورديات)، نسبة التغطية والإهلاك</p>
+        </div>
       </div>
-      <div class="space-x-4 space-x-reverse flex">
-        <button id="open-edit-btn" class="bg-yellow-600 text-white px-6 py-3 rounded-xl hover:bg-yellow-700 shadow-lg font-bold">
-          تعديل بيانات المركبة
+      <div class="flex items-center gap-3">
+        <button id="open-edit-btn" class="bg-[#F5B800] text-black px-5 py-2.5 rounded-xl hover:bg-amber-400 font-black text-xs shadow-md border border-amber-400 cursor-pointer">
+          تعديل المركبة
         </button>
-        <button onclick="window.print()" class="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 shadow-lg">
+        <button onclick="window.print()" class="bg-black text-white px-5 py-2.5 rounded-xl hover:bg-slate-800 font-bold text-xs shadow-md cursor-pointer">
           طباعة التقرير
         </button>
-        <a href="cars.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
+        <a href="cars.html" class="bg-slate-200 text-slate-800 px-5 py-2.5 rounded-xl hover:bg-slate-300 font-bold text-xs">
           العودة
         </a>
       </div>
@@ -57,11 +68,14 @@
         </ul>
       </div>
       
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-        <h2 class="text-xl font-bold text-orange-500 mb-4 border-b pb-2">السائق الحالي للمركبة</h2>
-        <ul class="space-y-3 text-slate-700" id="car-driver-info">
-          <li class="text-gray-500 italic">لا يوجد سائق مرتبط حالياً</li>
-        </ul>
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6">
+        <h2 class="text-xl font-black text-black mb-4 border-b pb-2 flex items-center gap-2">
+          <span>👥</span>
+          <span>السائقون المرتبطون بالمركبة (نظام الورديات)</span>
+        </h2>
+        <div class="space-y-3" id="car-driver-info">
+          <p class="text-gray-500 italic">لا يوجد سائق مرتبط حالياً</p>
+        </div>
       </div>
     </div>
 
@@ -154,12 +168,15 @@
     <div style="border: 3px solid #000; height: 100%; padding: 10px 14px; display: flex; flexDirection: column; boxSizing: border-box;">
       <div style="border: 1px solid #000; flex: 1; padding: 8px 12px; display: flex; flexDirection: column; boxSizing: border-box;">
         <!-- Print Header -->
-        <div style="display: flex; justify-content: space-between; alignItems: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
-          <div>
-            <div style="font-size: 16px; font-weight: 900;">مؤسسة أجرة لتقنية المعلومات</div>
-            <div style="font-size: 10px; color: #444;">إدارة أسطول المركبات — المملكة العربية السعودية</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <img src="logo.png" alt="مسارات" style="height: 45px; width: auto; object-fit: contain;">
+            <div>
+              <div style="font-size: 16px; font-weight: 900;">مسارات — نظام إدارة الأسطول</div>
+              <div style="font-size: 10px; color: #444;">المملكة العربية السعودية | تقرير مركبة رسمي</div>
+            </div>
           </div>
-          <div style="border: 2px solid #000; padding: 4px 16px; font-size: 18px; font-weight: 900; letter-spacing: 1px;">تقرير مركبة شامل</div>
+          <div style="border: 2px solid #000; padding: 4px 16px; font-size: 18px; font-weight: 900; letter-spacing: 1px; background: #F5B800;">تقرير مركبة معتمد</div>
         </div>
 
         <!-- Meta Row -->
@@ -322,7 +339,7 @@
 
     // Populate Print Date
     document.getElementById("print-date").textContent = new Date().toLocaleDateString('ar-SA');
-    document.getElementById("print-copyright").textContent = `أجرة © ${new Date().getFullYear()}`;
+    document.getElementById("print-copyright").textContent = `مسارات © ${new Date().getFullYear()}`;
 
     // Show/Hide Modal
     openEditBtn.addEventListener("click", () => {
@@ -532,21 +549,39 @@
           <li><span class="text-gray-500 w-24 inline-block">الإهلاك:</span> ${car.depreciation_method}</li>
         `;
 
-        // Driver Info
-        const driverInfo = document.getElementById("car-driver-info");
-        if (car.current_driver) {
-          driverInfo.innerHTML = `
-            <li class="flex items-center space-x-4 space-x-reverse">
-              <span class="w-32 text-gray-500">اسم السائق:</span>
-              <span class="font-bold text-slate-900">${car.current_driver.name}</span>
-            </li>
-            <li class="flex items-center space-x-4 space-x-reverse">
-              <span class="w-32 text-gray-500">تاريخ التسليم:</span>
-              <span class="text-slate-800">${car.current_driver.start_date}</span>
-            </li>
-          `;
+        // Driver Info (Multi-Driver rendering)
+        const driverInfoContainer = document.getElementById("car-driver-info");
+        const assignedDrivers = Array.isArray(car.assigned_drivers) && car.assigned_drivers.length > 0
+          ? car.assigned_drivers
+          : (car.current_driver ? [car.current_driver] : []);
+
+        if (assignedDrivers.length > 0) {
+          driverInfoContainer.innerHTML = assignedDrivers.map((d, idx) => `
+            <div class="flex items-center justify-between p-3 bg-amber-50/50 rounded-xl border border-amber-200">
+              <div class="flex items-center gap-3">
+                <span class="w-7 h-7 rounded-full bg-[#F5B800] text-black font-black text-xs flex items-center justify-center">${idx + 1}</span>
+                <div>
+                  <a href="driver-details.html?id=${d.id}" class="font-black text-slate-900 text-sm hover:text-amber-600 transition-colors">
+                    ${d.name}
+                  </a>
+                  <p class="text-[11px] text-slate-500 font-mono mt-0.5">جوال: ${d.phone || '--'} | هوية: ${d.national_id || '--'}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs bg-amber-200 text-amber-900 px-2 py-0.5 rounded font-bold">${idx === 0 ? 'سائق أساسي' : 'وردية ' + (idx + 1)}</span>
+                <a href="driver-details.html?id=${d.id}" class="text-xs bg-black text-white hover:bg-slate-800 px-3 py-1 rounded-lg font-bold">كشف حسابه</a>
+              </div>
+            </div>
+          `).join('');
+
+          // Populate print section
+          document.getElementById("print-driver-info").innerHTML = assignedDrivers.map((d, idx) => `
+            ${getFR(`السائق (${idx === 0 ? 'رئيسي' : 'وردية ' + (idx + 1)})`, d.name)}
+            ${getFR("رقم الجوال", d.phone || '-')}
+          `).join('');
         } else {
-          driverInfo.innerHTML = `<li class="text-gray-500 italic">لا يوجد سائق مرتبط حالياً</li>`;
+          driverInfoContainer.innerHTML = `<div class="p-4 text-center text-gray-500 italic bg-slate-50 rounded-xl border border-slate-100">لا يوجد سائق مرتبط حالياً بهذه المركبة</div>`;
+          document.getElementById("print-driver-info").innerHTML = getFR("السائق الحالي", "غير مسند");
         }
 
         // Setup Depreciation Controls

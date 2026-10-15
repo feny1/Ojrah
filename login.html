@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مسارات | تسجيل الدخول إلى النظام</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/tailwind.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          },
+          colors: {
+            masarat: {
+              gold: '#F5B800',
+              goldHover: '#e0a700',
+              dark: '#111827',
+              black: '#000000',
+              slate: '#1E293B'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-950 text-slate-100 flex items-center justify-center min-h-screen font-sans p-4 relative overflow-x-hidden selection:bg-masarat-gold selection:text-slate-950">
+  
+  <!-- Subtle Geometric / Taxi Glow Background Elements -->
+  <div class="absolute -top-40 -right-40 w-96 h-96 bg-masarat-gold/15 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-masarat-gold/10 rounded-full blur-3xl pointer-events-none"></div>
+  
+  <div class="w-full max-w-md relative z-10 space-y-6">
+
+    <!-- Brand Header -->
+    <div class="text-center space-y-3">
+      <div class="inline-flex p-3 rounded-3xl bg-slate-900/90 border-2 border-masarat-gold/40 shadow-2xl backdrop-blur-md">
+        <img src="logo.png" alt="مسارات" class="h-20 w-auto object-contain drop-shadow-md">
+      </div>
+      <div>
+        <h1 class="text-3xl font-black text-white tracking-tight">نظام <span class="text-masarat-gold">مسارات</span> لإدارة الأسطول</h1>
+        <p class="text-xs text-slate-400 font-bold mt-1">بوابة المصادقة المركزية والرقابة الصارمة (Zero-Trust RBAC)</p>
+      </div>
+    </div>
+
+    <!-- Login Card -->
+    <div class="bg-slate-900/80 backdrop-blur-xl p-8 rounded-3xl border border-slate-800 shadow-2xl space-y-6">
+      
+      <!-- Security Alert Box (Errors) -->
+      <div id="error-alert" class="hidden p-4 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-start gap-3">
+        <span class="text-base shrink-0">⚠️</span>
+        <span id="error-message">خطأ في اسم المستخدم أو كلمة المرور</span>
+      </div>
+
+      <form id="login-form" class="space-y-5">
+        
+        <!-- Username Field -->
+        <div>
+          <label class="block text-xs font-black text-slate-300 mb-2">اسم المستخدم (Username) <span class="text-masarat-gold">*</span></label>
+          <div class="relative">
+            <input
+              type="text"
+              id="username"
+              required
+              autofocus
+              autocomplete="username"
+              placeholder="مثال: admin"
+              class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-4 py-3.5 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-masarat-gold focus:ring-1 focus:ring-masarat-gold transition-all font-mono"
+            />
+            <span class="absolute left-3.5 top-3.5 text-slate-400 text-sm">👤</span>
+          </div>
+        </div>
+
+        <!-- Password Field with Visibility Toggle -->
+        <div>
+          <label class="block text-xs font-black text-slate-300 mb-2">كلمة المرور (Password) <span class="text-masarat-gold">*</span></label>
+          <div class="relative">
+            <input
+              type="password"
+              id="password"
+              required
+              autocomplete="current-password"
+              placeholder="••••••••"
+              class="w-full bg-slate-950 border border-slate-700/80 rounded-xl pr-4 pl-12 py-3.5 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-masarat-gold focus:ring-1 focus:ring-masarat-gold transition-all font-mono"
+            />
+            <button
+              type="button"
+              id="toggle-password-btn"
+              class="absolute left-3.5 top-3.5 text-slate-400 hover:text-white transition-colors cursor-pointer text-sm"
+              title="إظهار / إخفاء كلمة المرور"
+            >
+              👁️
+            </button>
+          </div>
+        </div>
+
+        <!-- Remember Me Toggle -->
+        <div class="flex items-center justify-between text-xs">
+          <label class="flex items-center gap-2 cursor-pointer select-none text-slate-300 font-bold">
+            <input type="checkbox" id="remember-me" checked class="w-4 h-4 rounded bg-slate-950 border-slate-700 text-masarat-gold focus:ring-masarat-gold cursor-pointer">
+            <span>تذكر الجلسة على هذا الجهاز</span>
+          </label>
+          <span class="text-[11px] text-slate-500 font-semibold">حماية مشفرة 🔒</span>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          id="submit-btn"
+          class="w-full bg-masarat-gold hover:bg-masarat-goldHover text-slate-950 font-black py-3.5 px-6 rounded-xl shadow-lg shadow-masarat-gold/20 transition-all text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+        >
+          <span>دخول النظام</span>
+          <span>←</span>
+        </button>
+      </form>
+
+    </div>
+
+    <!-- Security Footer -->
+    <div class="text-center text-[11px] text-slate-500 space-y-1">
+      <p>نظام مسارات لإدارة وتشغيل أسطول سيارات الأجرة © 2026</p>
+      <p class="text-slate-600 font-mono text-[10px]">Strict Granular RBAC / ABAC • Zero-Trust Policy</p>
+    </div>
+
+  </div>
+
+  <script>
+    const form = document.getElementById('login-form');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const rememberMeInput = document.getElementById('remember-me');
+    const submitBtn = document.getElementById('submit-btn');
+    const errorAlert = document.getElementById('error-alert');
+    const errorMessage = document.getElementById('error-message');
+    const togglePasswordBtn = document.getElementById('toggle-password-btn');
+
+    // Toggle Password Visibility
+    togglePasswordBtn.addEventListener('click', () => {
+      const isPassword = passwordInput.type === 'password';
+      passwordInput.type = isPassword ? 'text' : 'password';
+      togglePasswordBtn.textContent = isPassword ? '🙈' : '👁️';
+    });
+
+    function showError(msg) {
+      errorMessage.textContent = msg;
+      errorAlert.classList.remove('hidden');
+    }
+
+    function hideError() {
+      errorAlert.classList.add('hidden');
+    }
+
+    // Auto redirect if already authenticated
+    window.addEventListener('load', () => {
+      if (window.MasaratAuth && window.MasaratAuth.getCurrentUser()) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirect = urlParams.get('redirect') || 'index.html';
+        window.location.replace(redirect);
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+      const remember = rememberMeInput.checked;
+
+      if (!username || !password) {
+        showError('يرجى إدخال اسم المستخدم وكلمة المرور.');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `
+        <span class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+        <span>جاري التحقق والمصادقة...</span>
+      `;
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, remember })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          // Success! Redirect
+          const urlParams = new URLSearchParams(window.location.search);
+          let redirect = urlParams.get('redirect') || 'index.html';
+          
+          // Safety: avoid redirect loops
+          if (redirect.includes('login.html')) {
+            redirect = 'index.html';
+          }
+
+          submitBtn.innerHTML = `<span>✓ تم الدخول بنجاح! جاري التحويل...</span>`;
+          setTimeout(() => {
+            window.location.replace(redirect);
+          }, 400);
+        } else {
+          showError(data.error || 'اسم المستخدم أو كلمة المرور غير صحيحة.');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<span>دخول النظام</span><span>←</span>`;
+        }
+      } catch (err) {
+        console.error('Login error:', err);
+        showError('حدث خطأ أثناء الاتصال بالنظام.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>دخول النظام</span><span>←</span>`;
+      }
+    });
+  </script>
+</body>
+</html>

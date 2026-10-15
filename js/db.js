@@ -24,7 +24,7 @@
     'cars', 'drivers', 'contracts', 'violations', 'maintenance',
     'vouchers', 'car_documents', 'settings', 'invoices', 'purchases',
     'downtimes', 'purchase_items', 'invoice_items', 'general_settlements',
-    'weekly_deliveries', 'audit_logs'
+    'weekly_deliveries', 'audit_logs', 'users'
   ];
   
   function getTable(name) {
@@ -36,6 +36,243 @@
     localStorage.setItem('db_' + name, JSON.stringify(arr));
   }
   
+  // Comprehensive System Modules List (15 Core Operational & Financial Modules)
+  const MASARAT_MODULES = [
+    { id: 'dashboard', name: 'لوحة القيادة والمراقبة', icon: '📊', actions: ['view', 'print'] },
+    { id: 'drivers', name: 'إدارة السائقين', icon: '👤', actions: ['view', 'create', 'edit', 'delete', 'print'] },
+    { id: 'cars', name: 'إدارة أسطول المركبات', icon: '🚗', actions: ['view', 'create', 'edit', 'delete', 'print'] },
+    { id: 'contracts', name: 'العقود والتشغيل الأسبوعي', icon: '📜', actions: ['view', 'create', 'edit', 'delete', 'print', 'approve'] },
+    { id: 'vouchers', name: 'السندات المالية', icon: '💵', actions: ['view', 'create', 'edit', 'delete', 'print', 'approve'] },
+    { id: 'settlements', name: 'التسويات وكشوف الحساب', icon: '⚖️', actions: ['view', 'create', 'edit', 'delete', 'print', 'approve'] },
+    { id: 'purchases', name: 'المصاريف العامة والمشتريات', icon: '🛒', actions: ['view', 'create', 'edit', 'delete', 'print'] },
+    { id: 'invoices', name: 'الفواتير الضريبية (ZATCA)', icon: '🧾', actions: ['view', 'create', 'edit', 'delete', 'print', 'approve'] },
+    { id: 'violations', name: 'المخالفات المرورية', icon: '⚠️', actions: ['view', 'create', 'edit', 'delete', 'print'] },
+    { id: 'maintenance', name: 'الصيانة الدورية وقطع الغيار', icon: '🔧', actions: ['view', 'create', 'edit', 'delete', 'print'] },
+    { id: 'downtime', name: 'وقوف السيارات وتوقف التشغيل', icon: '⏸️', actions: ['view', 'create', 'edit', 'delete', 'print'] },
+    { id: 'treasury', name: 'حركة الصندوق والخزينة', icon: '🏦', actions: ['view', 'create', 'edit', 'delete', 'print', 'approve'] },
+    { id: 'reports', name: 'التقارير المالية والذمم', icon: '📈', actions: ['view', 'print'] },
+    { id: 'settings', name: 'إعدادات النظام والنسخ الاحتياطي', icon: '⚙️', actions: ['view', 'edit', 'delete'] },
+    { id: 'users', name: 'إدارة المستخدمين والصلاحيات', icon: '🛡️', actions: ['view', 'create', 'edit', 'delete'] }
+  ];
+
+  function generateRolePermissions(role) {
+    const perms = {};
+    MASARAT_MODULES.forEach(m => {
+      perms[m.id] = { view: false, create: false, edit: false, delete: false, print: false, approve: false };
+    });
+
+    if (role === 'admin') {
+      MASARAT_MODULES.forEach(m => {
+        m.actions.forEach(act => { perms[m.id][act] = true; });
+      });
+    } else if (role === 'accountant') {
+      ['dashboard', 'drivers', 'cars', 'contracts', 'violations', 'maintenance', 'downtime', 'reports'].forEach(mod => {
+        perms[mod].view = true;
+        perms[mod].print = true;
+      });
+      ['vouchers', 'settlements', 'invoices', 'treasury'].forEach(mod => {
+        perms[mod].view = true;
+        perms[mod].create = true;
+        perms[mod].edit = true;
+        perms[mod].print = true;
+        perms[mod].approve = true;
+      });
+      perms.purchases.view = true;
+      perms.purchases.create = true;
+      perms.purchases.edit = true;
+      perms.purchases.print = true;
+    } else if (role === 'supervisor') {
+      ['dashboard', 'drivers', 'cars', 'contracts', 'violations', 'maintenance', 'downtime'].forEach(mod => {
+        perms[mod].view = true;
+        perms[mod].create = true;
+        perms[mod].edit = true;
+        perms[mod].print = true;
+      });
+      ['vouchers', 'settlements', 'reports'].forEach(mod => {
+        perms[mod].view = true;
+        perms[mod].print = true;
+      });
+      perms.purchases.view = true;
+      perms.purchases.create = true;
+    } else if (role === 'data_entry') {
+      ['dashboard', 'drivers', 'cars', 'contracts', 'vouchers', 'purchases', 'violations', 'maintenance', 'downtime'].forEach(mod => {
+        perms[mod].view = true;
+        perms[mod].create = true;
+        perms[mod].print = true;
+      });
+      perms.settlements.view = true;
+    } else if (role === 'viewer') {
+      MASARAT_MODULES.forEach(m => {
+        if (m.id !== 'settings' && m.id !== 'users') {
+          perms[m.id].view = true;
+          perms[m.id].print = true;
+        }
+      });
+    }
+    return perms;
+  }
+
+  // Single Preassigned System Admin Account (No extra dummy accounts)
+  const DEFAULT_USERS = [
+    {
+      id: 1,
+      username: 'admin',
+      password: 'pass12314',
+      name: 'مدير النظام العام',
+      fullName: 'مدير النظام العام',
+      role: 'admin',
+      role_title: 'مدير نظام أعلى (Super Admin)',
+      isActive: true,
+      active: true,
+      created_at: '2026-01-01',
+      permissions: generateRolePermissions('admin')
+    }
+  ];
+
+  // Central Audit Log Helper - logs every operation and event across the entire system
+  function logActivity(username, action, details, meta = {}) {
+    try {
+      const logs = getTable('audit_logs');
+      const now = new Date();
+      
+      let userObj = null;
+      let uname = typeof username === 'string' ? username.trim() : '';
+      if (!uname && window.MasaratAuth) {
+        userObj = window.MasaratAuth.getCurrentUser();
+        if (userObj) uname = userObj.username;
+      }
+      if (!uname) uname = 'admin';
+
+      if (!userObj && window.MasaratAuth) {
+        const users = window.MasaratAuth.getUsers();
+        userObj = users.find(u => u.username.toLowerCase() === uname.toLowerCase());
+      }
+
+      const nextId = logs.length > 0 ? Math.max(...logs.map(l => l.id || 0)) + 1 : 1;
+      
+      const formattedDate = now.toLocaleDateString('ar-SA', {
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      });
+      const formattedTime = now.toLocaleTimeString('ar-SA', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+      });
+
+      const entry = {
+        id: nextId,
+        timestamp: now.toISOString(),
+        formatted_datetime: `${formattedDate} ${formattedTime}`,
+        date_str: now.toISOString().split('T')[0],
+        username: uname,
+        user_fullname: (userObj && (userObj.fullName || userObj.name)) || (uname === 'admin' ? 'مدير النظام العام' : uname),
+        user_role: (userObj && userObj.role) || (uname === 'admin' ? 'admin' : 'user'),
+        action: String(action || 'GENERAL_ACTION').toUpperCase(),
+        details: String(details || ''),
+        session_id: meta.session_id || (window.MasaratAuth ? (window.MasaratAuth.getSession() || {}).token : null) || 'sess_active',
+        ip_address: meta.ip_address || '127.0.0.1 (محلي)',
+        created_at: now.toISOString()
+      };
+
+      logs.push(entry);
+
+      // Keep recent 10,000 logs (FIFO retention)
+      if (logs.length > 10000) {
+        logs.splice(0, logs.length - 10000);
+      }
+
+      setTable('audit_logs', logs);
+      return entry;
+    } catch (e) {
+      console.error('[Audit Log Error]:', e);
+      return null;
+    }
+  }
+
+  // Seed users if empty, or purge legacy demo accounts and ensure single editable admin account
+  let existingUsers = getTable('users');
+  const demoPurged = localStorage.getItem('masarat_legacy_demo_purged_v2');
+
+  if (!localStorage.getItem('db_users') || existingUsers.length === 0) {
+    setTable('users', DEFAULT_USERS);
+    existingUsers = DEFAULT_USERS;
+    localStorage.setItem('masarat_legacy_demo_purged_v2', 'true');
+  } else {
+    let needsUpdate = false;
+    let filteredUsers = [...existingUsers];
+
+    // One-time purge of legacy mock accounts if not already purged
+    if (!demoPurged) {
+      const legacyDemoUsernames = ['accountant', 'supervisor', 'entry', 'auditor'];
+      filteredUsers = filteredUsers.filter(u => {
+        if (u.id !== 1 && legacyDemoUsernames.includes(u.username) && (!u.created_at || u.created_at === '2026-01-01' || u.password === '123456')) {
+          needsUpdate = true;
+          return false;
+        }
+        return true;
+      });
+      localStorage.setItem('masarat_legacy_demo_purged_v2', 'true');
+    }
+
+    // Ensure admin user (id 1) exists, is active, has admin role, and default password if previously 'admin123'
+    let adminUser = filteredUsers.find(u => u.id === 1);
+    if (!adminUser) {
+      adminUser = DEFAULT_USERS[0];
+      filteredUsers.unshift(adminUser);
+      needsUpdate = true;
+    } else {
+      if (adminUser.password === 'admin123' || !adminUser.password) {
+        adminUser.password = 'pass12314';
+        needsUpdate = true;
+      }
+      adminUser.role = 'admin';
+      adminUser.isActive = true;
+      adminUser.active = true;
+      if (!adminUser.permissions || typeof adminUser.permissions !== 'object' || Array.isArray(adminUser.permissions)) {
+        adminUser.permissions = generateRolePermissions('admin');
+        needsUpdate = true;
+      }
+    }
+
+    filteredUsers = filteredUsers.map(u => {
+      let updated = { ...u };
+      if (!updated.password) {
+        updated.password = updated.id === 1 ? 'pass12314' : '123456';
+        needsUpdate = true;
+      }
+      if (updated.isActive === undefined) {
+        updated.isActive = updated.active !== undefined ? updated.active : true;
+        needsUpdate = true;
+      }
+      if (!updated.permissions || Array.isArray(updated.permissions)) {
+        updated.permissions = generateRolePermissions(updated.role || (updated.id === 1 ? 'admin' : 'viewer'));
+        needsUpdate = true;
+      }
+      return updated;
+    });
+
+    if (needsUpdate) {
+      setTable('users', filteredUsers);
+      existingUsers = filteredUsers;
+    }
+  }
+
+  // Ensure an active session exists on startup for Super Admin if user has not explicitly logged out
+  const hasActiveSession = localStorage.getItem('masarat_session') || sessionStorage.getItem('masarat_session');
+  const wasLoggedOut = localStorage.getItem('masarat_logged_out') === 'true';
+  if (!hasActiveSession && !wasLoggedOut) {
+    const adminUser = existingUsers.find(u => u.id === 1) || DEFAULT_USERS[0];
+    const initialSession = {
+      token: 'masarat_tok_init_' + Date.now(),
+      userId: adminUser.id,
+      username: adminUser.username,
+      name: adminUser.name || adminUser.fullName,
+      role: adminUser.role,
+      role_title: adminUser.role_title,
+      loginTime: new Date().toISOString()
+    };
+    localStorage.setItem('masarat_session', JSON.stringify(initialSession));
+    localStorage.setItem('masarat_current_user', JSON.stringify(adminUser));
+  }
+
   // Seed if settings table is empty
   const currentSettings = localStorage.getItem('db_settings');
   if (!currentSettings) {
@@ -43,8 +280,8 @@
     
     // Seed some mock cars
     setTable('cars', [
-      { id: 1, company: 'تويوتا', model: 'كامري', year: 2023, purchase_date: '2023-01-15', plate_number: 'أ ب ج 1234', color: 'أبيض', purchase_cost: 95000, depreciation_method: 'قسط ثابت' },
-      { id: 2, company: 'هيونداي', model: 'إلنترا', year: 2022, purchase_date: '2022-05-20', plate_number: 'د هـ و 5678', color: 'فضي', purchase_cost: 80000, depreciation_method: 'قسط ثابت' }
+      { id: 1, company: 'تويوتا', model: 'كامري', year: 2023, purchase_date: '2023-01-15', plate_number: 'أ ب ج 1234', color: 'أبيض', purchase_cost: 95000, depreciation_method: 'قسط ثابت', assigned_driver_ids: [1] },
+      { id: 2, company: 'هيونداي', model: 'إلنترا', year: 2022, purchase_date: '2022-05-20', plate_number: 'د هـ و 5678', color: 'فضي', purchase_cost: 80000, depreciation_method: 'قسط ثابت', assigned_driver_ids: [2] }
     ]);
     
     // Seed some mock drivers
@@ -380,6 +617,59 @@
       // 3. Weekly Delivery Sanitization, Purge & Strict Friday Alignment (Idempotent Transactional Backfill)
       const weeklyStats = cleanAndAlignWeeklyDeliveries();
       console.log(`[Zero Data Loss] Cleaned and aligned weekly deliveries:`, weeklyStats);
+
+      // 4. Cars Multi-Driver Alignment Backfill
+      const cars = getTable('cars');
+      const contracts = getTable('contracts');
+      let carsUpdated = false;
+      cars.forEach(car => {
+        if (!Array.isArray(car.assigned_driver_ids)) {
+          car.assigned_driver_ids = [];
+          contracts.filter(c => c.car_id === car.id).forEach(c => {
+            if (c.driver_id && !car.assigned_driver_ids.includes(c.driver_id)) {
+              car.assigned_driver_ids.push(c.driver_id);
+            }
+          });
+          carsUpdated = true;
+        }
+      });
+      if (carsUpdated) {
+        setTable('cars', cars);
+      }
+
+      // 5. Settlements Credit/Debit Strict Integrity Migration
+      const settlements = getTable('general_settlements');
+      let settlementsFixed = 0;
+      settlements.forEach(s => {
+        if (s.driver_impact === 'debit') {
+          if (s.settlement_type === 'خصم خاص' || s.settlement_type === 'تعويض') {
+            s.settlement_type = 'مديونية / مدين';
+            settlementsFixed++;
+          }
+        } else if (s.driver_impact === 'credit') {
+          if (s.settlement_type === 'مديونية' || s.settlement_type === 'غرامة') {
+            s.settlement_type = 'تعويض / دائن';
+            settlementsFixed++;
+          }
+        } else {
+          // No driver_impact yet: derive cleanly
+          if (s.settlement_type === 'تعويض' || s.settlement_type === 'مكافأة') {
+            s.driver_impact = 'credit';
+          } else {
+            s.driver_impact = 'debit';
+          }
+          settlementsFixed++;
+        }
+      });
+      if (settlementsFixed > 0) {
+        setTable('general_settlements', settlements);
+      }
+
+      // 6. Users Table Initialization & Integrity
+      const currentUsers = getTable('users');
+      if (currentUsers.length === 0) {
+        setTable('users', DEFAULT_USERS);
+      }
     } catch (e) {
       console.error('[Migration Error]:', e);
     }
@@ -459,9 +749,13 @@
     const driverSettlements = settlements.filter(s => s.driver_id == d.id && s.status !== 'ملغاة');
     driverSettlements.forEach(s => {
       const amt = parseFloat(s.amount || 0);
-      if (s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص' || s.settlement_type === 'مكافأة') {
+      if (s.driver_impact === 'credit') {
         total_credits += amt;
-      } else if (s.driver_impact === 'debit' || s.settlement_type === 'مديونية' || s.settlement_type === 'غرامة') {
+      } else if (s.driver_impact === 'debit') {
+        total_debits += amt;
+      } else if (s.settlement_type === 'تعويض' || s.settlement_type === 'مكافأة') {
+        total_credits += amt;
+      } else {
         total_debits += amt;
       }
     });
@@ -537,7 +831,8 @@
         const cleanSDate = sDate.includes('T') ? sDate.split('T')[0] : sDate;
         if (cleanSDate >= rolloverDateStr) {
           const amt = parseFloat(s.amount || 0);
-          if (s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص' || s.settlement_type === 'مكافأة') {
+          const isCredit = s.driver_impact === 'credit' || (!s.driver_impact && (s.settlement_type === 'تعويض' || s.settlement_type === 'مكافأة'));
+          if (isCredit) {
             reimbursements += amt;
           }
         }
@@ -609,6 +904,76 @@
         
         let responseData = null;
         let status = 200;
+        
+        // Strict Zero-Trust RBAC & Session Enforcement
+        const isAuthRoute = path.startsWith('/api/auth/login');
+        const authUser = window.MasaratAuth ? window.MasaratAuth.getCurrentUser() : null;
+        const currentUsername = authUser ? authUser.username : 'admin';
+
+        if (!isAuthRoute) {
+          if (!authUser && !path.startsWith('/api/auth/')) {
+            return new Response(JSON.stringify({ error: 'جلسة المستخدم غير صالحة أو منتهية، يرجى تسجيل الدخول مجدداً.' }), {
+              status: 401,
+              headers: { 'Content-Type': 'application/json; charset=utf-8' }
+            });
+          }
+
+          if (authUser && authUser.role !== 'admin') {
+            let reqModule = null;
+            let reqAction = null;
+
+            if (path.startsWith('/api/drivers')) {
+              reqModule = 'drivers';
+              reqAction = method === 'POST' ? 'create' : (method === 'PUT' ? 'edit' : (method === 'DELETE' ? 'delete' : 'view'));
+            } else if (path.startsWith('/api/cars')) {
+              reqModule = 'cars';
+              reqAction = method === 'POST' ? 'create' : (method === 'PUT' ? 'edit' : (method === 'DELETE' ? 'delete' : 'view'));
+            } else if (path.startsWith('/api/contracts')) {
+              reqModule = 'contracts';
+              reqAction = method === 'POST' ? 'create' : (method === 'PUT' ? 'edit' : (method === 'DELETE' ? 'delete' : 'view'));
+            } else if (path.startsWith('/api/vouchers')) {
+              reqModule = 'vouchers';
+              reqAction = method === 'POST' ? 'create' : (method === 'PUT' ? 'edit' : (method === 'DELETE' ? 'delete' : 'view'));
+            } else if (path.startsWith('/api/general-settlements')) {
+              reqModule = 'settlements';
+              reqAction = method === 'POST' ? 'create' : (method === 'PUT' ? 'approve' : (method === 'DELETE' ? 'delete' : 'view'));
+            } else if (path.startsWith('/api/purchases')) {
+              reqModule = 'purchases';
+              reqAction = method === 'POST' ? 'create' : (method === 'PUT' ? 'edit' : (method === 'DELETE' ? 'delete' : 'view'));
+            } else if (path.startsWith('/api/invoices')) {
+              reqModule = 'invoices';
+              reqAction = method === 'POST' ? 'create' : (method === 'PUT' ? 'approve' : (method === 'DELETE' ? 'delete' : 'view'));
+            } else if (path.startsWith('/api/violations')) {
+              reqModule = 'violations';
+              reqAction = method === 'POST' ? 'create' : (method === 'PUT' ? 'edit' : (method === 'DELETE' ? 'delete' : 'view'));
+            } else if (path.startsWith('/api/maintenance')) {
+              reqModule = 'maintenance';
+              reqAction = method === 'POST' ? 'create' : (method === 'PUT' ? 'edit' : (method === 'DELETE' ? 'delete' : 'view'));
+            } else if (path.startsWith('/api/downtimes') || path.startsWith('/api/downtime')) {
+              reqModule = 'downtime';
+              reqAction = method === 'POST' ? 'create' : (method === 'PUT' ? 'edit' : (method === 'DELETE' ? 'delete' : 'view'));
+            } else if (path.startsWith('/api/treasury')) {
+              reqModule = 'treasury';
+              reqAction = method === 'POST' ? 'create' : 'view';
+            } else if (path.startsWith('/api/settings') || path === '/api/clear-all' || path === '/api/data-reset') {
+              reqModule = 'settings';
+              reqAction = method === 'GET' ? 'view' : (path === '/api/clear-all' || path === '/api/data-reset' ? 'delete' : 'edit');
+            } else if (path.startsWith('/api/users')) {
+              reqModule = 'users';
+              reqAction = method === 'POST' ? 'create' : (method === 'PUT' ? 'edit' : (method === 'DELETE' ? 'delete' : 'view'));
+            }
+
+            if (reqModule && reqAction && window.MasaratAuth && !window.MasaratAuth.hasPermission(reqModule, reqAction)) {
+              logActivity(currentUsername, 'SECURITY_VIOLATION', `محاولة غير مصرح بها لإجراء [${reqAction}] على وحدة [${reqModule}] من مسار [${path}]`);
+              return new Response(JSON.stringify({ 
+                error: `تم الرفض الأمني (Default-Deny): لا تملك صلاحية (${reqAction}) في قسم (${reqModule}).`
+              }), {
+                status: 403,
+                headers: { 'Content-Type': 'application/json; charset=utf-8' }
+              });
+            }
+          }
+        }
         
         // --- ROUTING HANDLERS ---
         
@@ -817,6 +1182,7 @@
             weekly_due_day: parseInt(body.weekly_due_day || 0),
             auto_recurring_enabled: body.auto_recurring_enabled !== undefined ? parseInt(body.auto_recurring_enabled) : 1
           }));
+          logActivity(currentUsername, 'UPDATE_SETTINGS', `تم تحديث إعدادات المؤسسة والرقم الضريبي (${body.vat_number || ''})`);
           responseData = { message: 'تم حفظ الإعدادات بنجاح' };
         }
         
@@ -826,22 +1192,55 @@
             localStorage.setItem('db_' + table, '[]');
           });
           localStorage.setItem('db_settings', JSON.stringify({ vat_number: '310123456700003', weekly_due_day: 6 }));
+          logActivity(currentUsername, 'CLEAR_DATABASE', 'تم تفريغ كافة سجلات وبيانات النظام بالكامل');
           responseData = { message: 'All data cleared successfully' };
         }
         
         // GET /api/cars
         else if (path === '/api/cars' && method === 'GET') {
-          responseData = getTable('cars');
+          const cars = getTable('cars');
+          const drivers = getTable('drivers');
+          const contracts = getTable('contracts');
+
+          responseData = cars.map(car => {
+            const assignedIds = Array.isArray(car.assigned_driver_ids) ? [...car.assigned_driver_ids] : [];
+            // Merge driver IDs from contracts if any
+            contracts.filter(c => c.car_id === car.id).forEach(c => {
+              if (c.driver_id && !assignedIds.includes(c.driver_id)) {
+                assignedIds.push(c.driver_id);
+              }
+            });
+
+            const assignedDrivers = assignedIds.map(dId => {
+              const d = drivers.find(dr => dr.id === dId);
+              return d ? { id: d.id, name: d.name, phone: d.phone, national_id: d.national_id } : null;
+            }).filter(Boolean);
+
+            return {
+              ...car,
+              assigned_driver_ids: assignedIds,
+              assigned_drivers: assignedDrivers,
+              assigned_drivers_names: assignedDrivers.map(d => d.name).join('، ') || 'غير مسند'
+            };
+          });
         }
         
         // POST /api/cars
         else if (path === '/api/cars' && method === 'POST') {
           const cars = getTable('cars');
           const nextId = cars.length > 0 ? Math.max(...cars.map(c => c.id)) + 1 : 1;
-          const newCar = { id: nextId, ...body };
+          const assigned_driver_ids = Array.isArray(body.assigned_driver_ids) 
+            ? body.assigned_driver_ids.map(Number).filter(n => !isNaN(n))
+            : (body.driver_id ? [parseInt(body.driver_id)] : []);
+          const newCar = { 
+            id: nextId, 
+            ...body, 
+            assigned_driver_ids
+          };
           cars.push(newCar);
           setTable('cars', cars);
-          responseData = { message: 'Car added successfully', id: nextId };
+          logActivity(currentUsername, 'ADD_VEHICLE', `تمت إضافة مركبة جديدة: [${newCar.company || ''} ${newCar.model || ''} - ${newCar.plate_number || ''}] رقم #${nextId}`);
+          responseData = { message: 'تمت إضافة المركبة بنجاح', id: nextId, car: newCar };
         }
         
         // GET /api/cars/:id or PUT /api/cars/:id
@@ -853,43 +1252,73 @@
           if (method === 'GET') {
             if (carIndex === -1) {
               status = 404;
-              responseData = { error: 'Car not found' };
+              responseData = { error: 'المركبة غير موجودة' };
             } else {
               const car = cars[carIndex];
               const maintenance = getTable('maintenance').filter(m => m.car_id === id);
               const documents = getTable('car_documents').filter(d => d.car_id === id);
               const contracts = getTable('contracts').filter(c => c.car_id === id);
-              
-              let current_driver = null;
-              if (contracts.length > 0) {
-                const latest = contracts[contracts.length - 1];
-                const driver = getTable('drivers').find(d => d.id === latest.driver_id);
-                if (driver) {
-                  current_driver = {
-                    name: driver.name,
-                    start_date: latest.start_date
-                  };
+              const allDrivers = getTable('drivers');
+
+              const assignedIds = Array.isArray(car.assigned_driver_ids) ? [...car.assigned_driver_ids] : [];
+              contracts.forEach(c => {
+                if (c.driver_id && !assignedIds.includes(c.driver_id)) {
+                  assignedIds.push(c.driver_id);
                 }
-              }
-              responseData = { ...car, maintenance, documents, current_driver, timeline: [] };
+              });
+
+              const assignedDrivers = assignedIds.map(dId => {
+                const d = allDrivers.find(dr => dr.id === dId);
+                const relContract = contracts.find(c => c.driver_id === dId);
+                return d ? {
+                  id: d.id,
+                  name: d.name,
+                  phone: d.phone,
+                  national_id: d.national_id,
+                  contract_id: relContract ? relContract.id : null,
+                  start_date: relContract ? relContract.start_date : null
+                } : null;
+              }).filter(Boolean);
+
+              const current_driver = assignedDrivers[0] || null;
+              responseData = { 
+                ...car, 
+                assigned_driver_ids: assignedIds,
+                assigned_drivers: assignedDrivers,
+                maintenance, 
+                documents, 
+                current_driver, 
+                timeline: [] 
+              };
             }
           } else if (method === 'PUT') {
             if (carIndex === -1) {
               status = 404;
-              responseData = { error: 'Car not found' };
+              responseData = { error: 'المركبة غير موجودة' };
             } else {
-              cars[carIndex] = { id, ...body };
+              const assigned_driver_ids = body.assigned_driver_ids !== undefined
+                ? (Array.isArray(body.assigned_driver_ids) ? body.assigned_driver_ids.map(Number).filter(n => !isNaN(n)) : [])
+                : (cars[carIndex].assigned_driver_ids || []);
+              cars[carIndex] = { 
+                ...cars[carIndex], 
+                ...body, 
+                id,
+                assigned_driver_ids
+              };
               setTable('cars', cars);
-              responseData = { message: 'Car updated successfully' };
+              logActivity(currentUsername, 'EDIT_VEHICLE', `تم تعديل بيانات المركبة رقم #${id} (${cars[carIndex].plate_number || ''})`);
+              responseData = { message: 'تم تحديث بيانات المركبة بنجاح', car: cars[carIndex] };
             }
           } else if (method === 'DELETE') {
             if (carIndex === -1) {
               status = 404;
-              responseData = { error: 'Car not found' };
+              responseData = { error: 'المركبة غير موجودة' };
             } else {
+              const carPlate = cars[carIndex].plate_number || '';
               cars.splice(carIndex, 1);
               setTable('cars', cars);
-              responseData = { message: 'Deleted successfully' };
+              logActivity(currentUsername, 'DELETE_VEHICLE', `تم حذف المركبة رقم #${id} (${carPlate})`);
+              responseData = { message: 'تم حذف المركبة بنجاح' };
             }
           }
         }
@@ -906,6 +1335,7 @@
           const newDriver = { id: nextId, ...body };
           drivers.push(newDriver);
           setTable('drivers', drivers);
+          logActivity(currentUsername, 'ADD_DRIVER', `تم إضافة سائق جديد: [${newDriver.name || ''}] رقم #${nextId}`);
           responseData = { message: 'Driver added successfully', id: nextId };
         }
         
@@ -1041,11 +1471,11 @@
               const driverSettlements = getTable('general_settlements').filter(s => s.driver_id === id && s.status !== 'ملغاة');
               driverSettlements.forEach(s => {
                 const amt = parseFloat(s.amount || 0);
-                const isCredit = (s.driver_impact === 'credit' || s.settlement_type === 'تعويض' || s.settlement_type === 'خصم خاص' || s.settlement_type === 'مكافأة');
+                const isCredit = s.driver_impact === 'credit' || (!s.driver_impact && (s.settlement_type === 'تعويض' || s.settlement_type === 'مكافأة'));
                 statements.push({
                   id: `settlement-${s.id}`,
                   date: s.settlement_date,
-                  description: `تسوية عامة (${s.category || s.settlement_type}): ${s.description || ''}`,
+                  description: `تسوية عامة (${s.category || (isCredit ? 'دائن (له)' : 'مدين (عليه)')}): ${s.description || ''}`,
                   debit: isCredit ? 0 : amt,
                   credit: isCredit ? amt : 0,
                   category: 'settlement'
@@ -1145,6 +1575,7 @@
             } else {
               drivers[driverIndex] = { id, ...body };
               setTable('drivers', drivers);
+              logActivity(currentUsername, 'EDIT_DRIVER', `تم تعديل بيانات السائق رقم #${id}: [${drivers[driverIndex].name || ''}]`);
               responseData = { message: 'Driver updated successfully' };
             }
           } else if (method === 'DELETE') {
@@ -1152,8 +1583,10 @@
               status = 404;
               responseData = { error: 'Driver not found' };
             } else {
+              const driverName = drivers[driverIndex].name || '';
               drivers.splice(driverIndex, 1);
               setTable('drivers', drivers);
+              logActivity(currentUsername, 'DELETE_DRIVER', `تم حذف السائق رقم #${id} [${driverName}]`);
               responseData = { message: 'Deleted successfully' };
             }
           }
@@ -1209,6 +1642,7 @@
           });
           setTable('vouchers', vouchers);
           
+          logActivity(currentUsername, 'CREATE_CONTRACT', `تم إنشاء عقد تشغيل جديد رقم #${nextId} للسائق #${body.driver_id} والمركبة #${body.car_id}`);
           responseData = { message: 'Contract created and voucher auto-generated', id: nextId };
         }
         
@@ -1220,6 +1654,7 @@
           if (index !== -1) {
             contracts.splice(index, 1);
             setTable('contracts', contracts);
+            logActivity(currentUsername, 'DELETE_CONTRACT', `تم حذف عقد التشغيل رقم #${id}`);
             responseData = { message: 'Deleted successfully' };
           } else {
             status = 404;
@@ -1239,6 +1674,7 @@
           const newViolation = { id: nextId, ...body };
           violations.push(newViolation);
           setTable('violations', violations);
+          logActivity(currentUsername, 'ADD_VIOLATION', `تم رصد مخالفة مرورية برقم #${nextId} للسائق #${body.driver_id || 'عام'} بقيمة ${body.amount || 0} ر.س`);
           responseData = { message: 'Violation added successfully', id: nextId };
         }
         
@@ -1250,6 +1686,7 @@
           if (index !== -1) {
             violations.splice(index, 1);
             setTable('violations', violations);
+            logActivity(currentUsername, 'DELETE_VIOLATION', `تم حذف المخالفة المرورية رقم #${id}`);
             responseData = { message: 'Deleted successfully' };
           } else {
             status = 404;
@@ -1276,6 +1713,7 @@
           };
           maintenance.push(newMaint);
           setTable('maintenance', maintenance);
+          logActivity(currentUsername, 'ADD_MAINTENANCE', `تم تسجيل عملية صيانة للمركبة #${body.car_id} بقيمة ${body.cost || 0} ر.س`);
           responseData = { message: 'Maintenance added successfully', id: nextId };
         }
         
@@ -1287,6 +1725,7 @@
           if (index !== -1) {
             maintenance.splice(index, 1);
             setTable('maintenance', maintenance);
+            logActivity(currentUsername, 'DELETE_MAINTENANCE', `تم حذف سجل الصيانة رقم #${id}`);
             responseData = { message: 'Deleted successfully' };
           } else {
             status = 404;
@@ -1401,6 +1840,7 @@
           };
           vouchers.push(newVoucher);
           setTable('vouchers', vouchers);
+          logActivity(currentUsername, 'CREATE_VOUCHER', `تم إنشاء سند [${newVoucher.voucher_type}] رقم #${newVoucher.voucher_number} بقيمة ${totalAmount} ر.س`);
           responseData = { id: nextId };
         }
         
@@ -1453,6 +1893,7 @@
             const car = cars.find(c => c.id == p.car_id);
             const items = purchaseItems.filter(it => it.purchase_id === p.id || it.invoice_id === p.id);
             const grandTotal = parseFloat(p.grand_total || p.total_amount || 0);
+            const isCompany = p.expense_category === 'company' || (!p.driver_id && !p.car_id);
 
             return {
               ...p,
@@ -1460,8 +1901,8 @@
               total_amount: grandTotal,
               items: items,
               items_count: items.length,
-              driver_name: driver ? driver.name : 'غير معروف',
-              plate_number: car ? car.plate_number : 'غير معروف'
+              driver_name: driver ? driver.name : (isCompany ? '🏢 مصروف مؤسسة عام' : 'غير مرتبط'),
+              plate_number: car ? car.plate_number : '—'
             };
           }).reverse();
         }
@@ -1479,13 +1920,15 @@
             const driver = getTable('drivers').find(d => d.id == p.driver_id);
             const car = getTable('cars').find(c => c.id == p.car_id);
             const items = purchaseItems.filter(it => it.purchase_id === id || it.invoice_id === id);
+            const isCompany = p.expense_category === 'company' || (!p.driver_id && !p.car_id);
+
             responseData = {
               ...p,
               grand_total: parseFloat(p.grand_total || p.total_amount || 0),
               total_amount: parseFloat(p.grand_total || p.total_amount || 0),
               items,
-              driver_name: driver ? driver.name : 'غير معروف',
-              plate_number: car ? car.plate_number : 'غير معروف'
+              driver_name: driver ? driver.name : (isCompany ? '🏢 مصروف مؤسسة عام' : 'غير مرتبط'),
+              plate_number: car ? car.plate_number : '—'
             };
           }
         }
@@ -1528,15 +1971,21 @@
               throw new Error('يجب أن يكون إجمالي فاتورة المشتريات أكبر من الصفر.');
             }
 
-            const driverPaid = parseFloat(body.driver_paid_amount || 0);
-            const debtCharge = parseFloat(body.debt_charge_amount || 0);
-            const reimbursement = parseFloat(body.reimbursement_amount || 0);
+            const isCompanyExpense = body.expense_category === 'company' || (!body.driver_id && !body.car_id);
+            const driverId = body.driver_id ? parseInt(body.driver_id) : null;
+            const carId = body.car_id ? parseInt(body.car_id) : null;
 
-            if ((driverPaid + debtCharge) > grandTotal + 0.01) {
-              throw new Error('مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.');
-            }
-            if (reimbursement > driverPaid + 0.01) {
-              throw new Error('لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.');
+            const driverPaid = isCompanyExpense ? 0 : parseFloat(body.driver_paid_amount || 0);
+            const debtCharge = isCompanyExpense ? 0 : parseFloat(body.debt_charge_amount || 0);
+            const reimbursement = isCompanyExpense ? 0 : parseFloat(body.reimbursement_amount || 0);
+
+            if (!isCompanyExpense) {
+              if ((driverPaid + debtCharge) > grandTotal + 0.01) {
+                throw new Error('مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.');
+              }
+              if (reimbursement > driverPaid + 0.01) {
+                throw new Error('لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.');
+              }
             }
 
             const productSummary = itemsList.map(it => it.description).join('، ');
@@ -1546,8 +1995,10 @@
               invoice_number: body.invoice_number || ('PINV-' + Date.now()),
               vendor_name: body.vendor_name || 'مورد عام / محلي',
               vendor_id: body.vendor_id || null,
-              driver_id: parseInt(body.driver_id),
-              car_id: parseInt(body.car_id),
+              driver_id: driverId,
+              car_id: carId,
+              expense_category: isCompanyExpense ? 'company' : 'driver',
+              expense_category_title: isCompanyExpense ? 'مصاريف المؤسسة العامة / مشتريات إدارية' : 'مشتريات تشغيلية لسائق/مركبة',
               invoice_date: body.invoice_date || new Date().toISOString().split('T')[0],
               product_name: productSummary || body.product_name,
               total_amount: grandTotal,
@@ -1555,7 +2006,7 @@
               driver_paid_amount: driverPaid,
               reimbursement_amount: reimbursement,
               debt_charge_amount: debtCharge,
-              settlement_type: body.settlement_type || (debtCharge > 0 ? 'debt' : 'reimbursement'),
+              settlement_type: isCompanyExpense ? 'company_expense' : (body.settlement_type || (debtCharge > 0 ? 'debt' : 'reimbursement')),
               status: 'مكتملة',
               created_at: new Date().toISOString()
             };
@@ -1583,6 +2034,7 @@
           });
 
           if (txResult.success) {
+            logActivity(currentUsername, 'ADD_EXPENSE', `تم تسجيل فاتورة مشتريات/مصروف برقم #${txResult.data.invoice_number || txResult.data.id} بقيمة إجمالية ${body.total_amount || 0} ر.س`);
             responseData = { message: 'تم تسجيل فاتورة المشتريات متعددة البنود بنجاح', ...txResult.data };
           } else {
             status = 400;
@@ -1632,15 +2084,21 @@
               throw new Error('يجب أن يكون إجمالي فاتورة المشتريات أكبر من الصفر.');
             }
 
-            const driverPaid = parseFloat(body.driver_paid_amount || 0);
-            const debtCharge = parseFloat(body.debt_charge_amount || 0);
-            const reimbursement = parseFloat(body.reimbursement_amount || 0);
+            const isCompanyExpense = body.expense_category === 'company' || (!body.driver_id && !body.car_id);
+            const driverId = body.driver_id ? parseInt(body.driver_id) : null;
+            const carId = body.car_id ? parseInt(body.car_id) : null;
 
-            if ((driverPaid + debtCharge) > grandTotal + 0.01) {
-              throw new Error('مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.');
-            }
-            if (reimbursement > driverPaid + 0.01) {
-              throw new Error('لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.');
+            const driverPaid = isCompanyExpense ? 0 : parseFloat(body.driver_paid_amount || 0);
+            const debtCharge = isCompanyExpense ? 0 : parseFloat(body.debt_charge_amount || 0);
+            const reimbursement = isCompanyExpense ? 0 : parseFloat(body.reimbursement_amount || 0);
+
+            if (!isCompanyExpense) {
+              if ((driverPaid + debtCharge) > grandTotal + 0.01) {
+                throw new Error('مجموع (المبلغ المدفوع من السائق + الدين المقيد) لا يمكن أن يكون أكبر من المبلغ الكلي للفاتورة.');
+              }
+              if (reimbursement > driverPaid + 0.01) {
+                throw new Error('لا يمكن أن يكون مبلغ التعويض أكبر من المبلغ الفعلي الذي دفعه السائق.');
+              }
             }
 
             const productSummary = itemsList.map(it => it.description).join('، ');
@@ -1650,16 +2108,18 @@
               invoice_number: body.invoice_number || purchases[index].invoice_number || ('PINV-' + id),
               vendor_name: body.vendor_name || purchases[index].vendor_name || 'مورد عام / محلي',
               vendor_id: body.vendor_id || purchases[index].vendor_id || null,
-              driver_id: parseInt(body.driver_id),
-              car_id: parseInt(body.car_id),
-              invoice_date: body.invoice_date,
+              driver_id: driverId,
+              car_id: carId,
+              expense_category: isCompanyExpense ? 'company' : (body.expense_category || purchases[index].expense_category || 'driver'),
+              expense_category_title: isCompanyExpense ? 'مصاريف المؤسسة العامة / مشتريات إدارية' : 'مشتريات تشغيلية لسائق/مركبة',
+              invoice_date: body.invoice_date || purchases[index].invoice_date,
               product_name: productSummary || body.product_name,
               total_amount: grandTotal,
               grand_total: grandTotal,
               driver_paid_amount: driverPaid,
               reimbursement_amount: reimbursement,
               debt_charge_amount: debtCharge,
-              settlement_type: body.settlement_type || (debtCharge > 0 ? 'debt' : 'reimbursement')
+              settlement_type: isCompanyExpense ? 'company_expense' : (body.settlement_type || purchases[index].settlement_type || (debtCharge > 0 ? 'debt' : 'reimbursement'))
             };
 
             purchases[index] = updatedPurchase;
@@ -1686,6 +2146,7 @@
           });
 
           if (txResult.success) {
+            logActivity(currentUsername, 'EDIT_EXPENSE', `تم تعديل فاتورة المصروف/المشتريات رقم #${id}`);
             responseData = { message: 'تم تحديث فاتورة المشتريات والبنود بنجاح' };
           } else {
             status = 400;
@@ -1712,6 +2173,7 @@
           });
 
           if (txResult.success) {
+            logActivity(currentUsername, 'DELETE_EXPENSE', `تم حذف فاتورة المصروف/المشتريات رقم #${id}`);
             responseData = { message: 'تم حذف فاتورة المشتريات وكافة بنودها بنجاح' };
           } else {
             status = 404;
@@ -1797,6 +2259,7 @@
           });
 
           if (txResult.success) {
+            logActivity(currentUsername, 'UPDATE_SETTLEMENT', `تم تسجيل تسوية عامة برقم #${txResult.data.settlement_number || txResult.data.id} بمبلغ ${txResult.data.amount} ر.س للسائق #${txResult.data.driver_id}`);
             responseData = { message: 'تم تسجيل التسوية العامة بنجاح', ...txResult.data };
           } else {
             status = 400;
@@ -1838,6 +2301,7 @@
           });
 
           if (txResult.success) {
+            logActivity(currentUsername, 'UPDATE_SETTLEMENT', `تم تحديث التسوية العامة رقم #${id} بمبلغ ${txResult.data.amount} ر.س`);
             responseData = { message: 'تم تحديث التسوية العامة بنجاح', data: txResult.data };
           } else {
             status = 400;
@@ -1853,6 +2317,7 @@
           if (index !== -1) {
             settlements.splice(index, 1);
             setTable('general_settlements', settlements);
+            logActivity(currentUsername, 'DELETE_SETTLEMENT', `تم حذف سجل التسوية العامة رقم #${id}`);
             responseData = { message: 'تم حذف التسوية العامة بنجاح' };
           } else {
             status = 404;
@@ -1987,6 +2452,7 @@
               
               invoices.push(newInvoice);
               setTable('invoices', invoices);
+              logActivity(currentUsername, 'CREATE_INVOICE', `تم تحويل السند #${voucher.voucher_number} إلى فاتورة ضريبية برقم #${invoice_number}`);
               responseData = { id: nextId, invoice_number };
             }
           }
@@ -1998,8 +2464,10 @@
           const vouchers = getTable('vouchers');
           const index = vouchers.findIndex(v => v.id === id);
           if (index !== -1) {
+            const vNum = vouchers[index].voucher_number || id;
             vouchers.splice(index, 1);
             setTable('vouchers', vouchers);
+            logActivity(currentUsername, 'DELETE_VOUCHER', `تم حذف السند المالي رقم #${id} (${vNum})`);
             responseData = { message: 'Deleted successfully' };
           } else {
             status = 404;
@@ -2076,12 +2544,12 @@
           };
           invoices.push(newInvoice);
           setTable('invoices', invoices);
-          
+          logActivity(currentUsername, 'CREATE_INVOICE', `تم إصدار فاتورة ضريبية برقم #${invoice_number} بقيمة ${newInvoice.amount} ر.س`);
           responseData = { id: nextId, invoice_number };
         }
         
-        // DELETE /api/:table/:id fallback
-        else if (method === 'DELETE' && path.match(/^\/api\/([a-z_]+)\/(\d+)$/)) {
+        // DELETE /api/:table/:id fallback (excludes users table which has strict RBAC & lockout prevention)
+        else if (method === 'DELETE' && path.match(/^\/api\/([a-z_]+)\/(\d+)$/) && !path.startsWith('/api/users/')) {
           const match = path.match(/^\/api\/([a-z_]+)\/(\d+)$/);
           const table = match[1];
           const id = parseInt(match[2]);
@@ -2090,6 +2558,7 @@
           if (index !== -1) {
             arr.splice(index, 1);
             setTable(table, arr);
+            logActivity(currentUsername, 'DELETE_RECORD', `تم حذف سجل من جدول [${table}] رقم #${id}`);
             responseData = { message: 'Deleted successfully' };
           } else {
             status = 404;
@@ -2159,6 +2628,7 @@
               };
               downtimes.push(newDowntime);
               setTable('downtimes', downtimes);
+              logActivity(currentUsername, 'ADD_DOWNTIME', `تم تسجيل توقف للمركبة #${body.car_id} بقيمة خصم إجمالية ${total_deduction} ر.س`);
               responseData = { message: 'تم تسجيل وقوف السيارة بنجاح', id: nextId, total_deduction };
             }
           }
@@ -2172,6 +2642,7 @@
           if (index !== -1) {
             downtimes.splice(index, 1);
             setTable('downtimes', downtimes);
+            logActivity(currentUsername, 'DELETE_DOWNTIME', `تم حذف سجل وقوف السيارة رقم #${id}`);
             responseData = { message: 'تم حذف سجل الوقوف بنجاح' };
           } else {
             status = 404;
@@ -2206,6 +2677,8 @@
             setTable(name, filtered);
             report[name] = { before, after: filtered.length, deleted: before - filtered.length };
           });
+
+          logActivity(currentUsername, 'RESET_DATA', `تم تنظيف وتصفير السجلات المالية السابقة لتاريخ ${cutoffDate}`);
 
           responseData = {
             message: `تم تنظيف السجلات المالية السابقة لتاريخ ${cutoffDate} بنجاح`,
@@ -2306,6 +2779,264 @@
           };
         }
 
+        // ==========================================
+        // CENTRAL AUDIT LOGS API ENDPOINTS
+        // ==========================================
+        // GET /api/audit-logs
+        else if (path.startsWith('/api/audit-logs') && method === 'GET') {
+          if (!authUser || (authUser.role !== 'admin' && authUser.id !== 1)) {
+            status = 403;
+            responseData = { error: 'غير مصرح لك بعرض سجل النشاطات، هذه الشاشة مخصصة لمدير النظام فقط.' };
+          } else {
+            let logs = getTable('audit_logs');
+            logs.sort((a, b) => new Date(b.timestamp || b.created_at || 0) - new Date(a.timestamp || a.created_at || 0));
+
+            const search = parsedUrl.searchParams.get('search');
+            const action = parsedUrl.searchParams.get('action');
+            const username = parsedUrl.searchParams.get('username');
+            const fromDate = parsedUrl.searchParams.get('from');
+            const toDate = parsedUrl.searchParams.get('to');
+            const limit = parseInt(parsedUrl.searchParams.get('limit')) || 1000;
+
+            if (search) {
+              const q = search.trim().toLowerCase();
+              logs = logs.filter(l => 
+                (l.details && String(l.details).toLowerCase().includes(q)) ||
+                (l.username && String(l.username).toLowerCase().includes(q)) ||
+                (l.user_fullname && String(l.user_fullname).toLowerCase().includes(q)) ||
+                (l.action && String(l.action).toLowerCase().includes(q))
+              );
+            }
+            if (action && action !== 'ALL') {
+              logs = logs.filter(l => l.action === action);
+            }
+            if (username && username !== 'ALL') {
+              logs = logs.filter(l => l.username && l.username.toLowerCase() === username.toLowerCase());
+            }
+            if (fromDate) {
+              logs = logs.filter(l => (l.date_str || (l.timestamp && l.timestamp.split('T')[0])) >= fromDate);
+            }
+            if (toDate) {
+              logs = logs.filter(l => (l.date_str || (l.timestamp && l.timestamp.split('T')[0])) <= toDate);
+            }
+
+            responseData = {
+              total: logs.length,
+              logs: logs.slice(0, limit)
+            };
+          }
+        }
+
+        // POST /api/audit-logs (Manual audit logging)
+        else if (path === '/api/audit-logs' && method === 'POST') {
+          const uname = body.username || currentUsername;
+          const entry = logActivity(uname, body.action || 'GENERAL_ACTION', body.details || '', body.meta || {});
+          responseData = { message: 'تم تسجيل الحدث بنجاح', entry };
+        }
+
+        // DELETE /api/audit-logs/clear
+        else if (path === '/api/audit-logs/clear' && method === 'DELETE') {
+          if (!authUser || (authUser.role !== 'admin' && authUser.id !== 1)) {
+            status = 403;
+            responseData = { error: 'غير مصرح لك بمسح سجل النشاطات' };
+          } else {
+            setTable('audit_logs', []);
+            logActivity(currentUsername, 'CLEAR_AUDIT_LOGS', 'قام مدير النظام بمسح وتفريغ سجل النشاطات والعمليات.');
+            responseData = { message: 'تم تفريغ سجل النشاطات بنجاح' };
+          }
+        }
+
+        // ==========================================
+        // USERS & RBAC API ENDPOINTS
+        // ==========================================
+        // GET /api/users
+        else if (path === '/api/users' && method === 'GET') {
+          const users = getTable('users');
+          responseData = users.length > 0 ? users : DEFAULT_USERS;
+        }
+
+        // POST /api/users
+        else if (path === '/api/users' && method === 'POST') {
+          const users = getTable('users');
+          const cleanUsername = (body.username || '').trim().toLowerCase();
+          
+          if (!cleanUsername) {
+            status = 400;
+            responseData = { error: 'يرجى إدخال اسم المستخدم (Username).' };
+          } else if (users.some(u => u.username && u.username.toLowerCase() === cleanUsername)) {
+            status = 400;
+            responseData = { error: `اسم المستخدم [${cleanUsername}] مسجل مسبقاً لمستخدم آخر. يرجى اختيار اسم مختلف.` };
+          } else {
+            const nextId = users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1;
+            const roleTitles = {
+              admin: 'مدير نظام أعلى (Super Admin)',
+              accountant: 'محاسب مالي',
+              supervisor: 'مشرف أسطول وحركة',
+              data_entry: 'مدخل بيانات / مشرف',
+              viewer: 'قارئ ومدقق',
+              custom: 'مخصص'
+            };
+            const rawRole = body.role || 'data_entry';
+            let userPerms = body.permissions;
+            if (!userPerms || (typeof userPerms === 'object' && Object.keys(userPerms).length === 0)) {
+              userPerms = generateRolePermissions(rawRole);
+            }
+            const newUser = {
+              id: nextId,
+              username: cleanUsername,
+              name: (body.fullName || body.name || cleanUsername).trim(),
+              fullName: (body.fullName || body.name || cleanUsername).trim(),
+              password: (body.password || '123456').trim(),
+              role: rawRole,
+              role_title: roleTitles[rawRole] || body.role_title || 'مستخدم',
+              permissions: userPerms,
+              isActive: body.isActive !== undefined ? Boolean(body.isActive) : (body.active !== undefined ? Boolean(body.active) : true),
+              active: body.isActive !== undefined ? Boolean(body.isActive) : (body.active !== undefined ? Boolean(body.active) : true),
+              created_at: new Date().toISOString().split('T')[0]
+            };
+            users.push(newUser);
+            setTable('users', users);
+            logActivity(currentUsername, 'CREATE_USER', `تم إنشاء مستخدم جديد: [${newUser.username}] (${newUser.fullName}) بصلاحية [${newUser.role_title}]`);
+            responseData = { message: 'تمت إضافة المستخدم وتثبيت مصفوفة الصلاحيات بنجاح', user: newUser };
+          }
+        }
+
+        // PUT /api/users/:id
+        else if (path.startsWith('/api/users/') && method === 'PUT') {
+          const id = parseInt(path.split('/')[3]);
+          const users = getTable('users');
+          const index = users.findIndex(u => u.id === id);
+          if (index === -1) {
+            status = 404;
+            responseData = { error: 'المستخدم غير موجود' };
+          } else {
+            const targetUsername = body.username ? body.username.trim().toLowerCase() : users[index].username;
+            if (targetUsername !== users[index].username && users.some(u => u.id !== id && u.username && u.username.toLowerCase() === targetUsername)) {
+              status = 400;
+              responseData = { error: `اسم المستخدم [${targetUsername}] مسجل مسبقاً لمستخدم آخر.` };
+            } else {
+              const roleTitles = {
+                admin: 'مدير نظام أعلى (Super Admin)',
+                accountant: 'محاسب عام',
+                supervisor: 'مشرف أسطول',
+                data_entry: 'مدخل بيانات / مشرف',
+                viewer: 'قارئ ومدقق',
+                custom: 'مخصص'
+              };
+              const role = (id === 1) ? 'admin' : (body.role || users[index].role);
+              users[index] = {
+                ...users[index],
+                name: body.name !== undefined ? body.name.trim() : (body.fullName !== undefined ? body.fullName.trim() : users[index].name),
+                fullName: body.fullName !== undefined ? body.fullName.trim() : (body.name !== undefined ? body.name.trim() : (users[index].fullName || users[index].name)),
+                username: targetUsername,
+                password: body.password ? body.password : users[index].password,
+                role: role,
+                role_title: (id === 1) ? 'مدير نظام أعلى (Super Admin)' : (roleTitles[role] || body.role_title || users[index].role_title),
+                permissions: (id === 1) ? generateRolePermissions('admin') : (body.permissions || users[index].permissions),
+                isActive: (id === 1) ? true : (body.isActive !== undefined ? Boolean(body.isActive) : (body.active !== undefined ? Boolean(body.active) : users[index].isActive))
+              };
+              users[index].active = users[index].isActive;
+              setTable('users', users);
+              
+              // If active user updated, sync session
+              const cur = window.MasaratAuth ? window.MasaratAuth.getCurrentUser() : null;
+              if (cur && cur.id === id) {
+                localStorage.setItem('masarat_current_user', JSON.stringify(users[index]));
+                window.dispatchEvent(new CustomEvent('masarat_user_changed', { detail: users[index] }));
+              }
+              logActivity(currentUsername, 'EDIT_USER', `تم تعديل بيانات وصلاحيات المستخدم رقم #${id} [${users[index].username}] (${users[index].fullName})`);
+              responseData = { message: 'تم تحديث بيانات وصلاحيات المستخدم بنجاح', user: users[index] };
+            }
+          }
+        }
+
+        // DELETE /api/users/:id
+        else if (path.startsWith('/api/users/') && method === 'DELETE') {
+          const id = parseInt(path.split('/')[3]);
+          if (id === 1) {
+            status = 400;
+            responseData = { error: 'لا يمكن حذف حساب مدير النظام الرئيسي (Super Admin) حمايةً للنظام من القفل (Lockout Prevention).' };
+          } else {
+            const users = getTable('users');
+            const index = users.findIndex(u => u.id === id);
+            if (index === -1) {
+              status = 404;
+              responseData = { error: 'المستخدم غير موجود' };
+            } else {
+              const cur = window.MasaratAuth ? window.MasaratAuth.getCurrentUser() : null;
+              if (cur && cur.id === id) {
+                status = 400;
+                responseData = { error: 'لا يمكنك حذف حسابك الشخصي النشط حالياً.' };
+              } else {
+                const deletedUsername = users[index].username;
+                users.splice(index, 1);
+                setTable('users', users);
+                logActivity(currentUsername, 'DELETE_USER', `تم حذف حساب المستخدم رقم #${id} [${deletedUsername}]`);
+                responseData = { message: 'تم حذف المستخدم بنجاح' };
+              }
+            }
+          }
+        }
+
+        // POST /api/auth/login
+        else if (path === '/api/auth/login' && method === 'POST') {
+          const { username, password, remember } = body;
+          if (!username || !password) {
+            status = 400;
+            responseData = { error: 'يرجى إدخال اسم المستخدم وكلمة المرور' };
+          } else {
+            const loginRes = window.MasaratAuth.login(username, password, Boolean(remember));
+            if (loginRes.success) {
+              status = 200;
+              responseData = loginRes;
+            } else {
+              status = 401;
+              responseData = { error: loginRes.error };
+            }
+          }
+        }
+
+        // POST /api/auth/logout
+        else if (path === '/api/auth/logout' && method === 'POST') {
+          if (window.MasaratAuth) {
+            window.MasaratAuth.logout();
+          }
+          responseData = { message: 'تم تسجيل الخروج بنجاح' };
+        }
+
+        // GET /api/auth/current-user or /api/auth/me
+        else if ((path === '/api/auth/current-user' || path === '/api/auth/me') && method === 'GET') {
+          responseData = window.MasaratAuth ? window.MasaratAuth.getCurrentUser() : null;
+        }
+
+        // POST /api/auth/switch-user
+        else if (path === '/api/auth/switch-user' && method === 'POST') {
+          const targetId = parseInt(body.user_id);
+          const users = getTable('users');
+          const target = users.find(u => u.id === targetId);
+          if (!target) {
+            status = 404;
+            responseData = { error: 'المستخدم المطلوب غير موجود' };
+          } else if (target.isActive === false) {
+            status = 403;
+            responseData = { error: 'هذا الحساب موقوف ولا يمكن التبديل إليه.' };
+          } else {
+            const session = {
+              token: 'masarat_tok_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+              userId: target.id,
+              username: target.username,
+              name: target.name || target.fullName,
+              role: target.role,
+              role_title: target.role_title,
+              loginTime: new Date().toISOString()
+            };
+            localStorage.setItem('masarat_session', JSON.stringify(session));
+            localStorage.setItem('masarat_current_user', JSON.stringify(target));
+            window.dispatchEvent(new CustomEvent('masarat_user_changed', { detail: target }));
+            responseData = { message: `تم التبديل بنجاح إلى: ${target.name}`, user: target };
+          }
+        }
+
         // Unknown route
         else {
           status = 404;
@@ -2330,4 +3061,393 @@
     // Pass-through standard fetch calls (e.g. locally hosted files)
     return originalFetch.apply(this, arguments);
   };
+
+  // ==========================================
+  // GLOBAL MASARAT AUTHENTICATION & STRICT RBAC/ABAC
+  // ==========================================
+  window.MasaratAuth = {
+    MODULES: MASARAT_MODULES,
+
+    generateRolePermissions(role) {
+      return generateRolePermissions(role);
+    },
+
+    getUsers() {
+      const users = getTable('users');
+      return users.length > 0 ? users : DEFAULT_USERS;
+    },
+
+    getSession() {
+      try {
+        const s = localStorage.getItem('masarat_session') || sessionStorage.getItem('masarat_session');
+        if (s) return JSON.parse(s);
+        const curUser = localStorage.getItem('masarat_current_user');
+        if (curUser && localStorage.getItem('masarat_logged_out') !== 'true') {
+          const u = JSON.parse(curUser);
+          return {
+            token: 'masarat_tok_restored_' + u.id,
+            userId: u.id,
+            username: u.username,
+            name: u.name || u.fullName,
+            role: u.role,
+            role_title: u.role_title,
+            loginTime: new Date().toISOString()
+          };
+        }
+        return null;
+      } catch (e) {
+        return null;
+      }
+    },
+
+    getCurrentUser() {
+      const session = this.getSession();
+      if (!session || !session.userId) {
+        return null;
+      }
+      const users = this.getUsers();
+      const freshUser = users.find(u => u.id === session.userId);
+      if (!freshUser || freshUser.isActive === false) {
+        // Auto-invalidate session if user deleted or disabled
+        sessionStorage.removeItem('masarat_session');
+        localStorage.removeItem('masarat_session');
+        localStorage.removeItem('masarat_current_user');
+        return null;
+      }
+      return freshUser;
+    },
+
+    login(username, password, remember = true) {
+      if (!username || !password) {
+        return { success: false, error: 'يرجى إدخال اسم المستخدم وكلمة المرور.' };
+      }
+      const cleanUser = String(username).trim().toLowerCase();
+      const cleanPass = String(password).trim();
+
+      const users = this.getUsers();
+      const user = users.find(u => u.username && u.username.toLowerCase() === cleanUser);
+
+      if (!user) {
+        logActivity(cleanUser, 'LOGIN_FAILED', `محاولة تسجيل دخول فاشلة - اسم المستخدم غير موجود: [${cleanUser}]`);
+        return { success: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة.' };
+      }
+
+      if (user.isActive === false) {
+        logActivity(cleanUser, 'LOGIN_BLOCKED', `محاولة تسجيل دخول لحساب موقوف: [${cleanUser}]`);
+        return { success: false, error: 'تم تجميد هذا الحساب من قبل الإدارة. يرجى التواصل مع مدير النظام.' };
+      }
+
+      // Password comparison (direct or fallback for admin pass12314)
+      const isMatch = (user.password && user.password === cleanPass) || (user.id === 1 && cleanPass === (user.password || 'pass12314'));
+      if (!isMatch) {
+        logActivity(cleanUser, 'LOGIN_FAILED', `محاولة تسجيل دخول فاشلة بكلمة مرور غير صحيحة للمستخدم: [${cleanUser}]`);
+        return { success: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة.' };
+      }
+
+      const session = {
+        token: 'masarat_tok_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        userId: user.id,
+        username: user.username,
+        name: user.name || user.fullName,
+        role: user.role,
+        role_title: user.role_title,
+        loginTime: new Date().toISOString()
+      };
+
+      localStorage.removeItem('masarat_logged_out');
+      localStorage.setItem('masarat_session', JSON.stringify(session));
+      sessionStorage.setItem('masarat_session', JSON.stringify(session));
+      localStorage.setItem('masarat_current_user', JSON.stringify(user));
+
+      logActivity(user.username, 'LOGIN', `تسجيل دخول ناجح للمستخدم [${user.fullName || user.name || user.username}] بصلاحية [${user.role}]`);
+
+      return { success: true, user, session };
+    },
+
+    logout() {
+      const cur = this.getCurrentUser();
+      if (cur) {
+        logActivity(cur.username, 'LOGOUT', `تسجيل خروج للمستخدم [${cur.fullName || cur.name || cur.username}] وإنهاء الجلسة`);
+      }
+      localStorage.setItem('masarat_logged_out', 'true');
+      sessionStorage.removeItem('masarat_session');
+      localStorage.removeItem('masarat_session');
+      localStorage.removeItem('masarat_current_user');
+      window.location.replace('login.html');
+    },
+
+    getCurrentPageModule() {
+      if (typeof document === 'undefined') return 'dashboard';
+      if (document.body && document.body.dataset && document.body.dataset.module) {
+        return document.body.dataset.module;
+      }
+      const page = window.location.pathname.split('/').pop().toLowerCase();
+      if (!page || page === 'index.html' || page === 'summary.html') return 'dashboard';
+      if (page.startsWith('driver')) return 'drivers';
+      if (page.startsWith('car')) return 'cars';
+      if (page.startsWith('contract')) return 'contracts';
+      if (page.startsWith('voucher')) return 'vouchers';
+      if (page.startsWith('settlement')) return 'settlements';
+      if (page.startsWith('purchase')) return 'purchases';
+      if (page.startsWith('invoice')) return 'invoices';
+      if (page.startsWith('violation')) return 'violations';
+      if (page.startsWith('maintenance')) return 'maintenance';
+      if (page.startsWith('downtime')) return 'downtime';
+      if (page.startsWith('treasury')) return 'treasury';
+      if (page.startsWith('debt')) return 'reports';
+      if (page.startsWith('setting')) return 'settings';
+      if (page.startsWith('login')) return 'login';
+      return 'dashboard';
+    },
+
+    // Strict Zero-Trust & Default-Deny Permission Check
+    hasPermission(moduleOrPerm, action) {
+      const user = this.getCurrentUser();
+      if (!user || user.isActive === false) return false;
+
+      // Super Admin Wildcard Bypass
+      if (user.role === 'admin' || user.id === 1) return true;
+
+      let module = moduleOrPerm;
+      let act = action;
+
+      if (typeof moduleOrPerm === 'string' && moduleOrPerm.includes(':')) {
+        const parts = moduleOrPerm.split(':');
+        module = parts[0];
+        act = parts[1];
+      } else if (!action) {
+        module = this.getCurrentPageModule();
+        act = moduleOrPerm;
+      }
+
+      // Action aliases normalization
+      if (act === 'add') act = 'create';
+      if (act === 'settle' || act === 'settlements') act = 'approve';
+      if (act === 'export') act = 'print';
+      if (act === 'settings') act = 'edit';
+
+      if (!module || !act) return false;
+
+      // Object-based granular matrix check
+      if (user.permissions && typeof user.permissions === 'object' && !Array.isArray(user.permissions)) {
+        if (user.permissions[module] && user.permissions[module][act] === true) {
+          return true;
+        }
+      }
+
+      // Legacy array check fallback
+      if (Array.isArray(user.permissions)) {
+        if (user.permissions.includes(act) || user.permissions.includes(module + ':' + act)) {
+          return true;
+        }
+      }
+
+      // Default-Deny: any unspecified permission is strictly rejected
+      return false;
+    },
+
+    can(moduleOrPerm, action) {
+      return this.hasPermission(moduleOrPerm, action);
+    },
+
+    // Execution Layer Guard Clause Helper
+    guard(module, action, callback) {
+      if (!this.hasPermission(module, action)) {
+        const msg = `عذراً، تم الرفض الأمني (Zero-Trust): غير مصرح لك بتنفيذ إجراء (${action}) في قسم (${module}).`;
+        alert(msg);
+        console.error('[Security Guard Denied]:', { module, action });
+        return false;
+      }
+      if (typeof callback === 'function') {
+        return callback();
+      }
+      return true;
+    },
+
+    // Session Route Guard
+    requireAuth() {
+      if (typeof window === 'undefined') return true;
+      const path = window.location.pathname.split('/').pop().toLowerCase();
+      if (path === 'login.html') {
+        if (this.getCurrentUser()) {
+          window.location.replace('index.html');
+          return false;
+        }
+        return true;
+      }
+
+      const user = this.getCurrentUser();
+      if (!user) {
+        const returnUrl = encodeURIComponent(path + window.location.search);
+        window.location.replace('login.html?redirect=' + returnUrl);
+        return false;
+      }
+      return true;
+    },
+
+    // Page-Level View Permission Guard
+    requirePermission(module, action = 'view') {
+      if (!this.requireAuth()) return false;
+      if (!this.hasPermission(module, action)) {
+        this.renderAccessDeniedScreen(module, action);
+        return false;
+      }
+      return true;
+    },
+
+    renderAccessDeniedScreen(module, action) {
+      if (typeof document === 'undefined') return;
+      document.body.innerHTML = `
+        <div style="min-height: 100vh; background: #0f172a; color: #f8fafc; font-family: 'Cairo', sans-serif; display: flex; align-items: center; justify-content: center; padding: 20px; direction: rtl;">
+          <div style="background: #1e293b; border: 2px solid #ef4444; border-radius: 24px; padding: 40px; max-width: 520px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+            <div style="width: 80px; height: 80px; background: rgba(239, 68, 68, 0.15); border: 2px solid #ef4444; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 38px; margin: 0 auto 20px;">
+              🚫
+            </div>
+            <span style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 11px; font-weight: 900; padding: 4px 12px; border-radius: 9999px; border: 1px solid rgba(239, 68, 68, 0.3);">
+              خطأ 403 - وصول محظور (Default-Deny)
+            </span>
+            <h1 style="font-size: 24px; font-weight: 900; margin: 15px 0 8px; color: #ffffff;">غير مصرح لك بالوصول لهذا القسم</h1>
+            <p style="font-size: 13px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px;">
+              حسابك الحالي (<strong style="color: #F5B800;">${(this.getCurrentUser() || {}).name || 'مستخدم'}</strong>) لا يمتلك الصلاحيات الكافية لتنفيذ إجراء <strong>[${action}]</strong> على وحدة <strong>[${module}]</strong>.
+            </p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+              <a href="index.html" style="background: #F5B800; color: #000; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 13px; text-decoration: none; box-shadow: 0 4px 12px rgba(245, 184, 0, 0.3);">
+                العودة للرئيسية
+              </a>
+              <button onclick="window.MasaratAuth.logout()" style="background: #334155; color: #e2e8f0; padding: 12px 20px; border-radius: 12px; font-weight: 700; font-size: 13px; border: 1px solid #475569; cursor: pointer;">
+                تبديل الحساب
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    },
+
+    // UI Elements Strict Enforcement
+    applyUIGuards() {
+      if (typeof document === 'undefined') return;
+      const path = window.location.pathname.split('/').pop().toLowerCase();
+      if (path === 'login.html') return;
+
+      // 1. Session check
+      if (!this.requireAuth()) return;
+
+      const pageModule = this.getCurrentPageModule();
+
+      // 2. Page-level view guard (Skip dashboard & login)
+      if (pageModule !== 'dashboard' && pageModule !== 'login') {
+        if (!this.hasPermission(pageModule, 'view')) {
+          this.renderAccessDeniedScreen(pageModule, 'view');
+          return;
+        }
+      }
+
+      // 3. Index.html Application Cards Guard (Default-Deny)
+      if (pageModule === 'dashboard') {
+        document.querySelectorAll('[data-module]').forEach(card => {
+          const mod = card.getAttribute('data-module');
+          if (mod && !this.hasPermission(mod, 'view')) {
+            card.style.display = 'none';
+          } else {
+            card.style.display = '';
+          }
+        });
+      }
+
+      // 4. Element-Level Action Guards ([data-permission])
+      document.querySelectorAll('[data-permission]').forEach(el => {
+        const rawPerm = el.getAttribute('data-permission');
+        if (!this.hasPermission(rawPerm)) {
+          if (el.dataset.guardMode === 'disable') {
+            el.disabled = true;
+            el.classList.add('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+            el.title = 'لا تمتلك صلاحية لهذا الإجراء (' + rawPerm + ')';
+          } else {
+            el.style.display = 'none';
+          }
+        } else {
+          if (el.dataset.guardMode === 'disable') {
+            el.disabled = false;
+            el.classList.remove('opacity-30', 'cursor-not-allowed', 'pointer-events-none');
+          } else if (el.style.display === 'none') {
+            el.style.display = '';
+          }
+        }
+      });
+
+      // 5. User badge widget mount
+      const mount = document.getElementById('masarat-user-badge');
+      if (mount) {
+        this.renderUserWidget(mount);
+      }
+    },
+
+    renderUserWidget(mountElement) {
+      if (!mountElement) return;
+      const user = this.getCurrentUser();
+      if (!user) return;
+
+      const roleBadges = {
+        admin: '<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-masarat-gold text-slate-950">👑 مدير عام</span>',
+        accountant: '<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-indigo-100 text-indigo-700">💼 محاسب</span>',
+        supervisor: '<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-sky-100 text-sky-800">🚗 مشرف أسطول</span>',
+        data_entry: '<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-800">✍️ مدخل</span>',
+        viewer: '<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-100 text-purple-800">👁️ مدقق</span>',
+        custom: '<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-200 text-slate-700">⚙️ مخصص</span>'
+      };
+
+      mountElement.innerHTML = `
+        <div class="relative inline-flex items-center gap-2.5 bg-slate-950 text-white px-3.5 py-1.5 rounded-xl border border-masarat-gold/50 text-xs shadow-md">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-slate-400 hidden md:inline">المستخدم:</span>
+          <span class="font-black text-masarat-gold">${user.name}</span>
+          ${roleBadges[user.role] || roleBadges.custom}
+          
+          <button onclick="window.MasaratAuth.logout()" class="mr-2 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white px-2.5 py-1 rounded-lg border border-rose-500/40 text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer" title="تسجيل الخروج وإنهاء الجلسة">
+            <span>🚪</span>
+            <span>خروج</span>
+          </button>
+        </div>
+      `;
+    },
+
+    applyGuards() {
+      return this.applyUIGuards();
+    },
+
+    async switchUser(userId) {
+      const res = await fetch('/api/auth/switch-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+      return res.json();
+    }
+  };
+
+  // Expose module definitions and role generator
+  window.MASARAT_MODULES = MASARAT_MODULES;
+  window.MasaratAuth.MODULES = MASARAT_MODULES;
+  window.MasaratAuth.generateRolePermissions = generateRolePermissions;
+  window.MasaratAuth.logActivity = logActivity;
+  window.logActivity = logActivity;
+
+  // Backward compatibility alias
+  window.MasaratRBAC = window.MasaratAuth;
+
+  // Global automatic print audit logger
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeprint', () => {
+      const cur = window.MasaratAuth ? window.MasaratAuth.getCurrentUser() : null;
+      const mod = window.MasaratAuth ? window.MasaratAuth.getCurrentPageModule() : 'dashboard';
+      logActivity(cur ? cur.username : 'admin', 'PRINT_REPORT', `طباعة أو تصدير تقرير من شاشة [${mod}]`);
+    });
+  }
+
+  // Global automatic execution on DOMContentLoaded
+  if (typeof document !== 'undefined') {
+    window.addEventListener('DOMContentLoaded', () => {
+      window.MasaratAuth.applyUIGuards();
+    });
+  }
 })();

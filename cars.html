@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>إدارة المركبات</title>
+  <title>مسارات - إدارة المركبات</title>
+  <link rel="icon" type="image/png" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
@@ -14,6 +15,13 @@
     tailwind.config = {
       theme: {
         extend: {
+          colors: {
+            masarat: {
+              gold: '#F5B800',
+              hover: '#dfa700',
+              black: '#000000'
+            }
+          },
           fontFamily: {
             sans: ['Cairo', 'sans-serif'],
           }
@@ -21,181 +29,616 @@
       }
     }
   </script>
+  <style>
+    @media print {
+      body { background: white !important; color: black !important; padding: 0 !important; }
+      .no-print, header, nav, #add-btn-container, #add-car-form, #edit-car-modal, .action-cell, #search-container {
+        display: none !important;
+      }
+      #print-header { display: block !important; }
+      #printable-table { width: 100% !important; border-collapse: collapse !important; }
+      #printable-table th, #printable-table td {
+        border: 1px solid #000 !important;
+        padding: 8px 10px !important;
+        font-size: 11px !important;
+      }
+      #print-footer { display: flex !important; }
+    }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-16">
-  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-8 mt-4">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-8">
-      <div>
-        <h1 class="text-4xl font-bold text-blue-600">إدارة المركبات</h1>
-        <p class="text-gray-500 mt-2">إدارة السيارات، مستنداتها، ونسبة التغطية</p>
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-4 shadow-sm no-print">
+    <div class="flex items-center gap-3">
+      <img src="logo.png" alt="مسارات" class="h-10 w-auto object-contain">
+      <div class="flex flex-col">
+        <span class="text-xl font-black text-black tracking-wide flex items-center gap-1.5">
+          <span>مسارات</span>
+          <span class="w-2 h-2 rounded-full bg-[#F5B800] inline-block"></span>
+        </span>
+        <span class="text-[10px] text-slate-500 font-bold -mt-1">شؤون المركبات والأسطول</span>
       </div>
-      <a href="index.html" class="bg-slate-800 text-white px-6 py-3 rounded-xl hover:bg-slate-700 shadow-lg">
-        العودة للرئيسية
-      </a>
     </div>
 
-    <!-- Toggle Add Button -->
-    <div class="flex justify-end mb-6" id="add-btn-container">
-      <button id="show-form-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">إضافة مركبة جديدة</button>
+    <div class="flex items-center gap-3">
+      <div id="masarat-user-badge"></div>
+      <a href="index.html" class="bg-black text-white hover:bg-slate-800 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
+        الرئيسية
+      </a>
+    </div>
+  </header>
+
+  <div class="p-4 sm:p-6 lg:p-8 w-full max-w-full space-y-6 mt-2">
+    <!-- Screen Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm no-print">
+      <div>
+        <h1 class="text-3xl font-black text-black flex items-center gap-2">
+          <span>🚗</span>
+          <span>إدارة المركبات والأسطول</span>
+        </h1>
+        <p class="text-slate-500 text-xs sm:text-sm mt-1">إسناد متعدد للسائقين بنظام الورديات، متابعة وثائق المركبات، الإهلاك، وحسابات التشغيل</p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3" id="add-btn-container">
+        <!-- Print Button -->
+        <button
+          onclick="printCarsList()"
+          data-permission="print"
+          class="bg-slate-900 hover:bg-black text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-all shadow flex items-center gap-1.5 cursor-pointer border border-slate-700"
+          title="طباعة كشف المركبات المفلتر"
+        >
+          <span>🖨️</span>
+          <span>طباعة كشف المركبات</span>
+        </button>
+
+        <!-- Add Button with RBAC -->
+        <button
+          id="show-form-btn"
+          data-permission="add"
+          class="bg-[#F5B800] hover:bg-amber-400 active:scale-95 text-black px-5 py-2.5 rounded-xl font-black text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer border border-amber-400"
+        >
+          <span>+</span>
+          <span>إضافة مركبة جديدة</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Print-Only Header (Appears only on paper / print window) -->
+    <div id="print-header" class="hidden mb-6 border-b-2 border-black pb-4 text-right">
+      <div class="flex justify-between items-center mb-3">
+        <div class="flex items-center gap-3">
+          <img src="logo.png" alt="شعار مسارات" style="height: 55px; width: auto; object-fit: contain;">
+          <div>
+            <h2 style="font-size: 20px; font-weight: 900; margin: 0; color: #000;">مسارات — نظام إدارة الأسطول</h2>
+            <p style="font-size: 11px; margin: 2px 0 0 0; color: #444;">المملكة العربية السعودية | كشف الأسطول والمركبات النشطة</p>
+          </div>
+        </div>
+        <div style="text-align: left; font-size: 11px;">
+          <div><b>التاريخ:</b> <span id="print-timestamp">--</span></div>
+          <div><b>إجمالي المركبات:</b> <span id="print-total-count" style="font-weight: bold;">0</span></div>
+        </div>
+      </div>
+      <div style="background-color: #F5B800; color: #000; padding: 6px 12px; font-size: 14px; font-weight: 900; text-align: center; border-radius: 4px;">
+        كشف ببيانات مركبات أسطول مسارات والسائقين المسندين
+      </div>
     </div>
 
     <!-- Add Form (hidden by default) -->
-    <div id="add-car-form" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8 hidden">
-      <h2 class="text-2xl font-bold text-slate-800 mb-6">إضافة مركبة جديدة</h2>
+    <div id="add-car-form" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 no-print hidden">
+      <div class="flex justify-between items-center mb-6 pb-2 border-b border-slate-100">
+        <h2 class="text-xl font-black text-slate-800">إضافة مركبة جديدة إلى أسطول مسارات</h2>
+        <button type="button" id="cancel-form-btn-top" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+      </div>
+
       <form id="car-form" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input type="text" id="company" placeholder="الشركة (مثال: تويوتا)" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-          <input type="text" id="model" placeholder="الموديل (مثال: كامري)" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-          <input type="number" id="year" placeholder="سنة الصنع" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-          <input type="date" id="purchase_date" placeholder="تاريخ الشراء" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-          <input type="text" id="plate_number" placeholder="لوحة السيارة" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-          <input type="text" id="color" placeholder="لون السيارة" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-          <input type="number" id="purchase_cost" placeholder="تكلفة الشراء (ريال)" required class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-          <select id="depreciation_method" class="border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-            <option value="سنوات">سنوات</option>
-            <option value="كيلومترات">كيلومترات</option>
-          </select>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">الشركة المصنعة <span class="text-rose-500">*</span></label>
+            <input type="text" id="company" placeholder="مثال: تويوتا، هيونداي" required class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">الموديل والطراز <span class="text-rose-500">*</span></label>
+            <input type="text" id="model" placeholder="مثال: كامري، سوناتا" required class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">سنة الصنع <span class="text-rose-500">*</span></label>
+            <input type="number" id="year" placeholder="2024" required class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm font-bold text-center">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">رقم اللوحة <span class="text-rose-500">*</span></label>
+            <input type="text" id="plate_number" placeholder="أ ب ج 1234" required class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm font-bold text-center">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">تاريخ الشراء <span class="text-rose-500">*</span></label>
+            <input type="date" id="purchase_date" required class="w-full border border-slate-200 p-3 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">لون المركبة <span class="text-rose-500">*</span></label>
+            <input type="text" id="color" placeholder="أصفر أجرة، أبيض" required class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">تكلفة الشراء (ريال) <span class="text-rose-500">*</span></label>
+            <input type="number" id="purchase_cost" placeholder="مثال: 95000" required class="w-full border border-slate-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm font-mono text-center">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">طريقة الإهلاك</label>
+            <select id="depreciation_method" class="w-full border border-slate-200 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm font-bold">
+              <option value="قسط ثابت">قسط ثابت (سنوي)</option>
+              <option value="كيلومترات">كيلومترات التشغيل</option>
+            </select>
+          </div>
         </div>
-        <div class="flex gap-4 mt-6">
-          <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">حفظ</button>
-          <button type="button" id="cancel-form-btn" class="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
+
+        <!-- Multi-Driver Assignment Section -->
+        <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-200 mt-3">
+          <label class="block text-xs font-black text-amber-950 mb-1.5 flex items-center gap-1.5">
+            <span>👥</span>
+            <span>إسناد السائقين على المركبة (إمكانية إسناد أكثر من سائق - نظام الورديات):</span>
+          </label>
+          <p class="text-[11px] text-amber-800 mb-2.5">حدد السائقين المرخصين والمكلفين بقيادة هذه المركبة (سائق أساسي، سائق وردية مسائية، إلخ)</p>
+          <div id="drivers-checkbox-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 bg-white rounded-lg border border-amber-200">
+            <span class="text-xs text-slate-400 p-2">جاري تحميل قائمة السائقين...</span>
+          </div>
+        </div>
+
+        <div class="flex gap-3 mt-6 pt-3 border-t border-slate-100">
+          <button type="submit" class="bg-[#F5B800] hover:bg-amber-400 text-black px-6 py-2.5 rounded-xl font-black text-sm shadow cursor-pointer transition-all">
+            حفظ المركبة ✓
+          </button>
+          <button type="button" id="cancel-form-btn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-xl font-bold text-sm cursor-pointer transition-all">
+            إلغاء
+          </button>
         </div>
       </form>
     </div>
 
-    <!-- Vehicles List -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-      <h2 class="text-2xl font-bold text-slate-800 mb-6">قائمة المركبات</h2>
+    <!-- Live Search Bar -->
+    <div id="search-container" class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs no-print">
+      <div class="relative w-full sm:w-96">
+        <input
+          type="text"
+          id="car-search-input"
+          placeholder="🔍 بحث فوري باللوحة، الشركة، الموديل، أو اسم السائق..."
+          class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#F5B800] bg-slate-50/50"
+        />
+        <button id="clear-search-btn" class="absolute left-3 top-2.5 text-slate-400 hover:text-slate-600 hidden text-xs font-bold">✕</button>
+      </div>
+
+      <div class="flex items-center gap-3 text-xs font-bold text-slate-500">
+        <span>المركبات المعروضة:</span>
+        <span id="cars-count-badge" class="bg-black text-[#F5B800] px-3 py-1 rounded-lg font-black text-sm">0</span>
+        <span class="text-slate-400">مركبة</span>
+      </div>
+    </div>
+
+    <!-- Vehicles List Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="w-full text-right">
-          <thead class="bg-slate-50 text-slate-600">
+        <table class="w-full text-right" id="printable-table">
+          <thead class="bg-slate-100/80 text-slate-700 font-black text-xs border-b border-slate-200">
             <tr>
-              <th class="p-4 rounded-tr-lg">اللوحة</th>
+              <th class="p-4 w-14 text-center rounded-tr-xl">#</th>
+              <th class="p-4">رقم اللوحة</th>
               <th class="p-4">النوع والموديل</th>
-              <th class="p-4">سنة الصنع</th>
-              <th class="p-4">تكلفة الشراء</th>
-              <th class="p-4">طريقة الإهلاك</th>
-              <th class="p-4 rounded-tl-lg">الإجراءات</th>
+              <th class="p-4 text-center">سنة الصنع</th>
+              <th class="p-4">السائقون المعينون (نظام الورديات)</th>
+              <th class="p-4 text-center">تكلفة الشراء</th>
+              <th class="p-4 text-center">طريقة الإهلاك</th>
+              <th class="p-4 rounded-tl-xl text-center action-cell no-print">الإجراءات والعمليات</th>
             </tr>
           </thead>
-          <tbody id="cars-table-body">
-            <tr><td colSpan="6" class="text-center p-4 text-gray-500">جاري تحميل البيانات...</td></tr>
+          <tbody id="cars-table-body" class="divide-y divide-slate-100 text-sm">
+            <tr><td colSpan="8" class="text-center p-8 text-slate-400 font-bold">جاري تحميل بيانات المركبات...</td></tr>
           </tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Print-Only Formal Signatures Footer -->
+    <div id="print-footer" class="hidden justify-between items-center mt-12 pt-6 border-t-2 border-black text-xs">
+      <div class="text-center w-48">
+        <div class="font-bold mb-8">إعداد وتأكيد مسؤول حركة الأسطول</div>
+        <div class="border-b border-black"></div>
+        <div class="text-[10px] text-gray-500 mt-1">الاسم والتوقيع</div>
+      </div>
+      <div class="text-center">
+        <div class="font-bold text-xs">نظام مسارات لإدارة الأسطول © <span id="print-year">2026</span></div>
+        <div class="text-[10px] text-gray-500">وثيقة رسمية صادرة آلياً من النظام</div>
+      </div>
+      <div class="text-center w-48">
+        <div class="font-bold mb-8">اعتماد الإدارة / الختم الرسمي</div>
+        <div class="border-b border-black"></div>
+        <div class="text-[10px] text-gray-500 mt-1">الختم والاعتماد</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Car Modal with Multi-Driver Assignment -->
+  <div id="edit-car-modal" class="fixed inset-0 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 hidden no-print">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 relative border-2 border-[#F5B800] max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-6 border-b pb-3">
+        <h2 class="text-2xl font-black text-black flex items-center gap-2">
+          <span>✏️</span>
+          <span>تعديل بيانات المركبة وإسناد السائقين</span>
+        </h2>
+        <button type="button" id="close-edit-modal" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+      </div>
+
+      <form id="edit-car-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">الشركة المصنعة *</label>
+            <input type="text" id="edit-company" required class="border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">الموديل والطراز *</label>
+            <input type="text" id="edit-model" required class="border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">سنة الصنع *</label>
+            <input type="number" id="edit-year" required class="border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm font-bold text-center w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">رقم اللوحة *</label>
+            <input type="text" id="edit-plate_number" required class="border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm font-bold text-center w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">تاريخ الشراء *</label>
+            <input type="date" id="edit-purchase_date" required class="border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm font-bold w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">لون المركبة *</label>
+            <input type="text" id="edit-color" required class="border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">تكلفة الشراء (ريال) *</label>
+            <input type="number" id="edit-purchase_cost" required class="border p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm font-mono text-center w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">طريقة الإهلاك</label>
+            <select id="edit-depreciation_method" class="border p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#F5B800] text-sm font-bold w-full">
+              <option value="قسط ثابت">قسط ثابت (سنوي)</option>
+              <option value="كيلومترات">كيلومترات التشغيل</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Multi-Driver Assignment in Edit Modal -->
+        <div class="bg-amber-50/70 p-4 rounded-xl border border-amber-200 mt-2">
+          <label class="block text-xs font-black text-amber-950 mb-1 flex items-center gap-1.5">
+            <span>👥</span>
+            <span>السائقون المسندون للمركبة (نظام الورديات):</span>
+          </label>
+          <p class="text-[11px] text-amber-800 mb-2">يمكنك تحديد عدة سائقين ليتناوبوا على تشغيل المركبة</p>
+          <div id="edit-drivers-checkbox-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 bg-white rounded-lg border border-amber-200">
+            <!-- Loaded Dynamically -->
+          </div>
+        </div>
+
+        <div class="flex gap-4 mt-6 border-t pt-4">
+          <button type="submit" class="bg-[#F5B800] hover:bg-amber-400 text-black px-6 py-3 rounded-xl font-black text-sm shadow-md flex-1 cursor-pointer">
+            حفظ التعديلات ✓
+          </button>
+          <button type="button" id="close-edit-modal-btn" class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-6 py-3 rounded-xl font-bold text-sm flex-1 cursor-pointer">
+            إلغاء
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
   <script>
     const API_URL = "/api/cars";
+    const DRIVERS_URL = "/api/drivers";
+
+    let allCars = [];
+    let allDrivers = [];
+    let editingCarId = null;
+
+    // DOM references
     const showFormBtn = document.getElementById("show-form-btn");
     const cancelFormBtn = document.getElementById("cancel-form-btn");
+    const cancelFormBtnTop = document.getElementById("cancel-form-btn-top");
     const addCarForm = document.getElementById("add-car-form");
-    const addBtnContainer = document.getElementById("add-btn-container");
     const carForm = document.getElementById("car-form");
     const tableBody = document.getElementById("cars-table-body");
+    const searchInput = document.getElementById("car-search-input");
+    const clearSearchBtn = document.getElementById("clear-search-btn");
+    const carsCountBadge = document.getElementById("cars-count-badge");
+    const driversCheckboxContainer = document.getElementById("drivers-checkbox-container");
 
-    // Set default manufacturing year to current year
+    // Edit modal
+    const editModal = document.getElementById("edit-car-modal");
+    const editForm = document.getElementById("edit-car-form");
+    const closeEditModal = document.getElementById("close-edit-modal");
+    const closeEditModalBtn = document.getElementById("close-edit-modal-btn");
+    const editDriversCheckboxContainer = document.getElementById("edit-drivers-checkbox-container");
+
+    // Defaults
     document.getElementById("year").value = new Date().getFullYear();
+    document.getElementById("purchase_date").value = new Date().toISOString().split("T")[0];
 
+    // Form toggle
     showFormBtn.addEventListener("click", () => {
       addCarForm.classList.remove("hidden");
-      addBtnContainer.classList.add("hidden");
+      addCarForm.scrollIntoView({ behavior: 'smooth' });
     });
 
-    cancelFormBtn.addEventListener("click", () => {
+    const hideAddForm = () => {
       addCarForm.classList.add("hidden");
-      addBtnContainer.classList.remove("hidden");
       carForm.reset();
       document.getElementById("year").value = new Date().getFullYear();
-    });
+      document.getElementById("purchase_date").value = new Date().toISOString().split("T")[0];
+      uncheckAllDrivers(driversCheckboxContainer);
+    };
+    cancelFormBtn.addEventListener("click", hideAddForm);
+    cancelFormBtnTop.addEventListener("click", hideAddForm);
 
-    async function loadCars() {
+    closeEditModal.addEventListener("click", () => { editModal.classList.add("hidden"); editingCarId = null; });
+    closeEditModalBtn.addEventListener("click", () => { editModal.classList.add("hidden"); editingCarId = null; });
+
+    function uncheckAllDrivers(container) {
+      container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+    }
+
+    // Populate drivers checkboxes for multi-select
+    function renderDriversCheckboxes(container, selectedIds = []) {
+      if (allDrivers.length === 0) {
+        container.innerHTML = `<span class="text-xs text-slate-400 p-2">لا يوجد سائقين مسجلين بعد.</span>`;
+        return;
+      }
+
+      container.innerHTML = allDrivers.map(d => {
+        const isChecked = selectedIds.includes(d.id) ? 'checked' : '';
+        return `
+          <label class="flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded cursor-pointer text-xs font-bold text-slate-700">
+            <input type="checkbox" value="${d.id}" ${isChecked} class="rounded border-slate-300 text-amber-500 focus:ring-amber-400 w-4 h-4 cursor-pointer">
+            <span class="truncate">${d.name} (${d.phone || d.national_id || ''})</span>
+          </label>
+        `;
+      }).join('');
+    }
+
+    // Load cars and drivers
+    async function loadData() {
       try {
-        const response = await fetch(API_URL);
-        const cars = await response.json();
-        
-        if (cars.length === 0) {
-          tableBody.innerHTML = `<tr><td colSpan="6" class="text-center p-4 text-gray-500">لا توجد مركبات مسجلة بعد</td></tr>`;
-          return;
+        const [carsRes, driversRes] = await Promise.all([
+          fetch(API_URL),
+          fetch(DRIVERS_URL)
+        ]);
+
+        allCars = await carsRes.json();
+        allDrivers = await driversRes.json();
+
+        renderDriversCheckboxes(driversCheckboxContainer, []);
+        renderCarsTable();
+      } catch (error) {
+        console.error("Error loading cars data:", error);
+        tableBody.innerHTML = `<tr><td colSpan="8" class="text-center p-8 text-rose-500 font-bold">حدث خطأ أثناء تحميل بيانات المركبات</td></tr>`;
+      }
+    }
+
+    // Render cars table with auto-indexing (#) and live search
+    function renderCarsTable() {
+      const query = (searchInput.value || "").trim().toLowerCase();
+
+      const filtered = allCars.filter(car => {
+        if (!query) return true;
+        const plateMatch = (car.plate_number || "").toLowerCase().includes(query);
+        const companyMatch = (car.company || "").toLowerCase().includes(query);
+        const modelMatch = (car.model || "").toLowerCase().includes(query);
+        const yearMatch = String(car.year || "").includes(query);
+        const driversMatch = (car.assigned_drivers_names || "").toLowerCase().includes(query);
+        return plateMatch || companyMatch || modelMatch || yearMatch || driversMatch;
+      });
+
+      carsCountBadge.textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        tableBody.innerHTML = `<tr><td colSpan="8" class="text-center p-8 text-slate-400 font-bold">لا توجد مركبات مسجلة مطابقة للبحث</td></tr>`;
+        return;
+      }
+
+      const canEdit = window.MasaratRBAC ? window.MasaratRBAC.hasPermission('edit') : true;
+      const canDelete = window.MasaratRBAC ? window.MasaratRBAC.hasPermission('delete') : true;
+
+      tableBody.innerHTML = filtered.map((car, index) => {
+        const autoIndex = index + 1; // Auto-indexing starts from 1 dynamically!
+
+        // Assigned drivers badges
+        let driversHtml = '<span class="text-xs text-slate-400 italic">غير مسند</span>';
+        if (Array.isArray(car.assigned_drivers) && car.assigned_drivers.length > 0) {
+          driversHtml = `<div class="flex flex-wrap gap-1">` +
+            car.assigned_drivers.map((d, dIdx) => `
+              <a href="driver-details.html?id=${d.id}" class="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs px-2 py-0.5 rounded-md font-bold transition-colors">
+                <span>👤</span>
+                <span>${d.name}</span>
+                <span class="text-[10px] text-amber-700 bg-amber-200/80 px-1 rounded">${dIdx === 0 ? 'رئيسي' : 'وردية ' + (dIdx + 1)}</span>
+              </a>
+            `).join('') + `</div>`;
         }
 
-        tableBody.innerHTML = cars.map(car => `
-          <tr class="border-b border-slate-50 hover:bg-slate-50">
-            <td class="p-4 font-bold">${car.plate_number}</td>
-            <td class="p-4">${car.company} ${car.model}</td>
-            <td class="p-4">${car.year}</td>
-            <td class="p-4">${Number(car.purchase_cost).toLocaleString()} ريال</td>
-            <td class="p-4">${car.depreciation_method}</td>
-            <td class="p-4">
-              <a href="car-details.html?id=${car.id}" class="text-blue-600 hover:underline mx-2">تفاصيل</a>
-              <button onclick="deleteCar(${car.id})" class="text-red-500 hover:underline mx-2">حذف</button>
+        return `
+          <tr class="border-b border-slate-100 hover:bg-amber-50/40 transition-colors">
+            <td class="p-4 text-center font-mono font-bold text-slate-500 bg-slate-50/50">${autoIndex}</td>
+            <td class="p-4 font-black text-slate-900 font-mono text-base">${car.plate_number}</td>
+            <td class="p-4 font-bold text-slate-800">${car.company} ${car.model}</td>
+            <td class="p-4 text-center font-bold text-slate-600">${car.year}</td>
+            <td class="p-4">${driversHtml}</td>
+            <td class="p-4 text-center font-mono font-bold text-slate-700">${Number(car.purchase_cost || 0).toLocaleString()} <span class="text-xs font-normal text-slate-400">ر.س</span></td>
+            <td class="p-4 text-center">
+              <span class="bg-slate-100 text-slate-700 font-bold text-xs px-2.5 py-1 rounded-lg border border-slate-200">
+                ${car.depreciation_method || 'قسط ثابت'}
+              </span>
+            </td>
+            <td class="p-4 text-center action-cell no-print">
+              <div class="flex items-center justify-center gap-2">
+                <a href="car-details.html?id=${car.id}" class="bg-amber-100 hover:bg-amber-200 text-amber-900 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs">
+                  تفاصيل المركبة
+                </a>
+                <button
+                  onclick="openEditCarModal(${car.id})"
+                  class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-xs font-bold transition-all ${!canEdit ? 'hidden' : ''}"
+                >
+                  تعديل
+                </button>
+                <button
+                  onclick="deleteCar(${car.id}, '${car.plate_number}')"
+                  class="bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-1 rounded-lg text-xs font-bold transition-all ${!canDelete ? 'hidden' : ''}"
+                >
+                  حذف
+                </button>
+              </div>
             </td>
           </tr>
-        `).join('');
-      } catch (error) {
-        console.error("Error loading cars:", error);
-        tableBody.innerHTML = `<tr><td colSpan="6" class="text-center p-4 text-red-500">حدث خطأ أثناء تحميل البيانات</td></tr>`;
-      }
+        `;
+      }).join('');
+
+      // Auto re-apply RBAC attributes
+      if (window.MasaratRBAC) window.MasaratRBAC.applyGuards();
     }
 
-    async function deleteCar(id) {
-      if (confirm("هل أنت متأكد من حذف هذه المركبة؟ لا يمكن التراجع عن هذا الإجراء.")) {
-        try {
-          const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-          if (res.ok) {
-            loadCars();
-          } else {
-            const data = await res.json();
-            alert("فشل الحذف: " + (data.error || "خطأ غير معروف"));
-          }
-        } catch (error) {
-          console.error("Error deleting car:", error);
-          alert("حدث خطأ أثناء الحذف");
-        }
-      }
-    }
+    // Search input listener
+    searchInput.addEventListener("input", () => {
+      clearSearchBtn.classList.toggle("hidden", !searchInput.value);
+      renderCarsTable();
+    });
 
+    clearSearchBtn.addEventListener("click", () => {
+      searchInput.value = "";
+      clearSearchBtn.classList.add("hidden");
+      renderCarsTable();
+    });
+
+    // Open Edit Car Modal
+    window.openEditCarModal = function(id) {
+      const car = allCars.find(c => c.id === id);
+      if (!car) return;
+
+      editingCarId = id;
+      document.getElementById("edit-company").value = car.company || "";
+      document.getElementById("edit-model").value = car.model || "";
+      document.getElementById("edit-year").value = car.year || new Date().getFullYear();
+      document.getElementById("edit-plate_number").value = car.plate_number || "";
+      document.getElementById("edit-purchase_date").value = car.purchase_date || "";
+      document.getElementById("edit-color").value = car.color || "";
+      document.getElementById("edit-purchase_cost").value = car.purchase_cost || "";
+      document.getElementById("edit-depreciation_method").value = car.depreciation_method || "قسط ثابت";
+
+      renderDriversCheckboxes(editDriversCheckboxContainer, car.assigned_driver_ids || []);
+      editModal.classList.remove("hidden");
+    };
+
+    // Form submit handlers
     carForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      
+
+      // Collect checked driver IDs
+      const checkedDriverIds = Array.from(driversCheckboxContainer.querySelectorAll('input[type="checkbox"]:checked'))
+        .map(cb => parseInt(cb.value));
+
       const formData = {
-        company: document.getElementById("company").value,
-        model: document.getElementById("model").value,
+        company: document.getElementById("company").value.trim(),
+        model: document.getElementById("model").value.trim(),
         year: parseInt(document.getElementById("year").value),
         purchase_date: document.getElementById("purchase_date").value,
-        plate_number: document.getElementById("plate_number").value,
-        color: document.getElementById("color").value,
+        plate_number: document.getElementById("plate_number").value.trim(),
+        color: document.getElementById("color").value.trim(),
         purchase_cost: parseFloat(document.getElementById("purchase_cost").value),
-        depreciation_method: document.getElementById("depreciation_method").value
+        depreciation_method: document.getElementById("depreciation_method").value,
+        assigned_driver_ids: checkedDriverIds
       };
 
       try {
-        const response = await fetch(API_URL, {
+        const res = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData)
         });
 
-        if (response.ok) {
-          addCarForm.classList.add("hidden");
-          addBtnContainer.classList.remove("hidden");
-          carForm.reset();
-          document.getElementById("year").value = new Date().getFullYear();
-          loadCars();
+        if (res.ok) {
+          hideAddForm();
+          loadData();
         } else {
-          const data = await response.json();
+          const data = await res.json();
           alert("فشل الحفظ: " + (data.error || "خطأ غير معروف"));
         }
-      } catch (error) {
-        console.error("Error adding car:", error);
+      } catch (err) {
+        console.error("Error adding car:", err);
         alert("حدث خطأ أثناء الاتصال بالخادم");
       }
     });
 
+    editForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!editingCarId) return;
+
+      const checkedDriverIds = Array.from(editDriversCheckboxContainer.querySelectorAll('input[type="checkbox"]:checked'))
+        .map(cb => parseInt(cb.value));
+
+      const formData = {
+        company: document.getElementById("edit-company").value.trim(),
+        model: document.getElementById("edit-model").value.trim(),
+        year: parseInt(document.getElementById("edit-year").value),
+        purchase_date: document.getElementById("edit-purchase_date").value,
+        plate_number: document.getElementById("edit-plate_number").value.trim(),
+        color: document.getElementById("edit-color").value.trim(),
+        purchase_cost: parseFloat(document.getElementById("edit-purchase_cost").value),
+        depreciation_method: document.getElementById("edit-depreciation_method").value,
+        assigned_driver_ids: checkedDriverIds
+      };
+
+      try {
+        const res = await fetch(`${API_URL}/${editingCarId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData)
+        });
+
+        if (res.ok) {
+          editModal.classList.add("hidden");
+          editingCarId = null;
+          loadData();
+        } else {
+          const data = await res.json();
+          alert("فشل التحديث: " + (data.error || "خطأ غير معروف"));
+        }
+      } catch (err) {
+        console.error("Error updating car:", err);
+        alert("حدث خطأ أثناء الاتصال بالخادم");
+      }
+    });
+
+    async function deleteCar(id, plate) {
+      if (confirm(`هل أنت متأكد من حذف المركبة ذات اللوحة "${plate}" نهائياً من الأسطول؟`)) {
+        try {
+          const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+          if (res.ok) {
+            loadData();
+          } else {
+            const data = await res.json();
+            alert("فشل الحذف: " + (data.error || "خطأ غير معروف"));
+          }
+        } catch (err) {
+          console.error("Error deleting car:", err);
+          alert("حدث خطأ أثناء الحذف");
+        }
+      }
+    }
+
+    // Print Cars Statement with Masarat Official Header
+    function printCarsList() {
+      const now = new Date();
+      const formattedDate = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} - ${now.toLocaleTimeString('ar-SA')}`;
+      document.getElementById("print-timestamp").textContent = formattedDate;
+      document.getElementById("print-total-count").textContent = document.getElementById("cars-count-badge").textContent;
+      document.getElementById("print-year").textContent = now.getFullYear();
+
+      window.print();
+    }
+
     // Initial Load
-    loadCars();
+    loadData();
   </script>
 </body>
 </html>
